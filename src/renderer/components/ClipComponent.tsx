@@ -1,78 +1,75 @@
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition, { TimelinePositionOptions } from "renderer/types/TimelinePosition";
-import { BAR_WIDTH, shadeColor } from "renderer/utils";
+import { BEAT_WIDTH, shadeColor } from "renderer/utils";
 import { Track } from "./TrackComponent";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faArrowRight, faRedo } from "@fortawesome/free-solid-svg-icons";
 import trimToLeft from "../../../assets/svg/trim-to-left.svg"
 import trimToRight from "../../../assets/svg/trim-to-right.svg"
 import { minWidth } from "@mui/system";
-import { SnapSize } from "renderer/types/types";
+import { ID, SnapSize } from "renderer/types/types";
 
 interface IProps {
   clip : Clip
   track : Track
   isSelected? : boolean
   onSelect : () => void
+  onTrackChange : (e : React.MouseEvent<HTMLDivElement, MouseEvent>, track : Track, clip : Clip) => void
+  setClip : (oldClip : Clip, newClip : Clip) => void
 }
 
 interface IState {
-  start : TimelinePosition,
-  end : TimelinePosition,
-  startLimit : TimelinePosition,
-  endLimit : TimelinePosition,
-  loopEnd : TimelinePosition,
-  isResizing : boolean,
-  isDragging : boolean,
-  isLooping : boolean,
-  resizeMode : ResizeMode,
-  prevX : number
-}
-
-enum ResizeMode { Start, End }
-
-export class Clip {
-  idx : number
   start : TimelinePosition
   end : TimelinePosition
   startLimit : TimelinePosition
   endLimit : TimelinePosition
   loopEnd : TimelinePosition
-
-  constructor(idx : number, start : TimelinePosition, end : TimelinePosition, originalStart : TimelinePosition, originalEnd : TimelinePosition, loopEnd : TimelinePosition | null = null) {
-    this.idx = idx
-    this.start = start
-    this.end = end
-    this.startLimit = originalStart
-    this.endLimit = originalEnd
-    this.loopEnd = loopEnd || TimelinePosition.fromPos(end)
-  }
+  isResizing : boolean
+  isDragging : boolean
+  isLooping : boolean
+  resizeMode : ResizeMode
+  prevX : number
 }
 
-export default class ClipComponent extends React.Component<IProps, IState> {
+enum ResizeMode { Start, End }
+
+export enum TrackChangeMode { Top, Bottom }
+
+export interface Clip {
+  id : ID
+  start : TimelinePosition
+  end : TimelinePosition
+  startLimit : TimelinePosition
+  endLimit : TimelinePosition
+  loopEnd : TimelinePosition
+}
+
+class ClipComponent extends React.Component<IProps, IState> {
   static contextType = WorkstationContext
   context : React.ContextType<typeof WorkstationContext>
 
   private clipRef : React.RefObject<HTMLDivElement>
   private loopRef : React.RefObject<HTMLDivElement>
+  private trackChangeDivRef : React.RefObject<HTMLDivElement>
 
   constructor(props : any) {
     super(props)
 
     this.clipRef = React.createRef()
     this.loopRef = React.createRef()
+    this.trackChangeDivRef = React.createRef()
     
     this.state = {
       start: this.props.clip.start,
       end: this.props.clip.end,
-      isResizing : false,
-      isDragging : false,
-      isLooping : false,
-      resizeMode: ResizeMode.Start,
       startLimit: this.props.clip.startLimit,
       endLimit: this.props.clip.endLimit,
       loopEnd: this.props.clip.loopEnd,
+      isResizing: false,
+      isDragging: false,
+      isLooping: false,
+      resizeMode: ResizeMode.Start,
       prevX : 0
     }
   }
@@ -106,7 +103,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
       if (this.state.isDragging) {
         let xDiff = (e.clientX - this.state.prevX) * Math.min((0.0556 * Math.abs(e.movementX) + 0.95), 1.3)
   
-        const {measures, bars, fraction} = TimelinePosition.fromWidth(Math.abs(xDiff), timelinePosOptions)
+        const {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(xDiff), timelinePosOptions)
         const prevNewStart = TimelinePosition.fromPos(start)
   
         const widthMBF = TimelinePosition.fromWidth(getLength(), timelinePosOptions)
@@ -122,15 +119,15 @@ export default class ClipComponent extends React.Component<IProps, IState> {
         const posOptionsWOSnap : TimelinePositionOptions = {...timelinePosOptions, snapSize: SnapSize.None}
   
         if (xDiff < 0) {
-          start.subtract(measures, bars, fraction, true, timelinePosOptions)
-          end = start.add(widthMBF.measures, widthMBF.bars, widthMBF.fraction, false, posOptionsWOSnap)
-          loopEnd = end.add(loopEndMBF.measures, loopEndMBF.bars, loopEndMBF.fraction, false, posOptionsWOSnap)
-          startLimit = start.subtract(startLimitMBF.measures, startLimitMBF.bars, startLimitMBF.fraction, false, posOptionsWOSnap)
+          start.subtract(measures, beats, fraction, true, timelinePosOptions)
+          end = start.add(widthMBF.measures, widthMBF.beats, widthMBF.fraction, false, posOptionsWOSnap)
+          loopEnd = end.add(loopEndMBF.measures, loopEndMBF.beats, loopEndMBF.fraction, false, posOptionsWOSnap)
+          startLimit = start.subtract(startLimitMBF.measures, startLimitMBF.beats, startLimitMBF.fraction, false, posOptionsWOSnap)
         } else {
-          start.add(measures, bars, fraction, true, timelinePosOptions)
-          end = start.add(widthMBF.measures, widthMBF.bars, widthMBF.fraction, false, posOptionsWOSnap)
-          loopEnd = end.add(loopEndMBF.measures, loopEndMBF.bars, loopEndMBF.fraction, false, posOptionsWOSnap)
-          startLimit = start.subtract(startLimitMBF.measures, startLimitMBF.bars, startLimitMBF.fraction, false, posOptionsWOSnap)
+          start.add(measures, beats, fraction, true, timelinePosOptions)
+          end = start.add(widthMBF.measures, widthMBF.beats, widthMBF.fraction, false, posOptionsWOSnap)
+          loopEnd = end.add(loopEndMBF.measures, loopEndMBF.beats, loopEndMBF.fraction, false, posOptionsWOSnap)
+          startLimit = start.subtract(startLimitMBF.measures, startLimitMBF.beats, startLimitMBF.fraction, false, posOptionsWOSnap)
         }
   
         if (prevNewStart.compare(start) !== 0)
@@ -138,10 +135,10 @@ export default class ClipComponent extends React.Component<IProps, IState> {
   
         if (start.compare(TimelinePosition.start) < 0) {
           start = TimelinePosition.fromPos(TimelinePosition.start)
-          end = start.add(widthMBF.measures, widthMBF.bars, widthMBF.fraction, false, posOptionsWOSnap)
+          end = start.add(widthMBF.measures, widthMBF.beats, widthMBF.fraction, false, posOptionsWOSnap)
   
           if (loopEnd)
-            loopEnd = end.add(loopEndMBF.measures, loopEndMBF.bars, loopEndMBF.fraction, false, posOptionsWOSnap)
+            loopEnd = end.add(loopEndMBF.measures, loopEndMBF.beats, loopEndMBF.fraction, false, posOptionsWOSnap)
         }
   
         this.setState({start, end, startLimit, endLimit, loopEnd, prevX})
@@ -151,13 +148,13 @@ export default class ClipComponent extends React.Component<IProps, IState> {
           this.clipRef.current!.getBoundingClientRect().x + this.clipRef.current!.offsetWidth - 5
   
         const xDiff = e.clientX - x
-        const {measures, bars, fraction} = TimelinePosition.fromWidth(Math.abs(xDiff), timelinePosOptions)
+        const {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(xDiff), timelinePosOptions)
   
         if (this.state.resizeMode === ResizeMode.Start) {
           if (xDiff < 0)
-            start.subtract(measures, bars, fraction, true, timelinePosOptions)
+            start.subtract(measures, beats, fraction, true, timelinePosOptions)
           else  
-            start.add(measures, bars, fraction, true, timelinePosOptions)
+            start.add(measures, beats, fraction, true, timelinePosOptions)
   
           if (start.compare(this.state.end) >= 0)
             return
@@ -170,12 +167,12 @@ export default class ClipComponent extends React.Component<IProps, IState> {
         } else if (this.state.resizeMode === ResizeMode.End) {
           if (xDiff < 0) {
             if (end.compare(this.state.loopEnd!) === 0) {
-              loopEnd.subtract(measures, bars, fraction, true, timelinePosOptions)
+              loopEnd.subtract(measures, beats, fraction, true, timelinePosOptions)
             }
   
-            end.subtract(measures, bars, fraction, true, timelinePosOptions)
+            end.subtract(measures, beats, fraction, true, timelinePosOptions)
           } else  
-            end.add(measures, bars, fraction, true, timelinePosOptions)
+            end.add(measures, beats, fraction, true, timelinePosOptions)
   
           if (end.compare(this.state.start) <= 0)
             return
@@ -189,15 +186,15 @@ export default class ClipComponent extends React.Component<IProps, IState> {
       } else if (this.state.isLooping) {
         const x = this.loopRef.current!.getBoundingClientRect().x + this.loopRef.current!.offsetWidth
         const xDiff = e.clientX - x
-        const {measures, bars, fraction} = TimelinePosition.fromWidth(Math.abs(xDiff), timelinePosOptions)
+        const {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(xDiff), timelinePosOptions)
   
         if (xDiff < 0) {
-          loopEnd?.subtract(measures, bars, fraction, true, timelinePosOptions)
+          loopEnd?.subtract(measures, beats, fraction, true, timelinePosOptions)
   
           if (loopEnd!.compare(this.state.end) < 0)
             loopEnd = TimelinePosition.fromPos(this.state.end)
         } else  
-          loopEnd?.add(measures, bars, fraction, true, timelinePosOptions)
+          loopEnd?.add(measures, beats, fraction, true, timelinePosOptions)
   
         this.setState({loopEnd})
       }
@@ -241,8 +238,31 @@ export default class ClipComponent extends React.Component<IProps, IState> {
               zIndex: -500,
               minWidth: 500
             }}
-          >
-          </div>
+          ></div>
+        }
+        {
+          this.state.isDragging &&
+          <div
+            ref={this.trackChangeDivRef}
+            onMouseLeave={e => {
+              this.props.onTrackChange(e, this.props.track, this.props.clip)
+              this.props.setClip(this.props.clip, {
+                id: this.props.clip.id,
+                start: this.state.start, 
+                startLimit: this.state.startLimit,
+                endLimit: this.state.endLimit,
+                end: this.state.end, 
+                loopEnd: this.state.loopEnd
+              })
+            }}
+            style={{
+              position: "absolute",
+              height: "140%",
+              width: "100%",
+              transform: "translate(0%, -50%)",
+              top: "50%"
+            }}
+          ></div>
         }
         {
           this.props.isSelected &&
@@ -378,3 +398,5 @@ export default class ClipComponent extends React.Component<IProps, IState> {
     )
   }
 }
+
+export default ClipComponent

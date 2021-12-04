@@ -11,18 +11,11 @@ type State = {
 
 }
 
-export class Track {
+export interface Track {
   id : ID
   name : string
   color : string
-  clips : Clip[] = []
-
-  constructor(id : ID, name : string, color : string, clips : Clip[]) {
-    this.id = id
-    this.name = name
-    this.color = color
-    this.clips = clips
-  }
+  clips : Clip[]
 }
 
 export default class TrackComponent extends React.Component<TrackProps, State> {

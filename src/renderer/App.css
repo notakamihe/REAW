@@ -35,3 +35,23 @@
   -ms-user-select: none;
   user-select: none;
 }
+
+input::-webkit-outer-spin-button, 
+input::-webkit-inner-spin-button { margin-left: 8px; } 
+
+.hide-dropdown-arrow {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  text-indent: 1px;
+  text-overflow: '';
+}
+
+.remove-dropdown-styles {
+  border: none;
+  background-color: #0000;
+  outline: none;
+}
+
+button {
+  border: none;
+}

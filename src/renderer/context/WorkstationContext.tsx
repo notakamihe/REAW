@@ -1,7 +1,7 @@
 import React from "react"
 import { GridSize, SnapSize, TimeSignature } from "renderer/types/types";
-import { TimelinePositionOptions } from "renderer/types/TimelinePosition";
-import { BAR_WIDTH } from "renderer/utils";
+import TimelinePosition, { TimelinePositionOptions } from "renderer/types/TimelinePosition";
+import { BEAT_WIDTH } from "renderer/utils";
 
 export interface WorkflowContextType {
   verticalScale : number
@@ -17,7 +17,19 @@ export interface WorkflowContextType {
   timeSignature : TimeSignature
   setTimeSignature : React.Dispatch<React.SetStateAction<TimeSignature>>,
   autoSnap : boolean,
-  setAutoSnap : React.Dispatch<React.SetStateAction<boolean>>
+  setAutoSnap : React.Dispatch<React.SetStateAction<boolean>>,
+  cursorPos : TimelinePosition,
+  setCursorPos : React.Dispatch<React.SetStateAction<TimelinePosition>>,
+  tempo : number,
+  setTempo : React.Dispatch<React.SetStateAction<number>>,
+  isPlaying : boolean,
+  setIsPlaying : React.Dispatch<React.SetStateAction<boolean>>,
+  isLooping : boolean,
+  setIsLooping : React.Dispatch<React.SetStateAction<boolean>>,
+  isRecording : boolean,
+  setIsRecording : React.Dispatch<React.SetStateAction<boolean>>,
+  metronome : boolean,
+  setMetronome : React.Dispatch<React.SetStateAction<boolean>>
 };
 
 export const WorkstationContext = React.createContext<WorkflowContextType | undefined>(undefined);
@@ -25,26 +37,34 @@ export const WorkstationContext = React.createContext<WorkflowContextType | unde
 export const WorkstationProvider: React.FC = ({ children }) => {
   const [verticalScale, setVerticalScale] = React.useState(1);
   const [horizontalScale, setHorizontalScale] = React.useState(1);
-  const [gridSize, setGridSize] = React.useState(GridSize.ThirtySecondBar);
-  const [snapSize, setSnapSize] = React.useState(SnapSize.ThirtySecondBar);
+  const [gridSize, setGridSize] = React.useState(GridSize.ThirtySecondBeat);
+  const [snapSize, setSnapSize] = React.useState(SnapSize.None);
   const [timeSignature, setTimeSignature] = React.useState({beats: 4, noteValue: 4});
-  const [autoSnap, setAutoSnap] = React.useState(true);
+  const [autoSnap, setAutoSnap] = React.useState(false);
+  const [cursorPos, setCursorPos] = React.useState(TimelinePosition.fromPos(TimelinePosition.start))
+  const [tempo, setTempo] = React.useState(120);
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  const [isLooping, setIsLooping] = React.useState(false);
+  const [isRecording, setIsRecording] = React.useState(false);
+  const [metronome, setMetronome] = React.useState(false);
 
   const [timelinePosOptions, setTimelinePosOptions] = React.useState({
     snapSize, 
-    barWidth: BAR_WIDTH, 
+    beatWidth: BEAT_WIDTH, 
     horizontalScale,
-    timeSignature
+    timeSignature,
+    tempo
   });
 
   React.useEffect(() => {
     setTimelinePosOptions({
       snapSize, 
-      barWidth: BAR_WIDTH, 
+      beatWidth: BEAT_WIDTH, 
       horizontalScale,
-      timeSignature
+      timeSignature,
+      tempo
     });
-  }, [horizontalScale, snapSize, timeSignature])
+  }, [horizontalScale, snapSize, timeSignature, tempo])
 
   React.useEffect(() => {
     if (autoSnap) {
@@ -53,24 +73,24 @@ export const WorkstationProvider: React.FC = ({ children }) => {
       } else if (horizontalScale < 0.1153) {
         setSnapSize(SnapSize.HalfMeasure)
       } else if (horizontalScale < 0.1738) {
-        setSnapSize(SnapSize.Bar)
+        setSnapSize(SnapSize.Beat)
       } else if (horizontalScale < 0.3848) {
-        setSnapSize(SnapSize.HalfBar)
+        setSnapSize(SnapSize.HalfBeat)
       } else if (horizontalScale < 0.6791) {
-        setSnapSize(SnapSize.QuarterBar)
+        setSnapSize(SnapSize.QuarterBeat)
       } else if (horizontalScale < 1.8069) {
-        setSnapSize(SnapSize.EighthBar)
+        setSnapSize(SnapSize.EighthBeat)
       } else if (horizontalScale < 3.6147) {
-        setSnapSize(SnapSize.SixteenthBar)
+        setSnapSize(SnapSize.SixteenthBeat)
       } else if (horizontalScale < 7.2323) {
-        setSnapSize(SnapSize.ThirtySecondBar)
+        setSnapSize(SnapSize.ThirtySecondBeat)
       } else if (horizontalScale < 14.4647) {
-        setSnapSize(SnapSize.SixtyFourthBar)
+        setSnapSize(SnapSize.SixtyFourthBeat)
       } else {
-        setSnapSize(SnapSize.HundredTwentyEighthBar)
+        setSnapSize(SnapSize.HundredTwentyEighthBeat)
       }
     }
-  }, [horizontalScale])
+  }, [horizontalScale, autoSnap])
 
   return (
     <WorkstationContext.Provider 
@@ -88,7 +108,19 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         timeSignature,
         setTimeSignature,
         autoSnap,
-        setAutoSnap
+        setAutoSnap,
+        cursorPos,
+        setCursorPos,
+        tempo,
+        setTempo,
+        isPlaying,
+        setIsPlaying,
+        isLooping,
+        setIsLooping,
+        isRecording,
+        setIsRecording,
+        metronome,
+        setMetronome
       }}
     >
       {children}

@@ -6,6 +6,7 @@ import cursorHead from "../../../assets/svg/cursor-head.svg"
 interface IProps {
   pos : TimelinePosition
   top : boolean
+  height? : number
 }
 
 export default class Cursor extends React.Component<IProps> {
@@ -20,13 +21,15 @@ export default class Cursor extends React.Component<IProps> {
         className="disable-highlighting"
         style={{
           position: "absolute", 
-          height: "100%",
+          height: this.props.height || "100%",
           top: 0, 
+          bottom: 0,
           left: -4 + this.props.pos.toMargin(timelinePosOptions), 
           zIndex: 400,
           pointerEvents: "none",
           display: "flex",
-          flexDirection: "column"
+          flexDirection: "column",
+          minHeight: "100%"
         }}
       >
         {
@@ -35,7 +38,7 @@ export default class Cursor extends React.Component<IProps> {
             <img src={cursorHead} style={{height: 25}} />
             <div style={{width: 2, flex: 1, backgroundColor: "#ff6db8", marginLeft: 4}}></div>
           </React.Fragment> :
-          <div style={{width: 2, flex: 1, backgroundColor: "#ff6db8", marginLeft: 4}}></div>
+          <div style={{width: 2, flex: 1, height: "100%", backgroundColor: "#ff6db8", marginLeft: 4}}></div>
         }
       </div>
     )

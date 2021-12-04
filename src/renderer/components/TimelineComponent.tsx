@@ -29,10 +29,10 @@ export default class TimelineComponent extends React.Component<IProps, IState> {
         newTimelinePosOptions.snapSize = SnapSize.None
       
       const xDiff = e.clientX - e.currentTarget.getBoundingClientRect().x
-      const {measures, bars, fraction} = TimelinePosition.fromWidth(xDiff, newTimelinePosOptions)
+      const {measures, beats, fraction} = TimelinePosition.fromWidth(xDiff, newTimelinePosOptions)
       
       let newPos = TimelinePosition.fromPos(TimelinePosition.start)
-      newPos.add(measures, bars, fraction, true, newTimelinePosOptions, SnapMode.Nearest)
+      newPos.add(measures, beats, fraction, true, newTimelinePosOptions, SnapMode.Nearest)
 
       this.props.setCursorPos(newPos)
     }

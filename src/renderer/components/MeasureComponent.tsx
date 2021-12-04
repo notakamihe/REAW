@@ -1,9 +1,9 @@
 import React from "react"
 import { WorkstationContext } from "renderer/context/WorkstationContext"
 import { Unit } from "renderer/types/types"
-import { BAR_WIDTH } from "renderer/utils"
-import { BarComponent } from "."
-import { Bar } from "./BarComponent"
+import { BEAT_WIDTH } from "renderer/utils"
+import { BeatComponent } from "."
+import { Beat } from "./BeatComponent"
 
 interface IProps {
   measure : Measure
@@ -14,11 +14,11 @@ interface IState {
 }
 
 export class Measure extends Unit {
-  numberOfBars : number
+  numberOfBeats : number
   
-  constructor(pos : number, numberOfBars : number) {
+  constructor(pos : number, numberOfBeats : number) {
     super(pos)
-    this.numberOfBars = numberOfBars
+    this.numberOfBeats = numberOfBeats
   }
 }
 
@@ -44,7 +44,7 @@ export default class MeasureComponent extends React.Component<IProps, IState> {
         className="d-flex position-relative" 
         style={{
           flexShrink: 0, 
-          width: this.props.measure.numberOfBars * BAR_WIDTH * horizontalScale, 
+          width: this.props.measure.numberOfBeats * BEAT_WIDTH * horizontalScale, 
           height: 30, 
           borderLeft: "1px solid #000", 
           alignItems: "flex-end",
@@ -52,8 +52,8 @@ export default class MeasureComponent extends React.Component<IProps, IState> {
         }}
       >
         {
-          [...Array(this.props.measure.numberOfBars)].map((_, i) => (
-            <BarComponent key={i} bar={new Bar(i+1, this.props.measure)} />
+          [...Array(this.props.measure.numberOfBeats)].map((_, i) => (
+            <BeatComponent key={i} beat={new Beat(i+1, this.props.measure)} />
           ))
         }
         <span style={{position: "absolute", left: 3, fontSize: 11, top: -4}}>{this.props.measure.pos}</span>
