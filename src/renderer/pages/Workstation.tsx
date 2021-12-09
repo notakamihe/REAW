@@ -52,7 +52,22 @@ export default class Workstation extends React.Component<IProps, IState> {
           endLimit: new TimelinePosition(4, 3, 750),
           loopEnd: new TimelinePosition(4, 3, 750),
         }
-      ]
+      ],
+      effects: [
+        {
+          id: uuidv4(),
+          name: "Effect 1"
+        },
+        {
+          id: uuidv4(),
+          name: "Effect 2"
+        }
+      ],
+      mute: false,
+      solo: false,
+      automationEnabled: true,
+      volume: 100,
+      pan: 0
     },
     {
       id: uuidv4(), 
@@ -67,7 +82,13 @@ export default class Workstation extends React.Component<IProps, IState> {
           endLimit: new TimelinePosition(1, 3, 0),
           loopEnd: new TimelinePosition(1, 3, 0),
         }
-      ]
+      ],
+      effects: [],
+      mute: false,
+      solo: false,
+      automationEnabled: false,
+      volume: 100,
+      pan: 0
     },
     {
       id: uuidv4(), 
@@ -82,7 +103,13 @@ export default class Workstation extends React.Component<IProps, IState> {
           endLimit: new TimelinePosition(5, 1, 0),
           loopEnd: new TimelinePosition(5, 1, 0),
         }
-      ]
+      ],
+      effects: [],
+      mute: false,
+      solo: false,
+      automationEnabled: false,
+      volume: 100,
+      pan: 0
     },
     {
       id: uuidv4(), 
@@ -105,7 +132,13 @@ export default class Workstation extends React.Component<IProps, IState> {
           endLimit: new TimelinePosition(5, 4, 90),
           loopEnd: new TimelinePosition(5, 4, 90)
         }
-      ]
+      ],
+      effects: [],
+      mute: false,
+      solo: false,
+      automationEnabled: false,
+      volume: 100,
+      pan: 0
     },
     {
       id: uuidv4(), 
@@ -128,7 +161,13 @@ export default class Workstation extends React.Component<IProps, IState> {
           endLimit: new TimelinePosition(4, 4, 4),
           loopEnd: new TimelinePosition(4, 4, 4)
         }
-      ]
+      ],
+      effects: [],
+      mute: true,
+      solo: true,
+      automationEnabled: false,
+      volume: 100,
+      pan: 0
     },
     {
       id: uuidv4(), 
@@ -151,7 +190,13 @@ export default class Workstation extends React.Component<IProps, IState> {
           endLimit: new TimelinePosition(5, 1, 500),
           loopEnd: new TimelinePosition(5, 1, 500)
         }
-      ]
+      ],
+      effects: [],
+      mute: false,
+      solo: false,
+      automationEnabled: false,
+      volume: 100,
+      pan: 0
     },
     {
       id: uuidv4(), 
@@ -174,7 +219,13 @@ export default class Workstation extends React.Component<IProps, IState> {
           endLimit: new TimelinePosition(6, 1, 0),
           loopEnd: new TimelinePosition(6, 1, 0)
         }
-      ]
+      ],
+      effects: [],
+      mute: false,
+      solo: false,
+      automationEnabled: false,
+      volume: 100,
+      pan: 0
     },
   ]
   
@@ -208,7 +259,13 @@ export default class Workstation extends React.Component<IProps, IState> {
       id: uuidv4(), 
       name: `Track ${this.state.tracks.length + 1}`, 
       color: getRandomTrackColor(), 
-      clips: []
+      clips: [],
+      effects: [],
+      mute: false,
+      solo: false,
+      automationEnabled: false,
+      volume: 100,
+      pan: 0
     }
 
     this.setState({tracks: [...this.state.tracks, newTrack]}, () => {
@@ -250,6 +307,21 @@ export default class Workstation extends React.Component<IProps, IState> {
       }
 
       return {tracks}
+    })
+  }
+
+  setTrack = (track : Track, callback?: () => void | null) => {
+    this.setState(prevState => {
+      const tracks = prevState.tracks.slice()
+      const trackIndex = tracks.findIndex(t => t.id === track.id)
+
+      tracks[trackIndex] = track
+
+      return {tracks}
+    }, () => {
+      if (callback) {
+        callback()
+      }
     })
   }
 
@@ -382,7 +454,7 @@ export default class Workstation extends React.Component<IProps, IState> {
                   >
                     {
                       this.state.tracks.map((track, index) => (
-                        <TrackComponent key={index} track={track} />
+                        <TrackComponent key={index} track={track} setTrack={this.setTrack} />
                       ))
                     }
                   </div>
@@ -393,7 +465,13 @@ export default class Workstation extends React.Component<IProps, IState> {
                   <ScrollSyncPane>
                     <div 
                       className="hide-scrollbar" 
-                      style={{width: "100%", height: 45, overflow: "scroll", backgroundColor: "#eee", position: "relative"}}
+                      style={{
+                        width: "100%", 
+                        height: 45, 
+                        overflow: "scroll", 
+                        backgroundColor: "#eee", 
+                        position: "relative"
+                    }}
                     >
                       <Cursor pos={cursorPos} top />
                       <TimelineComponent 
@@ -448,7 +526,7 @@ export default class Workstation extends React.Component<IProps, IState> {
               </ReactResizeDetector>
             </div>
           </ScrollSync>
-          <div style={{width: "5%", backgroundColor: "#fff", zIndex: -100}}>
+          <div style={{width: "5%", backgroundColor: "#fff", zIndex: -1}}>
 
           </div>
         </div>

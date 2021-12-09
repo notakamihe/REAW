@@ -39,9 +39,13 @@ enum SnapSizeOption {
   HundredTwentyEighthBeat
 }
 
-const PlaybackControlButton = styled(IconButton)<{isActivated: boolean, activatedBgColor? : string}>`
-  background-color: ${props => props.isActivated ? 
-    props.activatedBgColor || "#ff5db8!important" : "#333!important"};
+interface PlaybackControlButtonProps {
+  isactivated : boolean
+  activatedbgcolor? : string
+}
+
+const PlaybackControlButton = styled(IconButton)`
+  background-color: ${(props : PlaybackControlButtonProps) => props.isactivated ? props.activatedbgcolor || "#ff5db8!important" : "#333!important"};
   border-radius: 0!important;
   border-width: 1px!important;
   border-color: #555!important;
@@ -254,7 +258,7 @@ export default class Header extends React.Component<IProps, IState> {
         style={{
           width: "100%", 
           height: 70, 
-          zIndex: 100, 
+          zIndex: 19, 
           backgroundColor: "#fff", 
           boxShadow: "0 1px 10px 1px #0007", 
           flexShrink: 0,
@@ -355,29 +359,29 @@ export default class Header extends React.Component<IProps, IState> {
             <div 
             style={{display: "flex", justifyContent: "center", alignItems: "center", flexDirection: 'column'}}>
               <div className="d-flex" style={{margin: "0"}}>
-                <PlaybackControlButton onClick={() => setIsPlaying(!isPlaying)} isActivated={isPlaying}>  
+                <PlaybackControlButton onClick={() => setIsPlaying(!isPlaying)} isactivated={isPlaying}>  
                   <PlayArrow style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
-                <PlaybackControlButton onClick={() => stop()} isActivated={false} >  
+                <PlaybackControlButton onClick={() => stop()} isactivated={false} >  
                   <Stop style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
-                <PlaybackControlButton onClick={() => setIsRecording(!isRecording)} isActivated={false} >  
+                <PlaybackControlButton onClick={() => setIsRecording(!isRecording)} isactivated={false} >  
                   <FiberManualRecord style={{fontSize: 17, color: isRecording ? "#f00" : "#fff"}} />
                 </PlaybackControlButton>
-                <PlaybackControlButton onClick={() => setIsLooping(!isLooping)} isActivated={isLooping}> 
+                <PlaybackControlButton onClick={() => setIsLooping(!isLooping)} isactivated={isLooping}> 
                   <Loop style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
               </div>
               <div className="d-flex" style={{margin: "0"}}>
                 <PlaybackControlButton 
                   onClick={() => setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))} 
-                  isActivated={false}
+                  isactivated={false}
                 > 
                   <SkipPrevious style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
                 <PlaybackControlButton 
                   onClick={() => {}} 
-                  isActivated={false}
+                  isactivated={false}
                 > 
                   <SkipNext style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
@@ -388,7 +392,7 @@ export default class Header extends React.Component<IProps, IState> {
                   onMouseDown={fastForward} 
                   onHold={fastForward}
                 >
-                  <PlaybackControlButton isActivated={false} > 
+                  <PlaybackControlButton isactivated={false} > 
                     <FastForward style={{fontSize: 17, color: "#fff"}} />
                   </PlaybackControlButton>
                 </Holdable>
@@ -399,7 +403,7 @@ export default class Header extends React.Component<IProps, IState> {
                   onMouseDown={fastRewind} 
                   onHold={fastRewind}
                 >
-                  <PlaybackControlButton isActivated={false} > 
+                  <PlaybackControlButton isactivated={false} > 
                     <FastRewind style={{fontSize: 17, color: "#fff"}} />
                   </PlaybackControlButton>
                 </Holdable>

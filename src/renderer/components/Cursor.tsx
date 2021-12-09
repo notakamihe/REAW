@@ -25,7 +25,7 @@ export default class Cursor extends React.Component<IProps> {
           top: 0, 
           bottom: 0,
           left: -4 + this.props.pos.toMargin(timelinePosOptions), 
-          zIndex: 400,
+          zIndex: 18,
           pointerEvents: "none",
           display: "flex",
           flexDirection: "column",

@@ -1,3 +1,8 @@
+:root {
+  --color-primary: #ff6db8;
+  --color-primary-muted: #ff6db822;
+}
+
 .hide-vertical-scrollbar::-webkit-scrollbar {
   width: 0!important;
 }

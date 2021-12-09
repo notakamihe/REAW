@@ -38,9 +38,9 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   const [verticalScale, setVerticalScale] = React.useState(1);
   const [horizontalScale, setHorizontalScale] = React.useState(1);
   const [gridSize, setGridSize] = React.useState(GridSize.ThirtySecondBeat);
-  const [snapSize, setSnapSize] = React.useState(SnapSize.None);
+  const [snapSize, setSnapSize] = React.useState(SnapSize.ThirtySecondBeat);
   const [timeSignature, setTimeSignature] = React.useState({beats: 4, noteValue: 4});
-  const [autoSnap, setAutoSnap] = React.useState(false);
+  const [autoSnap, setAutoSnap] = React.useState(true);
   const [cursorPos, setCursorPos] = React.useState(TimelinePosition.fromPos(TimelinePosition.start))
   const [tempo, setTempo] = React.useState(120);
   const [isPlaying, setIsPlaying] = React.useState(false);

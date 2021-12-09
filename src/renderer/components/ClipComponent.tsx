@@ -220,7 +220,7 @@ class ClipComponent extends React.Component<IProps, IState> {
           left: this.state.start.toMargin(timelinePosOptions), 
           cursor: "pointer",
           borderRadius: 5,
-          zIndex: this.props.isSelected ? 300 : 100,
+          zIndex: this.props.isSelected ? 15 : 5,
           transition: "background-color 0.25s ease"
         }}
         onDragStart={e => e.preventDefault()}
@@ -235,7 +235,7 @@ class ClipComponent extends React.Component<IProps, IState> {
               width: "300%", 
               left: "50%",
               transform: "translate(-50%, 0%)",
-              zIndex: -500,
+              zIndex: -1,
               minWidth: 500
             }}
           ></div>
@@ -328,7 +328,7 @@ class ClipComponent extends React.Component<IProps, IState> {
                 width: 11,
                 padding: "0 1px",
                 backgroundColor: "#0000",
-                zIndex: 200,
+                zIndex: 10,
                 cursor: "ew-resize"
               }}
             >
@@ -352,7 +352,7 @@ class ClipComponent extends React.Component<IProps, IState> {
             </div>
           </div>
         }
-        <div className="position-absolute" style={{top: 0, bottom: 0, left: getLength() + 1, zIndex: -100}}>
+        <div className="position-absolute" style={{top: 0, bottom: 0, left: getLength() + 1, zIndex: -1}}>
           <div 
             ref={this.loopRef}
             className="d-flex"
@@ -388,7 +388,7 @@ class ClipComponent extends React.Component<IProps, IState> {
                 top: 0,
                 right: -(250 * horizontalScale),
                 backgroundColor: "#0000",
-                zIndex: -600
+                zIndex: -1
               }}
             >
             </div>

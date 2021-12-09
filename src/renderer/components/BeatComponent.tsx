@@ -50,7 +50,7 @@ export default class BeatComponent extends React.Component<IProps, IState> {
           borderLeft: this.props.beat.pos === 1 ? "none" : "1px solid #000", 
           alignItems: "flex-end",
           visibility: horizontalScale > 0.16 ? "visible" : "hidden"
-      }}
+        }}
       >
         {
           [...Array(gridSize as number)].map((grid, idx) => (

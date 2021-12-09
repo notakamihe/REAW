@@ -1,6 +1,13 @@
 export const BEAT_WIDTH = 50;
 export const MAX_MEASURES = 10000
 
+export function clamp(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+}
+
+export function degreeToRad(degree: number) {
+    return degree * Math.PI / 180;
+}
 
 export function getRandomTrackColor() {
   return hslToHex(Math.floor(Math.random() * 360), 80, 70)
@@ -16,6 +23,15 @@ export function hslToHex(h : number, s : number, l : number) {
   };
 
   return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+export function inverseLerp(value: number, min: number, max: number) {
+    const t = (value - min) / (max - min);
+    return clamp(t, 0, 1);
+}
+
+export function lerp(t: number, min: number, max: number) {
+  return min + t * (max - min);
 }
 
 export function shadeColor(col : string, amt : number) {

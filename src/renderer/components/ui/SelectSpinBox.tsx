@@ -12,16 +12,20 @@ interface IProps {
   value: any
   options : SelectSpinBoxOption<any>[]
   icon? : React.ReactNode
+  actionIcon? : React.ReactNode
+  label? : string
   style? : React.CSSProperties
+  defaultText? : string
   onChange : (option : SelectSpinBoxOption<any>) => void
+  onClick? : () => void
   onPrev : () => void
   onNext : () => void
   leftClickOpen? : boolean
 }
 
 interface IState {
-  idx : number
   anchorEl : HTMLElement | null
+  isHoveringOverIcon : boolean
 }
 
 export default class SelectSpinBox extends React.Component<IProps, IState> {
@@ -29,9 +33,23 @@ export default class SelectSpinBox extends React.Component<IProps, IState> {
     super(props);
 
     this.state = {
-      idx: 0,
-      anchorEl: null
+      anchorEl: null,
+      isHoveringOverIcon: false
     };
+  }
+
+  isValueFirst = () => {
+    return this.props.options[0].value === this.props.value;
+  }
+
+  isValueLast = () => {
+    return this.props.options[this.props.options.length - 1].value === this.props.value;
+  }
+
+  onClick = (e : React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    if (!this.props.leftClickOpen && this.props.onClick) {
+      this.props.onClick();
+    }
   }
 
   onOptionClick = (e : React.MouseEvent<HTMLDivElement, MouseEvent>, option : SelectSpinBoxOption<any>) => {
@@ -51,27 +69,48 @@ export default class SelectSpinBox extends React.Component<IProps, IState> {
         className="d-flex align-items-center"
         style={this.props.style}
       >
+        <div 
+          className="p-1 d-flex justify-content-center align-items-center" 
+          style={{height: "100%"}}
+          onMouseEnter={() => this.setState({isHoveringOverIcon: true})}
+          onMouseLeave={() => this.setState({isHoveringOverIcon: false})}
+        >
+          {this.props.icon && (!this.state.isHoveringOverIcon || !this.props.actionIcon) && this.props.icon}
+          {
+            (this.props.actionIcon && (this.state.isHoveringOverIcon || !this.props.icon)) && 
+            this.props.actionIcon
+          }
+        </div>
         {
-          this.props.icon &&
-          <div className="p-1 d-flex justify-content-center align-items-center" style={{height: "100%"}}>
-            {this.props.icon}
+          this.props.label &&
+          <div className="p-1">
+            {this.props.label}
           </div>
         }
         <div 
           onContextMenu={e => this.openPopover(e, true)} 
-          onMouseDown={e => this.openPopover(e, Boolean(this.props.leftClickOpen))} 
-          style={{flex: 1, height: "100%", paddingLeft: 4}}
+          onMouseDown={e => {if (this.props.leftClickOpen) this.openPopover(e, Boolean(this.props.leftClickOpen))}} 
+          onClick={this.onClick}
+          style={{
+            flex: 1, 
+            height: "100%",
+            paddingLeft: 4, 
+            cursor: (this.props.leftClickOpen || this.props.onClick) ? "pointer" : "default",
+            overflow: "hidden"
+          }}
         >
-          <div
-            className="d-flex align-items-center hide-dropdown-arrow remove-dropdown-styles"
+          <p
             style={{
               width: "100%",
               height: "100%", 
-              fontSize: 14,
+              fontSize: 14
             }}
           >
-            {this.props.options.find(o => o.value === this.props.value)?.label}
-          </div>
+            {
+              this.props.options.find(o => o.value === this.props.value)?.label || 
+              <span style={{opacity: 0.7}}>{this.props.defaultText}</span>
+            }
+          </p>
           <Popover
             open={Boolean(this.state.anchorEl)}
             anchorEl={this.state.anchorEl}
@@ -98,22 +137,27 @@ export default class SelectSpinBox extends React.Component<IProps, IState> {
             </List>
           </Popover>
         </div>
-        <div className="d-flex p-0" style={{flexDirection: "column", height: "100%", width: 12}}>
-          <button 
-            className="d-flex justify-content-center align-items-center p-0 m-0" 
-            style={{height: "50%", width: "100%", backgroundColor: "#333", borderTopRightRadius: 5, overflow: "hidden"}}
-            onClick={e => this.props.onPrev()}
-          >
-            <ArrowDropUp style={{color: "#fff"}}/>
-          </button>
-          <button 
-            className="d-flex justify-content-center align-items-center p-0 m-0" 
-            style={{height: "50%", width: "100%", backgroundColor: "#333", borderBottomRightRadius: 5, overflow: "hidden"}}
-            onClick={e => this.props.onNext()}
-          >
-            <ArrowDropDown style={{color: "#fff"}}/>
-          </button>
-        </div>
+        {
+          this.props.options.length > 1 &&
+          <div className="d-flex p-0" style={{flexDirection: "column", height: "100%", width: 12}}>
+            <button 
+              className="d-flex justify-content-center align-items-center p-0 m-0" 
+              style={{height: "50%", width: "100%", backgroundColor: "#333", borderTopRightRadius: 5, overflow: "hidden", opacity: this.isValueFirst() ? 0.2 : 1}}
+              onClick={e => this.props.onPrev()}
+              disabled={this.isValueFirst()}
+            >
+              <ArrowDropUp style={{color: "#fff"}}/>
+            </button>
+            <button 
+              className="d-flex justify-content-center align-items-center p-0 m-0" 
+              style={{height: "50%", width: "100%", backgroundColor: "#333", borderBottomRightRadius: 5, overflow: "hidden", opacity: this.isValueLast() ? 0.2 : 1}}
+              onClick={e => this.props.onNext()}
+              disabled={this.isValueLast()}
+            >
+              <ArrowDropDown style={{color: "#fff"}}/>
+            </button>
+          </div>
+        }
       </div>
     )
   }
