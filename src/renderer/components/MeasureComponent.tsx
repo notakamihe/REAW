@@ -48,7 +48,8 @@ export default class MeasureComponent extends React.Component<IProps, IState> {
           height: 30, 
           borderLeft: "1px solid #000", 
           alignItems: "flex-end",
-          visibility: showMeasure() ? "visible" : "hidden"
+          visibility: showMeasure() ? "visible" : "hidden",
+          boxSizing: "border-box"
         }}
       >
         {

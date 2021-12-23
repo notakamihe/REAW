@@ -1,7 +1,7 @@
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
-import { SnapMode, SnapSize } from "renderer/types/types";
+import { SnapSize } from "renderer/types/types";
 import { MeasureComponent } from ".";
 import { Measure } from "./MeasureComponent";
 
@@ -32,7 +32,7 @@ export default class TimelineComponent extends React.Component<IProps, IState> {
       const {measures, beats, fraction} = TimelinePosition.fromWidth(xDiff, newTimelinePosOptions)
       
       let newPos = TimelinePosition.fromPos(TimelinePosition.start)
-      newPos.add(measures, beats, fraction, true, newTimelinePosOptions, SnapMode.Nearest)
+      newPos.add(measures, beats, fraction, true, newTimelinePosOptions)
 
       this.props.setCursorPos(newPos)
     }

@@ -1,5 +1,5 @@
-import { FastForward, FastRewind, FiberManualRecord, Loop, PlayArrow, SkipNext, SkipPrevious, Stop } from "@mui/icons-material";
-import { IconButton } from "@mui/material";
+import { FastForward, FastRewind, FiberManualRecord, Loop, PlayArrow, Redo, Save, SkipNext, SkipPrevious, Stop, Undo } from "@mui/icons-material";
+import { Button, IconButton } from "@mui/material";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
@@ -8,9 +8,9 @@ import Holdable from "./Holdable";
 import styled from "styled-components"
 import metronomeIcon from "../../../assets/svg/metronome.svg"
 import metronomeIconPink from "../../../assets/svg/metronome-pink.svg"
-import { EditableDisplay } from "./ui";
+import { ButtonAndIcon, EditableDisplay } from "./ui";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMagnet } from "@fortawesome/free-solid-svg-icons";
+import { faFileExport, faMagnet } from "@fortawesome/free-solid-svg-icons";
 import SelectSpinBox, { SelectSpinBoxOption } from "./ui/SelectSpinBox";
 
 interface IProps {
@@ -40,12 +40,12 @@ enum SnapSizeOption {
 }
 
 interface PlaybackControlButtonProps {
-  isactivated : boolean
+  $isactivated : boolean
   activatedbgcolor? : string
 }
 
 const PlaybackControlButton = styled(IconButton)`
-  background-color: ${(props : PlaybackControlButtonProps) => props.isactivated ? props.activatedbgcolor || "#ff5db8!important" : "#333!important"};
+  background-color: ${(props : PlaybackControlButtonProps) => props.$isactivated ? props.activatedbgcolor || "#ff5db8!important" : "#333!important"};
   border-radius: 0!important;
   border-width: 1px!important;
   border-color: #555!important;
@@ -265,6 +265,30 @@ export default class Header extends React.Component<IProps, IState> {
           position: "relative"
         }}
       >
+        <div style={{display:"flex",flexDirection:"column",height:"100%", width:80, borderRight:"1px solid #0002"}}>
+          <div className="d-flex justify-content-center">
+            <IconButton className="p-0 mx-2" style={{borderRadius: 0}}>
+              <Undo style={{fontSize: 20}}/>
+            </IconButton>
+            <IconButton className="p-0 mx-2" style={{borderRadius: 0}}>
+              <Redo style={{fontSize: 20}}/>
+            </IconButton>
+          </div>
+          <ButtonAndIcon 
+            className="col-12" 
+            icon={<Save style={{fontSize: 14, marginRight: 4}} />} 
+            style={{fontSize: 14, flex: 1, outline: "none"}}
+          >
+            Save
+          </ButtonAndIcon>
+          <ButtonAndIcon 
+            className="col-12" 
+            icon={<FontAwesomeIcon icon={faFileExport} style={{fontSize: 12, marginRight: 4}} />} 
+            style={{fontSize: 14, flex: 1, outline: "none"}}
+          >
+            Export
+          </ButtonAndIcon>
+        </div>
         <div 
           className="d-flex" 
           style={{width: 275, backgroundColor: "#0001", height: "100%", flexDirection: "column"}}
@@ -351,37 +375,37 @@ export default class Header extends React.Component<IProps, IState> {
               <h1 className="p-0 m-0" style={{fontSize: 28, textAlign: "center"}}>
                 {
                   this.state.showTime ?
-                  cursorPos.toTimeFomat(timelinePosOptions) :
-                  `${cursorPos.measure}.${cursorPos.beat}.${Math.trunc(cursorPos.fraction)}`
+                  cursorPos.toTimeString(timelinePosOptions) :
+                  cursorPos.toString()
                 }
               </h1>
             </div>
             <div 
             style={{display: "flex", justifyContent: "center", alignItems: "center", flexDirection: 'column'}}>
               <div className="d-flex" style={{margin: "0"}}>
-                <PlaybackControlButton onClick={() => setIsPlaying(!isPlaying)} isactivated={isPlaying}>  
+                <PlaybackControlButton onClick={() => setIsPlaying(!isPlaying)} $isactivated={isPlaying}>  
                   <PlayArrow style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
-                <PlaybackControlButton onClick={() => stop()} isactivated={false} >  
+                <PlaybackControlButton onClick={() => stop()} $isactivated={false} >  
                   <Stop style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
-                <PlaybackControlButton onClick={() => setIsRecording(!isRecording)} isactivated={false} >  
+                <PlaybackControlButton onClick={() => setIsRecording(!isRecording)} $isactivated={false} >  
                   <FiberManualRecord style={{fontSize: 17, color: isRecording ? "#f00" : "#fff"}} />
                 </PlaybackControlButton>
-                <PlaybackControlButton onClick={() => setIsLooping(!isLooping)} isactivated={isLooping}> 
+                <PlaybackControlButton onClick={() => setIsLooping(!isLooping)} $isactivated={isLooping}> 
                   <Loop style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
               </div>
               <div className="d-flex" style={{margin: "0"}}>
                 <PlaybackControlButton 
                   onClick={() => setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))} 
-                  isactivated={false}
+                  $isactivated={false}
                 > 
                   <SkipPrevious style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
                 <PlaybackControlButton 
                   onClick={() => {}} 
-                  isactivated={false}
+                  $isactivated={false}
                 > 
                   <SkipNext style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
@@ -392,7 +416,7 @@ export default class Header extends React.Component<IProps, IState> {
                   onMouseDown={fastForward} 
                   onHold={fastForward}
                 >
-                  <PlaybackControlButton isactivated={false} > 
+                  <PlaybackControlButton $isactivated={false} > 
                     <FastForward style={{fontSize: 17, color: "#fff"}} />
                   </PlaybackControlButton>
                 </Holdable>
@@ -403,7 +427,7 @@ export default class Header extends React.Component<IProps, IState> {
                   onMouseDown={fastRewind} 
                   onHold={fastRewind}
                 >
-                  <PlaybackControlButton isactivated={false} > 
+                  <PlaybackControlButton $isactivated={false} > 
                     <FastRewind style={{fontSize: 17, color: "#fff"}} />
                   </PlaybackControlButton>
                 </Holdable>

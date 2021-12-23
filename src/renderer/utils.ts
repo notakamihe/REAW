@@ -1,12 +1,42 @@
+import { AutomationLane } from "./components/AutomationLaneTrack";
+
 export const BEAT_WIDTH = 50;
 export const MAX_MEASURES = 10000
 
+export function addAlpha(color: string, opacity: number): string {
+  const a = Math.round(Math.min(Math.max(opacity || 1, 0), 1) * 255);
+  return normalizeHex(color) + a.toString(16).toUpperCase();
+}
+
 export function clamp(value: number, min: number, max: number) {
-    return Math.min(Math.max(value, min), max);
+  return Math.min(Math.max(value, min), max);
+}
+
+export function colorInterpolate(color1 : string, color2 : string, t : number) : string {
+  t = Math.min(Math.max(t, 0), 1);
+  
+  const rgb1 = parseInt(normalizeHex(color1).substring(1), 16);
+  const rgb2 = parseInt(normalizeHex(color2).substring(1), 16);
+
+  let r1 = (rgb1 >> 16) & 0xff;
+  let r2 = (rgb2 >> 16) & 0xff;
+  let g1 = (rgb1 >> 8) & 0xff;
+  let g2 = (rgb2 >> 8) & 0xff;
+  let b1 = rgb1 & 0xff;
+  let b2 = rgb2 & 0xff;
+
+  const hex = (parseInt(String(((r2 - r1) * t + r1))) << 16 | parseInt(String(((g2 - g1) * t + g1))) << 8 | parseInt(String(((b2 - b1) * t) + b1))).toString(16)
+
+  return `#${hex.padStart(6, "0")}`;
 }
 
 export function degreeToRad(degree: number) {
-    return degree * Math.PI / 180;
+  return degree * Math.PI / 180;
+}
+
+export function getLaneColor(lanes : AutomationLane[], idx : number, color : string) : string {
+  const t = lanes.length > 1 ? (1 / (lanes.length - 1) * idx) : 1
+  return colorInterpolate(shadeColor(color, 25), shadeColor(color, -25), t)
 }
 
 export function getRandomTrackColor() {
@@ -32,6 +62,15 @@ export function inverseLerp(value: number, min: number, max: number) {
 
 export function lerp(t: number, min: number, max: number) {
   return min + t * (max - min);
+}
+
+export function normalizeHex(hex: string) {
+  hex = hex.replace('#', '');
+
+  if (hex.length === 3 || hex.length === 4)
+    return "#" + hex.split('').map(c => c + c).join('');
+
+  return "#" + hex.padEnd(6, '0');
 }
 
 export function shadeColor(col : string, amt : number) {

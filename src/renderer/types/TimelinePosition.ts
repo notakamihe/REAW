@@ -1,6 +1,4 @@
-import { WorkflowContextType, WorkstationContext } from "renderer/context/WorkstationContext"
-import { BEAT_WIDTH } from "renderer/utils"
-import { SnapMode, SnapSize, TimeSignature } from "./types"
+import { SnapSize, TimeSignature } from "./types"
 
 export interface TimelinePositionOptions {
   snapSize : SnapSize
@@ -24,68 +22,23 @@ export default class TimelinePosition {
   }
 
   add(measures : number, beats : number, fraction : number, mutate : boolean = true, 
-    options : TimelinePositionOptions, snapMode : SnapMode = SnapMode.Discrete) : TimelinePosition {
+    options : TimelinePositionOptions, snap : boolean = true) : TimelinePosition {
     let pos = mutate ? this : TimelinePosition.fromPos(this)
 
     pos.addMeasures(measures)
-    pos.addBeats(beats, options, snapMode)
-    pos.addFraction(fraction, options, snapMode)
+    pos.addBeats(beats, options)
+    pos.addFraction(fraction, options, snap)
 
     return pos
   }
 
-  private addBeats(numBeats : number, options : TimelinePositionOptions, snapMode : SnapMode = SnapMode.Discrete) {
+  private addBeats(numBeats : number, options : TimelinePositionOptions) {
     const measures = Math.floor(numBeats / options.timeSignature.beats)
     const beats = numBeats % options.timeSignature.beats
     
     this.addMeasures(measures)
 
     let newBeat = this.beat + beats
-
-    if (options && options.snapSize !== SnapSize.None) {
-      if (options.snapSize < SnapSize.Beat) {
-        switch (snapMode) {
-          case SnapMode.Discrete:
-            if ((newBeat - 1) % (-8 * options.snapSize + 6) !== 0)
-              return
-            else {
-              if (numBeats > 1)
-                this.fraction = 0
-            }
-            break
-          case SnapMode.Nearest:
-            let interval = (-8 * options.snapSize + 6)
-            let lowerBeat, upperBeat
-
-            switch(options.snapSize) {
-              case SnapSize.Measure:
-                lowerBeat = Math.floor(newBeat / interval) * interval + 1
-                upperBeat = Math.ceil(newBeat / interval) * interval + 1
-
-                if (upperBeat - newBeat <= newBeat - lowerBeat) {
-                  newBeat = upperBeat
-                } else {
-                  newBeat = lowerBeat
-                }
-
-                break
-              case SnapSize.HalfMeasure:
-                lowerBeat = Math.ceil(newBeat / interval) * interval - 1
-                upperBeat = Math.ceil(newBeat / interval) * interval + 1
-
-                if (upperBeat - newBeat <= newBeat - lowerBeat) {
-                  newBeat = upperBeat
-                } else {
-                  newBeat = lowerBeat
-                }
-
-                break
-            }
-
-            this.fraction = 0
-        }
-      }
-    }
 
     if (newBeat > options.timeSignature.beats) {
       this.beat = newBeat % options.timeSignature.beats
@@ -95,7 +48,7 @@ export default class TimelinePosition {
     }
   }
   
-  private addFraction(fraction : number, options : TimelinePositionOptions, snapMode : SnapMode = SnapMode.Discrete) {
+  private addFraction(fraction : number, options : TimelinePositionOptions, snap : boolean = true) {
     const beats = Math.floor(fraction / 1000)
     const leftoverFraction = fraction % 1000
     
@@ -103,41 +56,26 @@ export default class TimelinePosition {
 
     let newFraction = this.fraction + leftoverFraction
 
-    if (options && options.snapSize !== SnapSize.None) {
-      if (options.snapSize >= SnapSize.Beat) {
-        let interval
-
-        switch(snapMode) {
-          case SnapMode.Discrete:
-            interval = 1000 / options.snapSize
-            const multiple = interval * Math.floor(newFraction / interval);
+    if (options && options.snapSize !== SnapSize.None && snap) {
+      const interval = 1000 / options.snapSize
       
-            if (newFraction - multiple < Math.min(20, 20 * options.horizontalScale)) {
-              newFraction = multiple;
-            } else {
-              return
-            }
-            break
-          case SnapMode.Nearest:
-            interval = 1000 / options.snapSize 
-            const lowerMultiple = Math.floor(newFraction / interval) * interval
-            const upperMultiple = Math.ceil(newFraction / interval) * interval
-    
-            if (upperMultiple - newFraction < newFraction - lowerMultiple) {
-              newFraction = upperMultiple
-            } else {
-              newFraction = lowerMultiple
-            }
-            break
-        }
+      if (options.snapSize >= SnapSize.Beat) {
+        newFraction = Math.round(newFraction / interval) * interval
       } else {
+        const fractionFromMeasure = Math.round(((this.beat - 1) * 1000 + newFraction) / interval) * interval
+        const {measures, beats, fraction} = TimelinePosition.fromFraction(fractionFromMeasure, options)
+        
+        this.measure += measures
+        this.beat = beats + 1
+        this.fraction = fraction
+
         return
       }
     }
     
     if (newFraction >= 1000) {
       this.fraction = newFraction % 1000
-      this.addBeats(1, options)
+      this.addBeats(Math.floor(newFraction / 1000), options)
     } else {
       this.fraction = newFraction
     }
@@ -163,6 +101,14 @@ export default class TimelinePosition {
     } else {
       return 0
     }
+  }
+
+  static fromFraction (frac : number, options : TimelinePositionOptions) {
+    const measures = Math.floor(frac / (1000 * options.timeSignature.beats))
+    const beats = Math.floor((frac - measures * 1000 * options.timeSignature.beats) / 1000)
+    const fraction = frac % 1000
+
+    return {measures, beats, fraction}
   }
 
   static fromPos(pos : TimelinePosition) : TimelinePosition {
@@ -208,69 +154,30 @@ export default class TimelinePosition {
     this.addFraction(fraction, options)
   }
 
+  setPos (pos : TimelinePosition) {
+    this.measure = pos.measure
+    this.beat = pos.beat
+    this.fraction = pos.fraction
+  }
+
   subtract(measures : number, beats : number, fraction : number, mutate : boolean = true,
-    options : TimelinePositionOptions, snapMode : SnapMode = SnapMode.Discrete) : TimelinePosition {
+    options : TimelinePositionOptions, snap : boolean = true) : TimelinePosition {
     let pos = mutate ? this : TimelinePosition.fromPos(this)
 
-    pos.subtractFraction(fraction, options, snapMode)
-    pos.subtractBeats(beats, options, snapMode)
     pos.subtractMeasures(measures)
+    pos.subtractBeats(beats, options)
+    pos.subtractFraction(fraction, options, snap)
 
     return pos
   }
   
-  private subtractBeats(numBeats : number, options : TimelinePositionOptions, snapMode : SnapMode = SnapMode.Discrete) {
+  private subtractBeats(numBeats : number, options : TimelinePositionOptions) {
     const measures = Math.floor(numBeats / options.timeSignature.beats)
     const beats = numBeats % options.timeSignature.beats
     
     this.subtractMeasures(measures)
-    
+
     let newBeat = this.beat - beats
-
-    if (options && options.snapSize !== SnapSize.None) {
-      if (options.snapSize < SnapSize.Beat) {
-        switch (snapMode) {
-          case SnapMode.Discrete:
-            if ((newBeat - 1) % (-8 * options.snapSize + 6) !== 0)
-              return
-            else {
-              if (numBeats > 1)
-                this.fraction = 0
-            }
-            break
-          case SnapMode.Nearest:
-            let interval = (-8 * options.snapSize + 6)
-            let lowerBeat, upperBeat
-
-            switch(options.snapSize) {
-              case SnapSize.Measure:
-                lowerBeat = Math.floor(newBeat / interval) * interval + 1
-                upperBeat = Math.ceil(newBeat / interval) * interval + 1
-
-                if (upperBeat - newBeat <= newBeat - lowerBeat) {
-                  newBeat = upperBeat
-                } else {
-                  newBeat = lowerBeat
-                }
-
-                break
-              case SnapSize.HalfMeasure:
-                lowerBeat = Math.ceil(newBeat / interval) * interval - 1
-                upperBeat = Math.ceil(newBeat / interval) * interval + 1
-
-                if (upperBeat - newBeat <= newBeat - lowerBeat) {
-                  newBeat = upperBeat
-                } else {
-                  newBeat = lowerBeat
-                }
-
-                break
-            }
-
-            this.fraction = 0
-        }
-      }
-    }
 
     if (newBeat < 1) {
       this.beat = options.timeSignature.beats + newBeat
@@ -280,7 +187,7 @@ export default class TimelinePosition {
     }
   }
   
-  private subtractFraction(fraction : number, options : TimelinePositionOptions, snapMode : SnapMode = SnapMode.Discrete) {
+  private subtractFraction(fraction : number, options : TimelinePositionOptions, snap : boolean = true) {
     const beats = Math.floor(fraction / 1000)
     const leftoverFraction = fraction % 1000
 
@@ -288,34 +195,19 @@ export default class TimelinePosition {
 
     let newFraction = this.fraction - leftoverFraction
 
-    if (options && options.snapSize !== SnapSize.None) {
-      if (options.snapSize >= SnapSize.Beat) {
-        let interval
+    if (options && options.snapSize !== SnapSize.None && snap) {
+      const interval = 1000 / options.snapSize
 
-        switch(snapMode) {
-          case SnapMode.Discrete:
-            interval = 1000 / options.snapSize
-            const multiple = interval * Math.floor(newFraction / interval);
-      
-            if (newFraction - multiple < Math.min(20, 20 * options.horizontalScale)) {
-              newFraction = multiple;
-            } else {
-              return
-            }
-            break
-          case SnapMode.Nearest:
-            interval = 1000 / options.snapSize 
-            const lowerMultiple = Math.floor(newFraction / interval) * interval
-            const upperMultiple = Math.ceil(newFraction / interval) * interval
-    
-            if (upperMultiple - newFraction < newFraction - lowerMultiple) {
-              newFraction = upperMultiple
-            } else {
-              newFraction = lowerMultiple
-            }
-            break
-        }
+      if (options.snapSize >= SnapSize.Beat) {
+        newFraction = Math.round(newFraction / interval) * interval
       } else {
+        const fractionFromMeasure = Math.round(((this.beat - 1) * 1000 + newFraction) / interval) * interval
+        const {measures, beats, fraction} = TimelinePosition.fromFraction(fractionFromMeasure, options)
+        
+        this.measure += measures
+        this.beat = beats + 1
+        this.fraction = fraction
+
         return
       }
     }
@@ -340,27 +232,38 @@ export default class TimelinePosition {
     return measureMargin + beatMargin + fractionMargin
   }
 
+  toString() {
+    return `${this.measure}.${this.beat}.${Math.trunc(this.fraction)}`
+  }
+
   toTime(options : TimelinePositionOptions) {
     const beatsPerSecond = options.tempo / 60
-    let beatsPassed = (this.measure - 1) * options.timeSignature.beats + this.beat - 1
+    let beats = (this.measure - 1) * options.timeSignature.beats + this.beat - 1
     
-    beatsPassed += this.fraction / 1000
+    beats += this.fraction / 1000
 
-    const totalSeconds = beatsPassed / beatsPerSecond
-    const minutes = Math.floor(totalSeconds / 60)
-    const seconds = Math.floor(totalSeconds % 60)
+    const totalSeconds = beats / beatsPerSecond
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds - hours * 3600) / 60)
+    const seconds = Math.floor(totalSeconds - hours * 3600 - minutes * 60)
     const milliseconds = Math.floor((totalSeconds - Math.floor(totalSeconds)) * 1000)
 
     return {
+      hours,
       minutes,
       seconds,
       milliseconds
     }
   }
   
-  toTimeFomat(options : TimelinePositionOptions) {
+  toTimeString(options : TimelinePositionOptions) {
     const time = this.toTime(options)
     
-    return `${time.minutes}:${time.seconds < 10 ? '0' : ''}${time.seconds}:${time.milliseconds < 10 ? '0' : ''}${time.milliseconds}`
+    const hours = time.hours.toString().padStart(2, '0')
+    const minutes = time.minutes.toString().padStart(2, '0')
+    const seconds = time.seconds.toString().padStart(2, '0')
+    const milliseconds = time.milliseconds.toString().padStart(3, '0')
+
+    return `${hours}:${minutes}:${seconds}.${milliseconds}`
   }
 }

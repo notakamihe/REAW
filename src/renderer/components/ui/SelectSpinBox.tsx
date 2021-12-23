@@ -59,7 +59,7 @@ export default class SelectSpinBox extends React.Component<IProps, IState> {
   }
 
   openPopover = (e : React.MouseEvent<HTMLDivElement, MouseEvent>, open : boolean) => {
-    if (open)
+    if (open && this.props.options.length)
       this.setState({anchorEl: e.currentTarget});
   }
 
@@ -96,14 +96,19 @@ export default class SelectSpinBox extends React.Component<IProps, IState> {
             height: "100%",
             paddingLeft: 4, 
             cursor: (this.props.leftClickOpen || this.props.onClick) ? "pointer" : "default",
-            overflow: "hidden"
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center"
           }}
         >
           <p
             style={{
               width: "100%",
-              height: "100%", 
-              fontSize: 14
+              fontSize: 14,
+              verticalAlign: "bottom",
+              margin: 0,
+              overflow: "hidden",
+              height: 18
             }}
           >
             {

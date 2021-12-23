@@ -49,7 +49,8 @@ export default class BeatComponent extends React.Component<IProps, IState> {
           height: 15, 
           borderLeft: this.props.beat.pos === 1 ? "none" : "1px solid #000", 
           alignItems: "flex-end",
-          visibility: horizontalScale > 0.16 ? "visible" : "hidden"
+          visibility: horizontalScale > 0.16 ? "visible" : "hidden",
+          boxSizing: "border-box"
         }}
       >
         {

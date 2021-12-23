@@ -31,11 +31,6 @@ export enum SnapSize {
   HundredTwentyEighthBeat = 128
 }
 
-export enum SnapMode {
-  Discrete,
-  Nearest
-}
-
 export interface TimeSignature {
   beats : number
   noteValue : number

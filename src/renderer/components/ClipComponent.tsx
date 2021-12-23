@@ -1,38 +1,43 @@
+import { ClickAwayListener } from "@mui/material";
 import React from "react";
+import { DraggableData, Position, ResizableDelta, Rnd } from "react-rnd";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
-import TimelinePosition, { TimelinePositionOptions } from "renderer/types/TimelinePosition";
-import { BEAT_WIDTH, shadeColor } from "renderer/utils";
+import TimelinePosition from "renderer/types/TimelinePosition";
+import { ID } from "renderer/types/types";
+import { shadeColor } from "renderer/utils";
 import { Track } from "./TrackComponent";
+import trimToLeft from "../../../assets/svg/trim-to-left.svg";
+import trimToRight from "../../../assets/svg/trim-to-right.svg";
+import Draggable, { DraggableEvent } from "react-draggable";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft, faArrowRight, faRedo } from "@fortawesome/free-solid-svg-icons";
-import trimToLeft from "../../../assets/svg/trim-to-left.svg"
-import trimToRight from "../../../assets/svg/trim-to-right.svg"
-import { minWidth } from "@mui/system";
-import { ID, SnapSize } from "renderer/types/types";
+import { faRedo } from "@fortawesome/free-solid-svg-icons";
 
 interface IProps {
   clip : Clip
   track : Track
-  isSelected? : boolean
-  onSelect : () => void
-  onTrackChange : (e : React.MouseEvent<HTMLDivElement, MouseEvent>, track : Track, clip : Clip) => void
+  isSelected : boolean
+  color? : string
+  onSelect : (clip : Clip) => void
+  onClickAway : (clip : Clip) => void
+  onTrackChange : (e : React.MouseEvent<HTMLDivElement,MouseEvent>,rect : DOMRect,track : Track,clip : Clip) => void
   setClip : (oldClip : Clip, newClip : Clip) => void
 }
 
 interface IState {
   start : TimelinePosition
   end : TimelinePosition
-  startLimit : TimelinePosition
-  endLimit : TimelinePosition
+  startLimit : TimelinePosition | null
+  endLimit : TimelinePosition | null
   loopEnd : TimelinePosition
+  keepSelection : boolean
   isResizing : boolean
-  isDragging : boolean
   isLooping : boolean
-  resizeMode : ResizeMode
+  tempLoopContainerWidth : number
+  tempRepititionWidth : number
+  prevLoopEnd : TimelinePosition
   prevX : number
+  resizeDir : string
 }
-
-enum ResizeMode { Start, End }
 
 export enum TrackChangeMode { Top, Bottom }
 
@@ -40,363 +45,338 @@ export interface Clip {
   id : ID
   start : TimelinePosition
   end : TimelinePosition
-  startLimit : TimelinePosition
-  endLimit : TimelinePosition
+  startLimit : TimelinePosition | null
+  endLimit : TimelinePosition | null
   loopEnd : TimelinePosition
+}
+
+const ResizeHandleComponent : React.FC<{dir : string, width : number, isSelected : boolean}> = (props) => {
+  return (
+    <div
+      className="d-flex justify-content-center align-items-center"
+      style={{
+        height: "100%",
+        backgroundColor: "#000", 
+        width: 10,
+        borderRadius: props.dir === "left" ? "5px 0 0 5px" : "0 5px 5px 0",
+        visibility: props.width > 25 && props.isSelected ? "visible" : "hidden"
+      }}
+    >
+      <img src={props.dir==="left"?trimToRight:trimToLeft} style={{width:10}} onDragStart={e=>e.preventDefault()} />
+    </div>
+  )
 }
 
 class ClipComponent extends React.Component<IProps, IState> {
   static contextType = WorkstationContext
   context : React.ContextType<typeof WorkstationContext>
 
-  private clipRef : React.RefObject<HTMLDivElement>
-  private loopRef : React.RefObject<HTMLDivElement>
-  private trackChangeDivRef : React.RefObject<HTMLDivElement>
+  ref : React.RefObject<Rnd>
 
-  constructor(props : any) {
+  constructor(props : IProps) {
     super(props)
 
-    this.clipRef = React.createRef()
-    this.loopRef = React.createRef()
-    this.trackChangeDivRef = React.createRef()
-    
+    this.ref = React.createRef()
+
     this.state = {
       start: this.props.clip.start,
       end: this.props.clip.end,
       startLimit: this.props.clip.startLimit,
       endLimit: this.props.clip.endLimit,
       loopEnd: this.props.clip.loopEnd,
+      keepSelection: false,
       isResizing: false,
-      isDragging: false,
       isLooping: false,
-      resizeMode: ResizeMode.Start,
-      prevX : 0
+      tempLoopContainerWidth: 0,
+      tempRepititionWidth: 0,
+      prevLoopEnd: this.props.clip.loopEnd,
+      prevX: 0,
+      resizeDir: "none"
     }
   }
 
   componentDidMount() {
+    this.setState({prevX: this.state.start.toMargin(this.context!.timelinePosOptions)})
   }
 
   render() {
-    const {horizontalScale, timelinePosOptions} = this.context!
+    const {timelinePosOptions} = this.context!
 
     const getLength = (pos1 : TimelinePosition = this.state.start, pos2 : TimelinePosition = this.state.end) => {
       return pos2.toMargin(timelinePosOptions) - pos1.toMargin(timelinePosOptions)
     }
-  
-    const getNumRepititions = () => {
-      const width = getLength(this.state.end, this.state.loopEnd!)
-      
-      if (Math.ceil(width / getLength()) > 0)
-        return Math.ceil(width / getLength())
-      else return 0
+
+    const onClickAway = () => {
+      if (!this.state.keepSelection) {
+        this.props.onClickAway(this.props.clip)
+      }
+
+      this.setState({keepSelection: false})
     }
+
+    const getLoopContainerWidth = () => {
+      if (this.state.isResizing || this.state.isLooping)
+        return this.state.tempLoopContainerWidth
+
+      return getLength(this.state.end, this.state.loopEnd)
+    }
+
+    const getMaxWidth = () => {
+      if (this.state.resizeDir === "right") {
+        console.log(this.state.endLimit)
+        return this.state.endLimit ? getLength(this.state.start, this.state.endLimit) : "none"
+      }
+
+      return this.state.startLimit ? getLength(this.state.startLimit, this.state.end) : "none"
+    }
+
+    const getNumRepititions = (repititionWidth : number) => {
+      if (repititionWidth)
+        return Math.ceil(getLoopContainerWidth() / repititionWidth)
+
+      return 0
+    }
+
+    const getRepititionWidth = () => {
+      if (this.state.isResizing)
+        return this.state.tempRepititionWidth
+
+      return getLength()
+    }
+
+    const onDrag = (e : DraggableEvent, data : DraggableData) => {
+      const rect = (this.ref.current?.draggable as Draggable).props.nodeRef?.current?.getBoundingClientRect()
+      this.props.onTrackChange(e as React.MouseEvent<HTMLDivElement, MouseEvent>, rect!, this.props.track, this.props.clip)
+    }
+
+    const onDragStop = (e : DraggableEvent, data : DraggableData) => {
+      if (data.x === this.state.prevX)
+        return
+
+      let start = TimelinePosition.fromPos(TimelinePosition.start)
+      let end = TimelinePosition.fromPos(this.state.end)
+      let startLimit = this.state.startLimit ? TimelinePosition.fromPos(this.state.startLimit) : null
+      let endLimit = this.state.endLimit ? TimelinePosition.fromPos(this.state.endLimit) : null
+      let loopEnd = TimelinePosition.fromPos(this.state.loopEnd)
+
+      let {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(data.x), timelinePosOptions)
+      const widthMBF = TimelinePosition.fromWidth(getLength(), timelinePosOptions)
+      const loopEndMBF = TimelinePosition.fromWidth(getLength(this.state.end, this.state.loopEnd), timelinePosOptions)
+
+      if (this.state.startLimit) {
+        const startLimitMBF = TimelinePosition.fromWidth(getLength(this.state.startLimit, this.state.start), timelinePosOptions)
+        startLimit = start.subtract(startLimitMBF.measures, startLimitMBF.beats, startLimitMBF.fraction, false, timelinePosOptions, false)
+      }
+
+      if (this.state.endLimit) {
+        const endLimitMBF = TimelinePosition.fromWidth(getLength(this.state.start, this.state.endLimit), timelinePosOptions)
+        endLimit = start.add(endLimitMBF.measures, endLimitMBF.beats, endLimitMBF.fraction, false, timelinePosOptions, false)
+      }
+      
+      start.add(measures, beats, fraction, true, timelinePosOptions) 
+      end = start.add(widthMBF.measures, widthMBF.beats, widthMBF.fraction, false, timelinePosOptions, false)
+      
+      if (this.state.end.compare(this.state.loopEnd) >= 0) {
+        loopEnd.setPos(end)
+        this.setState({prevLoopEnd: loopEnd})
+      } else {
+        loopEnd = end.add(loopEndMBF.measures, loopEndMBF.beats, loopEndMBF.fraction, false, timelinePosOptions, false)
+      }
+
+      this.setState({start, end, startLimit, endLimit, loopEnd, prevX: data.x}, setClip)
+    }
+
+    const onLoopStop = (e : MouseEvent | TouchEvent, direction : string, ref : HTMLElement, delta : ResizableDelta, position : Position) => {
+      let loopEnd = TimelinePosition.fromPos(this.state.loopEnd)
+      let {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(delta.width), timelinePosOptions)
+
+      if (delta.width < 0)
+        loopEnd = loopEnd.subtract(measures, beats, fraction, true, timelinePosOptions)
+      else
+        loopEnd = loopEnd.add(measures, beats, fraction, true, timelinePosOptions)
+
+      if (loopEnd.compare(this.state.end) < 0)
+        loopEnd = TimelinePosition.fromPos(this.state.end)
+
+      if (delta.width === 0) {
+        this.setState({isLooping: false})
+        return
+      }
+
+      this.setState({loopEnd, isLooping: false}, setClip)
+    }
+
+    const onResizeStart = (e : React.MouseEvent<HTMLElement> | React.TouchEvent<HTMLElement>, dir : string, ref : HTMLElement) => {
+      selectClip()
+
+      this.setState({
+        tempLoopContainerWidth: getLength(this.state.start, this.state.loopEnd) - ref.offsetWidth,
+        tempRepititionWidth: ref.offsetWidth,
+        isResizing: true,
+        resizeDir: dir
+      })
+    }
+
+    const onResize = (e : MouseEvent | TouchEvent, direction : string, ref : HTMLElement, delta : ResizableDelta, position : Position) => {
+      let tempLoopContainerWidth = 0 
+
+      if (direction === "right") {
+        const end = TimelinePosition.fromPos(this.state.end)
   
-    const onMouseMove = (e : React.MouseEvent<HTMLDivElement, MouseEvent>): void => {
+        const {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(delta.width), timelinePosOptions)
+  
+        if (delta.width < 0)
+          end.subtract(measures, beats, fraction, true, timelinePosOptions, false)
+        else
+          end.add(measures, beats, fraction, true, timelinePosOptions, false)
+  
+        if (end.compare(this.state.loopEnd) >= 0 || this.state.prevLoopEnd.compare(this.state.loopEnd) === 0) {
+          this.setState({loopEnd: end, prevLoopEnd: end})
+        } else {
+          tempLoopContainerWidth = getLength(this.state.start, this.state.loopEnd) - ref.offsetWidth
+        }
+      } else {
+        tempLoopContainerWidth = getLength(this.state.end, this.state.loopEnd)
+      }
+    
+      this.setState({tempLoopContainerWidth, tempRepititionWidth: ref.offsetWidth})
+    }
+
+    const onResizeStop = (e : MouseEvent | TouchEvent, direction : string, ref : HTMLElement, delta : ResizableDelta, position : Position) => {
       let start = TimelinePosition.fromPos(this.state.start)
       let end = TimelinePosition.fromPos(this.state.end)
       let loopEnd = TimelinePosition.fromPos(this.state.loopEnd)
-      let startLimit = TimelinePosition.fromPos(this.state.startLimit)
-      let endLimit = TimelinePosition.fromPos(this.state.endLimit)
-      let prevX = this.state.prevX
+      let prevEnd = TimelinePosition.fromPos(this.state.prevLoopEnd)
       
-      if (this.state.isDragging) {
-        let xDiff = (e.clientX - this.state.prevX) * Math.min((0.0556 * Math.abs(e.movementX) + 0.95), 1.3)
-  
-        const {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(xDiff), timelinePosOptions)
-        const prevNewStart = TimelinePosition.fromPos(start)
-  
-        const widthMBF = TimelinePosition.fromWidth(getLength(), timelinePosOptions)
-        const loopEndMBF = TimelinePosition.fromWidth(
-          getLength(this.state.end, this.state.loopEnd!), 
-          timelinePosOptions
-        )
-        const startLimitMBF = TimelinePosition.fromWidth(
-          getLength(this.state.startLimit!, this.state.start), 
-          timelinePosOptions
-        )
+      let {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(delta.width), timelinePosOptions)
 
-        const posOptionsWOSnap : TimelinePositionOptions = {...timelinePosOptions, snapSize: SnapSize.None}
-  
-        if (xDiff < 0) {
-          start.subtract(measures, beats, fraction, true, timelinePosOptions)
-          end = start.add(widthMBF.measures, widthMBF.beats, widthMBF.fraction, false, posOptionsWOSnap)
-          loopEnd = end.add(loopEndMBF.measures, loopEndMBF.beats, loopEndMBF.fraction, false, posOptionsWOSnap)
-          startLimit = start.subtract(startLimitMBF.measures, startLimitMBF.beats, startLimitMBF.fraction, false, posOptionsWOSnap)
-        } else {
-          start.add(measures, beats, fraction, true, timelinePosOptions)
-          end = start.add(widthMBF.measures, widthMBF.beats, widthMBF.fraction, false, posOptionsWOSnap)
-          loopEnd = end.add(loopEndMBF.measures, loopEndMBF.beats, loopEndMBF.fraction, false, posOptionsWOSnap)
-          startLimit = start.subtract(startLimitMBF.measures, startLimitMBF.beats, startLimitMBF.fraction, false, posOptionsWOSnap)
-        }
-  
-        if (prevNewStart.compare(start) !== 0)
-          prevX = e.clientX
-  
-        if (start.compare(TimelinePosition.start) < 0) {
-          start = TimelinePosition.fromPos(TimelinePosition.start)
-          end = start.add(widthMBF.measures, widthMBF.beats, widthMBF.fraction, false, posOptionsWOSnap)
-  
-          if (loopEnd)
-            loopEnd = end.add(loopEndMBF.measures, loopEndMBF.beats, loopEndMBF.fraction, false, posOptionsWOSnap)
-        }
-  
-        this.setState({start, end, startLimit, endLimit, loopEnd, prevX})
-      } else if (this.state.isResizing) {
-        const x = this.state.resizeMode === ResizeMode.Start ? 
-          this.clipRef.current!.getBoundingClientRect().x + 5 :
-          this.clipRef.current!.getBoundingClientRect().x + this.clipRef.current!.offsetWidth - 5
-  
-        const xDiff = e.clientX - x
-        const {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(xDiff), timelinePosOptions)
-  
-        if (this.state.resizeMode === ResizeMode.Start) {
-          if (xDiff < 0)
-            start.subtract(measures, beats, fraction, true, timelinePosOptions)
-          else  
+      switch (direction) {
+        case "left":
+          if (delta.width < 0)
             start.add(measures, beats, fraction, true, timelinePosOptions)
-  
-          if (start.compare(this.state.end) >= 0)
-            return
-  
-          if (start.compare(this.state.startLimit) < 0) {
-            start = TimelinePosition.fromPos(this.state.startLimit)
-          }
-  
-          this.setState({start})
-        } else if (this.state.resizeMode === ResizeMode.End) {
-          if (xDiff < 0) {
-            if (end.compare(this.state.loopEnd!) === 0) {
-              loopEnd.subtract(measures, beats, fraction, true, timelinePosOptions)
-            }
-  
+          else
+            start.subtract(measures, beats, fraction, true, timelinePosOptions)
+            
+          break
+        case "right":
+          if (delta.width < 0)
             end.subtract(measures, beats, fraction, true, timelinePosOptions)
-          } else  
+          else
             end.add(measures, beats, fraction, true, timelinePosOptions)
-  
-          if (end.compare(this.state.start) <= 0)
-            return
-  
-          if (end.compare(this.state.loopEnd!) > 0) {
-            loopEnd = TimelinePosition.fromPos(end)
+
+          if (end.compare(this.state.loopEnd) >= 0 || this.state.prevLoopEnd.compare(this.state.loopEnd) === 0) {
+            loopEnd.setPos(end)
+            prevEnd.setPos(end)
           }
-  
-          this.setState({end, loopEnd})
-        }
-      } else if (this.state.isLooping) {
-        const x = this.loopRef.current!.getBoundingClientRect().x + this.loopRef.current!.offsetWidth
-        const xDiff = e.clientX - x
-        const {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(xDiff), timelinePosOptions)
-  
-        if (xDiff < 0) {
-          loopEnd?.subtract(measures, beats, fraction, true, timelinePosOptions)
-  
-          if (loopEnd!.compare(this.state.end) < 0)
-            loopEnd = TimelinePosition.fromPos(this.state.end)
-        } else  
-          loopEnd?.add(measures, beats, fraction, true, timelinePosOptions)
-  
-        this.setState({loopEnd})
+
+          break
       }
+
+      if (end.compare(start) <= 0 || delta.width === 0) {
+        this.setState({isResizing: false})
+        return
+      }
+
+      this.setState({start, end, isResizing: false, loopEnd, prevLoopEnd: prevEnd, resizeDir: "none"}, setClip)
     }
-  
-    const setResizeMode = (e : React.MouseEvent<HTMLDivElement, MouseEvent>, mode : ResizeMode) => {
-      e.stopPropagation()
-      this.setState({isResizing: true, resizeMode: mode})
+
+    const selectClip = () => {
+      this.props.onSelect(this.props.clip)
+    }
+
+    const setClip = () => {
+      this.props.setClip(this.props.clip, {
+        id: this.props.clip.id, 
+        start: this.state.start, 
+        end: this.state.end, 
+        startLimit: this.state.startLimit, 
+        endLimit: this.state.endLimit, 
+        loopEnd: this.state.loopEnd
+      })
     }
 
     return (
-      <div 
-        ref={this.clipRef}
-        onMouseUp={e => this.setState({isResizing: false, isDragging: false, isLooping: false})}
-        onMouseDown={e => {this.props.onSelect(); this.setState({prevX: e.clientX, isDragging: true})}}
-        onMouseLeave={e => this.setState({isResizing: false, isDragging: false, isLooping: false})}
-        onMouseMove={onMouseMove}
-        style={{
-          width: getLength() + 1, 
-          height: "100%", 
-          backgroundColor: this.props.isSelected ? "#fff" : shadeColor(this.props.track.color, 20), 
-          position: "absolute", 
-          left: this.state.start.toMargin(timelinePosOptions), 
-          cursor: "pointer",
-          borderRadius: 5,
-          zIndex: this.props.isSelected ? 15 : 5,
-          transition: "background-color 0.25s ease"
-        }}
-        onDragStart={e => e.preventDefault()}
-      >
-        {
-          (this.state.isResizing || this.state.isDragging || this.state.isLooping) &&
-          <div 
-            style={{
-              position: "absolute", 
-              top: 0, 
-              bottom: 0, 
-              width: "300%", 
-              left: "50%",
-              transform: "translate(-50%, 0%)",
-              zIndex: -1,
-              minWidth: 500
-            }}
-          ></div>
-        }
-        {
-          this.state.isDragging &&
-          <div
-            ref={this.trackChangeDivRef}
-            onMouseLeave={e => {
-              this.props.onTrackChange(e, this.props.track, this.props.clip)
-              this.props.setClip(this.props.clip, {
-                id: this.props.clip.id,
-                start: this.state.start, 
-                startLimit: this.state.startLimit,
-                endLimit: this.state.endLimit,
-                end: this.state.end, 
-                loopEnd: this.state.loopEnd
-              })
-            }}
-            style={{
-              position: "absolute",
-              height: "140%",
-              width: "100%",
-              transform: "translate(0%, -50%)",
-              top: "50%"
-            }}
-          ></div>
-        }
-        {
-          this.props.isSelected &&
-          <div className="disable-highlighting" style={{borderRadius: "inherit"}}>
-            <div
-              onMouseDown={e => setResizeMode(e, ResizeMode.Start)}
-              className="position-absolute d-flex justify-content-center align-items-center p-0"
-              style={{
-                left: 0,
-                top: 0,
-                bottom: 0,
-                backgroundColor: "#000",
-                width: getLength() < 25 ? 2 : 11,
-                padding: getLength() < 25 ? 0 : 6,
-                cursor: "col-resize",
-                borderRadius: "5px 0 0 5px",
-                border: "none",
-              }}
-            >
-              {
-                getLength() >= 25 ?
-                <img src={trimToRight} style={{width: 11, height: 11}} onDragStart={e => e.preventDefault()} /> : 
-                <div 
-                  className="position-absolute" 
-                  style={{left: 0, top: 0, bottom: 0, width: 7, backgroundColor: "#0000"}}
-                >
-
+      <ClickAwayListener onClickAway={onClickAway}>
+        <Rnd
+          ref={this.ref}
+          dragAxis="x"
+          bounds="parent"
+          enableUserSelectHack
+          position={{x: this.state.start.toMargin(timelinePosOptions), y: 0}}
+          size={{width: getLength(), height: "100%"}}
+          maxWidth={getMaxWidth()}
+          onDragStart={(e, data) => selectClip()}
+          onDrag={onDrag}
+          onDragStop={onDragStop}
+          enableResizing={{left: true, right: true}}
+          onResizeStart={onResizeStart}
+          onResize={onResize}
+          onResizeStop={onResizeStop}
+          resizeHandleStyles={{left: {left: -1}, right: {right: -1}}}
+          resizeHandleComponent={{
+            left: <ResizeHandleComponent width={getLength()} isSelected={this.props.isSelected} dir="left" />,
+            right: <ResizeHandleComponent width={getLength()} isSelected={this.props.isSelected} dir="right" />
+          }}
+          style={{
+            backgroundColor: this.props.isSelected ? "#fff" : shadeColor(this.props.track.color, 20),
+            border: "1px solid #0002",
+            borderRadius: 5,
+            zIndex: 10
+          }}
+        >
+          <Rnd
+            className="clip-loop-container pe-none"
+            disableDragging={true}
+            size={{width: getLoopContainerWidth(), height: "100%"}}
+            minWidth={0}
+            enableResizing={{right: true}}
+            onResizeStart={() => {selectClip(); this.setState({isLooping: true})}}
+            onResize={(e, dir, ref, delta, position) => this.setState({tempLoopContainerWidth: ref.offsetWidth})}
+            onResizeStop={onLoopStop}
+            resizeHandleStyles={{right: {right: 0}}}
+            resizeHandleComponent={{
+              right: (
+                <div style={{height: "100%", display: "flex", flexDirection: "column", width: 10}}>
+                  <div 
+                    className="d-flex justify-content-center align-items-center" 
+                    style={{
+                      height: 10, 
+                      backgroundColor: "#777", 
+                      pointerEvents: "auto", 
+                      zIndex: 11,
+                      visibility: this.props.isSelected && getLength() > 25 ? "visible" : "hidden"
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faRedo} style={{color: "#fff", fontSize: 10, padding: 1}} />
+                  </div>
+                  <div  style={{flex: 1, width: "100%"}}></div>
                 </div>
-              }
-            </div>
-            <div
-              onMouseDown={e => setResizeMode(e, ResizeMode.End)}
-              className="position-absolute d-flex justify-content-center align-items-center p-0"
-              style={{
-                right: 0,
-                top: 0,
-                bottom: 0,
-                backgroundColor: "#000",
-                width: getLength() < 25 ? 2 : 11,
-                padding: getLength() < 25 ? 0 : 6,
-                cursor: "col-resize",
-                borderRadius: "0 0 5px 0",
-                border: "none"
-              }}
-            >
-              {
-                getLength() >= 25 ?
-                <img src={trimToLeft} style={{width: 11, height: 11}} onDragStart={e => e.preventDefault()} /> : 
-                <div 
-                  className="position-absolute" 
-                  style={{left: 0, top: 0, bottom: 0, width: 7, backgroundColor: "#0000"}}
-                >
-                </div>
-              }
-            </div>
-            <div
-              onMouseDown={e => {e.stopPropagation(); this.setState({isLooping: true})}}
-              style={{
-                position: "absolute",
-                top: -6,
-                right: -getLength(this.state.end, this.state.loopEnd!) + 
-                ((this.state.end.compare(this.state.loopEnd) === 0 && getLength() < 25) ? 2 : 0),
-                width: 11,
-                padding: "0 1px",
-                backgroundColor: "#0000",
-                zIndex: 10,
-                cursor: "ew-resize"
-              }}
-            >
-              {
-                this.state.end.compare(this.state.loopEnd) === 0 && getLength() < 10 ?
-                <div 
-                  className="p-0 m-0"
-                  style={{height: 20, width: 7, backgroundColor: "#0000"}}
-                >
-                </div> :
-                <FontAwesomeIcon 
-                  icon={faRedo} 
-                  style={{
-                    fontSize: 9, 
-                    color: this.state.end.compare(this.state.loopEnd) === 0 && getLength() < 25 ? "#aaa" : "#fff"
-                  }} 
-                  className="p-0 m-0" 
-                  onDragStart={e => e.preventDefault()}
-                />
-              }
-            </div>
-          </div>
-        }
-        <div className="position-absolute" style={{top: 0, bottom: 0, left: getLength() + 1, zIndex: -1}}>
-          <div 
-            ref={this.loopRef}
-            className="d-flex"
-            style={{
-              width: getLength(this.state.end, this.state.loopEnd!), 
-              height: "100%", 
-              overflowX: "hidden"
+              )
             }}
+            style={{zIndex: 11, backgroundColor: this.state.isLooping || this.state.isResizing ? "#0002": "#0000"}}
           >
-            {
-              [...Array(getNumRepititions())].map((_, i) => (
-                <div 
-                  key={i}
-                  style={{
-                    height: "100%",
-                    width: getLength(),
-                    backgroundColor: this.props.isSelected ? "#000" : shadeColor(this.props.track.color, -20),
-                    borderRadius: 10,
-                    flexShrink: 0
-                  }}
-                >
-                </div>
-              ))
-            }
-          </div>
-          {
-            this.state.isLooping &&
-            <div 
-              style={{
-                position: "absolute",
-                width: 250 * horizontalScale,
-                height: "100%",
-                top: 0,
-                right: -(250 * horizontalScale),
-                backgroundColor: "#0000",
-                zIndex: -1
-              }}
-            >
+            <div className="pe-auto d-flex col-12 h-100 overflow-hidden">
+              {
+                [...Array(getNumRepititions(getRepititionWidth()))].map((_, i) => (
+                  <div 
+                    key={i} 
+                    style={{
+                      width: getRepititionWidth(), 
+                      flexShrink: 0, 
+                      height: "100%", 
+                      backgroundColor: this.props.isSelected ? "#fffc" : shadeColor(this.props.track.color, 40),
+                      borderRadius: 5,
+                      border: "1px solid #0002"
+                    }}
+                  ></div>  
+                ))
+              }
             </div>
-          }
-        </div>
-      </div>
+          </Rnd>
+        </Rnd>
+      </ClickAwayListener>
     )
   }
 }
 
-export default ClipComponent
+export default React.memo(ClipComponent)

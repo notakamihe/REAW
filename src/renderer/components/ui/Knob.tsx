@@ -1,3 +1,4 @@
+import { Popover, Tooltip } from "@mui/material"
 import React from "react"
 import { clamp, degreeToRad, inverseLerp, lerp } from "renderer/utils"
 
@@ -17,10 +18,15 @@ interface IProps {
   discrete? : boolean
   step : number
   title? : string
+  origin? : number
 }
 
 interface IState {
   isDragging : boolean
+  isScrolling : boolean
+  value : number
+  anchorEl : HTMLElement | null
+  inputValue : string
 }
 
 interface MeterStyle {
@@ -36,26 +42,56 @@ export default class Knob extends React.Component<IProps, IState> {
     step: 1
   }
 
+  private ref : React.RefObject<HTMLDivElement>
   private canvasArcRef : React.RefObject<HTMLCanvasElement>
-  private centerRef : React.RefObject<HTMLDivElement>
+
+  private timeoutID : any
 
   constructor(props: IProps) {
     super(props)
 
     this.canvasArcRef = React.createRef()
-    this.centerRef = React.createRef()
+    this.ref = React.createRef()
 
     this.state = {
-      isDragging: false
+      isDragging: false,
+      isScrolling: false,
+      value: props.value,
+      anchorEl: null,
+      inputValue: ""
     }
   }
 
   componentDidMount() {
     this.drawMeter()
+    this.ref.current?.addEventListener("wheel", this.onWheel, {passive: false})
   }
 
   componentDidUpdate() {
     this.drawMeter()
+  }
+
+  componentWillUnmount() {
+    this.ref.current?.removeEventListener("wheel", this.onWheel)
+  }
+
+  addToValue = (amt : number, change : boolean = false) => {
+    let newValue = this.state.value
+      
+    if (this.props.discrete) {
+      const step = Math.abs(amt) >= 1 ? this.props.step * (amt/Math.abs(amt)) : 0
+      newValue = clamp(this.state.value + step, this.props.min, this.props.max)
+    } else {
+      const scale = 0.01 * (this.props.max - this.props.min)
+      newValue = clamp(this.state.value + amt * scale, this.props.min, this.props.max)
+    }
+
+    newValue = parseFloat(newValue.toFixed(2))
+
+    this.setState({value: newValue} , () => {
+      if (change)
+        this.props.onChange(newValue)
+    })
   }
 
   drawMeter = () => {
@@ -138,39 +174,79 @@ export default class Knob extends React.Component<IProps, IState> {
     const slope = 1 / (this.props.max - mid)
 
     return {
-      percentage: Math.abs(slope * (this.props.value - mid)),
-      direction: this.props.value > mid ? 1 : -1
+      percentage: Math.abs(slope * (this.state.value - mid)),
+      direction: this.state.value > mid ? 1 : -1
     }
   }
 
   getPercentage = () => {
-    return inverseLerp(this.props.value, this.props.min, this.props.max)
+    return inverseLerp(this.state.value, this.props.min, this.props.max)
   }
-  
-  onMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>, amt : number) => {
-    if (this.state.isDragging) {
-      let newValue = this.props.value
-      
-      if (this.props.discrete) {
-        const step = Math.abs(amt) >= 1 ? this.props.step * (amt/Math.abs(amt)) : 0
-        newValue = clamp(this.props.value + step, this.props.min, this.props.max)
-      } else {
-        const scale = 0.01 * (this.props.max - this.props.min)
-        newValue = clamp(this.props.value + amt * scale, this.props.min, this.props.max)
-      }
 
+  onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    this.setState({inputValue: e.target.value})
+  }
+
+  onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (this.props.origin !== undefined) {
+      const newValue = clamp(this.props.origin, this.props.min, this.props.max)
+
+      this.setState({value: newValue})
       this.props.onChange(newValue)
     }
+  }
+  
+  onMouseMove = (amt : number) => {
+    if (this.state.isDragging) {
+      this.addToValue(amt)
+    }
+  }
+
+  onMouseUp = () => {
+    this.setState({isDragging: false})
+    this.props.onChange(this.state.value)
+  }
+
+  onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    
+    let newValue
+
+    if (Number.isNaN(parseFloat(this.state.inputValue)))
+      newValue = this.state.value
+    else
+      newValue = clamp(parseFloat(this.state.inputValue), this.props.min, this.props.max)
+
+    newValue = parseFloat(newValue.toFixed(2))
+
+    this.setState({value: newValue, anchorEl: null})
+    this.props.onChange(newValue)
+  }
+
+  onWheel = (e : WheelEvent) => {
+    const y = e.deltaY > 0 ? -1 : 1
+    
+    clearInterval(this.timeoutID)
+    this.setState({isScrolling: true}, () => {
+      this.timeoutID = setTimeout(() => this.setState({isScrolling: false}), 250)
+    })
+    this.addToValue(y, true)
+    
+    e.preventDefault()
+    e.stopPropagation()
   }
 
   render() {
     return (
       <div style={{cursor: "ns-resize"}}>
         <div
+          ref={this.ref}
           title={this.props.title}
           onMouseDown={() => this.setState({isDragging: true})}
-          onMouseUp={() => this.setState({isDragging: false})}
-          onMouseMove={(e => this.onMouseMove(e, this.getMovement(e)))}
+          onMouseUp={this.onMouseUp}
+          onMouseMove={e => this.onMouseMove(this.getMovement(e))}
+          onContextMenu={e => this.setState({anchorEl: this.ref.current, inputValue: this.state.value.toString()})}
+          onDoubleClick={this.onDoubleClick}
           style={{
             width: this.props.size,
             height: this.props.size,
@@ -180,46 +256,75 @@ export default class Knob extends React.Component<IProps, IState> {
             ...this.props.style
           }}
         >
-          <div style={{width: "100%", height: "100%", position: "relative"}}>
-            
-            <canvas 
-              ref={this.canvasArcRef}
-              style={{
-                position: "absolute", 
-                top: "50%", 
-                left: "50%", 
-                transform: "translate(-50%, -50%)",
-                pointerEvents: "none"
-              }}
-            ></canvas>
-            <div
-              ref={this.centerRef}
-              style={{
-                position: "absolute",
-                height: "100%",
-                top: "50%",
-                left: "50%",
-                transform: `translate(-50%, -50%) rotate(${this.props.degrees * this.getPercentage() + 
-                  (this.props.bidirectional ? -this.props.degrees / 2 : this.props.offset)}deg)`,
-                pointerEvents: "none"
-              }}
-            >
+          <Tooltip title={this.state.value} placement="top" open={this.state.isDragging || this.state.isScrolling}>
+            <div style={{width: "100%", height: "100%", position: "relative", zIndex: 25}}>
+              <canvas 
+                ref={this.canvasArcRef}
+                style={{
+                  position: "absolute", 
+                  top: "50%", 
+                  left: "50%", 
+                  transform: "translate(-50%, -50%)",
+                  pointerEvents: "none"
+                }}
+              ></canvas>
               <div
                 style={{
                   position: "absolute",
-                  height: 7,
-                  top: 8,
-                  left: 0,
-                  transform: "translate(-50%, -50%)",
-                  borderRight: "1px solid #000",
-                  ...this.props.lineStyle
+                  height: "100%",
+                  top: "50%",
+                  left: "50%",
+                  transform: `translate(-50%, -50%) rotate(${this.props.degrees * this.getPercentage() + 
+                    (this.props.bidirectional ? -this.props.degrees / 2 : this.props.offset)}deg)`,
+                  pointerEvents: "none"
                 }}
-              ></div>
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    height: 7,
+                    top: 8,
+                    left: 0,
+                    transform: "translate(-50%, -50%)",
+                    borderRight: "1px solid #000",
+                    ...this.props.lineStyle
+                  }}
+                ></div>
+              </div>
+              {
+                this.state.anchorEl &&
+                <Popover
+                  open={Boolean(this.state.anchorEl)}
+                  anchorEl={this.state.anchorEl}
+                  onClose={e => this.setState({anchorEl: null})}
+                  anchorOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  style={{marginLeft: 4}}
+                >
+                  <form onSubmit={this.onSubmit}>
+                    <input 
+                      autoFocus
+                      value={this.state.inputValue} 
+                      onChange={this.onChange} 
+                      style={{
+                        backgroundColor: "#fff",
+                        width: 40,
+                        border: "none",
+                        borderRadius: 3,
+                        fontSize: 14,
+                        outline: "none"
+                      }}
+                    />
+                  </form>
+                </Popover>
+              }
             </div>
-          </div>
+          </Tooltip>
           {
             this.state.isDragging &&
-            <div style={{position: "absolute", top: 0, bottom: 0, right: 0, left: 0, zIndex: 20}}></div>
+            <div style={{position: "fixed", top: 0, bottom: 0, left: 0, right: 0, zIndex: 20}}></div>
           }
         </div>
       </div>
