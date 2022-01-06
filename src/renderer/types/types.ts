@@ -35,3 +35,8 @@ export interface TimeSignature {
   beats : number
   noteValue : number
 }
+
+export interface ValidatedInput {
+  value : string,
+  valid : boolean
+}

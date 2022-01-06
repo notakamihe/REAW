@@ -1,7 +1,7 @@
 import React from "react"
 import { WorkstationContext } from "renderer/context/WorkstationContext"
 import { Unit } from "renderer/types/types"
-import { BEAT_WIDTH } from "renderer/utils"
+import { BEAT_WIDTH } from "renderer/utils/vars"
 import { BeatComponent } from "."
 import { Beat } from "./BeatComponent"
 

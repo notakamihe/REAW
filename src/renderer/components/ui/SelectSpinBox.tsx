@@ -88,7 +88,7 @@ export default class SelectSpinBox extends React.Component<IProps, IState> {
           </div>
         }
         <div 
-          onContextMenu={e => this.openPopover(e, true)} 
+          onContextMenu={e => {e.stopPropagation(); this.openPopover(e, true)}} 
           onMouseDown={e => {if (this.props.leftClickOpen) this.openPopover(e, Boolean(this.props.leftClickOpen))}} 
           onClick={this.onClick}
           style={{

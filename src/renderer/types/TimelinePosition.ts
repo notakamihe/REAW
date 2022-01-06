@@ -130,6 +130,19 @@ export default class TimelinePosition {
     }
   }
 
+  static isStringValid(str : string) {
+    let arr = str.split('.')
+
+    if (arr.length < 3) {
+      return false
+    }
+
+    let parts = arr.slice(0, 2)
+    parts.push(arr.slice(2).join('.'))
+
+    return !isNaN(Number(parts[0])) && !isNaN(Number(parts[1])) && !isNaN(Number(parts[2]))
+  }
+
   normalize(options : TimelinePositionOptions) {
     let measure = this.measure
     let beat = this.beat
@@ -154,10 +167,31 @@ export default class TimelinePosition {
     this.addFraction(fraction, options)
   }
 
-  setPos (pos : TimelinePosition) {
+  static parseFromString(str : string, options : TimelinePositionOptions) {
+    if (!TimelinePosition.isStringValid(str)) {
+      return undefined
+    }
+
+    let arr = str.split('.')
+    let parts = arr.slice(0, 2)
+
+    parts.push(arr.slice(2).join('.'))
+
+    let pos = new TimelinePosition(Number(parts[0]), Number(parts[1]), Number(parts[2]))
+    
+    pos.normalize(options)
+
+    return pos
+  }
+
+  setPos(pos : TimelinePosition) {
     this.measure = pos.measure
     this.beat = pos.beat
     this.fraction = pos.fraction
+  }
+
+  snap(options : TimelinePositionOptions) {
+    this.add(0, 0, 0, true, options, true)
   }
 
   subtract(measures : number, beats : number, fraction : number, mutate : boolean = true,
@@ -222,6 +256,10 @@ export default class TimelinePosition {
   
   private subtractMeasures(numMeasures : number) {
     this.measure -= numMeasures
+  }
+
+  static toWidth(pos1 : TimelinePosition, pos2 : TimelinePosition, options : TimelinePositionOptions) {
+    return pos2.toMargin(options) - pos1.toMargin(options)
   }
   
   toMargin(options : TimelinePositionOptions) {

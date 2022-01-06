@@ -1,7 +1,5 @@
-import { AutomationLane } from "./components/AutomationLaneTrack";
-
-export const BEAT_WIDTH = 50;
-export const MAX_MEASURES = 10000
+import { AutomationLane } from "../components/AutomationLaneTrack";
+import { AutomationNode } from "../components/AutomationNodeComponent";
 
 export function addAlpha(color: string, opacity: number): string {
   const a = Math.round(Math.min(Math.max(opacity || 1, 0), 1) * 255);
@@ -55,9 +53,23 @@ export function hslToHex(h : number, s : number, l : number) {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
+export function hueFromHex(hex : string) {
+  const rgb = parseInt(normalizeHex(hex).substring(1), 16);
+
+  const r = (rgb >> 16) & 0xff;
+  const g = (rgb >> 8) & 0xff;
+  const b = rgb & 0xff;
+  
+  return Math.round(Math.atan2(g - b, r - b) * 180 / Math.PI + 360) % 360;
+}
+
 export function inverseLerp(value: number, min: number, max: number) {
     const t = (value - min) / (max - min);
     return clamp(t, 0, 1);
+}
+
+export function laneContainsNode(lane : AutomationLane, node : AutomationNode | null) {
+  return lane.nodes.findIndex(n => n.id === node?.id) !== -1
 }
 
 export function lerp(t: number, min: number, max: number) {

@@ -2,5 +2,6 @@ import SelectSpinBox from "./SelectSpinBox";
 import EditableDisplay from "./EditableDisplay";
 import Knob from "./Knob";
 import ButtonAndIcon from "./ButtonAndIcon";
+import HueInput from "./HueInput";
 
-export {EditableDisplay, SelectSpinBox, Knob, ButtonAndIcon};
+export {ButtonAndIcon, EditableDisplay, HueInput, Knob, SelectSpinBox};

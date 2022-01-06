@@ -2,12 +2,17 @@ import { debounce } from "debounce";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
-import { inverseLerp, lerp, normalizeHex } from "renderer/utils";
-import { AutomationNodeComponent } from ".";
+import { inverseLerp, lerp } from "renderer/utils/helpers";
+import { AnywhereClickAnchorEl, AutomationNodeComponent } from ".";
 import { AutomationLane } from "./AutomationLaneTrack";
 import { AutomationNode } from "./AutomationNodeComponent";
 import { Track } from "./TrackComponent";
 import {v4 as uuidv4} from "uuid";
+import { ListItemText, Menu, MenuItem, MenuList } from "@mui/material";
+import { MenuIcon } from "./icons";
+import { ContentPaste } from "@mui/icons-material";
+import { ClipboardContext, ClipboardItemType } from "renderer/context/ClipboardContext";
+import { getPosFromAnchorEl } from "renderer/utils/utils";
 
 interface IProps {
   lane : AutomationLane
@@ -16,21 +21,12 @@ interface IProps {
   color : string
   style? : React.CSSProperties
   track : Track
-  setTrack: (track : Track, callback? : () => void | null) => void
 }
 
 interface IState {
   height : number
-  verticalScale : number
-  horizontalScale : number
-  show : boolean
-  polyPoints : PolyPoint[]
-}
-
-interface PolyPoint {
-  x : number
-  y : number
-  node : AutomationNode | null
+  movingNode : AutomationNode | null
+  anchorEl : HTMLElement | null
 }
 
 export default class AutomationLaneComponent extends React.Component<IProps, IState> {
@@ -46,52 +42,31 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
 
     this.state = {
       height: 0,
-      verticalScale: 0,
-      horizontalScale: 0,
-      show: false,
-      polyPoints: []
+      movingNode: null,
+      anchorEl: null
     }
 
     this.onNodeMove = debounce(this.onNodeMove, 10)
   }
 
-  componentDidMount() {
-    this.getPolylinePoints()
-  }
-
   componentDidUpdate(prevProps : IProps) {
     if (this.ref.current && this.state.height !== this.ref.current.clientHeight) {
-      this.setState({height: (this.ref.current ? this.ref.current.clientHeight : 0)}, () => {
-        this.getPolylinePoints()
-      })
-    }
-
-    if (this.state.verticalScale !== this.context!.verticalScale) {
-      this.setState({
-        verticalScale: this.context!.verticalScale, 
-        height: (this.ref.current ? this.ref.current.clientHeight : 0)
-      }, () => {
-        this.getPolylinePoints()
-      })
-    }
-
-    if (this.state.horizontalScale !== this.context!.horizontalScale) {
-      this.setState({
-        horizontalScale: this.context!.horizontalScale
-      }, () => {
-        this.getPolylinePoints()
-      })
-    }
-
-    if (this.state.show !== this.props.lane.show) {
-      this.setState({show: this.props.lane.show})
-      this.getPolylinePoints()
+      this.setState({height: (this.ref.current ? this.ref.current.clientHeight : 0)})
     }
   }
 
   getPolylinePoints() {
     const nodes = this.props.lane.nodes
-    const points : PolyPoint[] = []
+    const points = []
+
+    if (this.state.movingNode) {
+      const nodeIdx = nodes.findIndex(n => n.id === this.state.movingNode!.id)
+
+      if (nodeIdx !== -1) {
+        nodes[nodeIdx] = this.state.movingNode
+        nodes.sort((a, b) => a.pos.compare(b.pos))
+      }
+    }
 
     for (let i = 0; i < nodes.length; i++) {
       let node = nodes[i]
@@ -100,18 +75,17 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
       const x = node.pos.toMargin(this.context!.timelinePosOptions)
       const y = (this.state.height - 6) - yPercentage * (this.state.height - 6)
 
-      if (i === 0) {
-        points.push({x: 0, y: y + 3, node: null})
-      }
+      if (i === 0)
+        points.push(`${0},${y + 3}`)
       
-      points.push({x: x + 3, y: y + 3, node: node})
+      points.push(`${x + 3},${y + 3}`)
       
       if (i === nodes.length - 1 && this.ref.current) {
-        points.push({x: this.ref.current.clientWidth, y: y + 3, node: null})
+        points.push(`${this.ref.current.clientWidth},${y + 3}`)
       }
     }
 
-    this.setState({polyPoints: points})
+    return points
   }
 
   onClick = (e : React.MouseEvent<HTMLDivElement>) => {
@@ -123,35 +97,12 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
       const pos = new TimelinePosition(measures + 1, beats + 1, fraction)
       const value = lerp(1 - y / this.state.height, this.props.lane.minValue, this.props.lane.maxValue)
 
-      const automationLanes = this.props.track.automationLanes.slice()
-      const laneIdx = automationLanes.findIndex(l => l.id === this.props.lane.id)
-
-      automationLanes[laneIdx].nodes.push({id: uuidv4(), pos, value})
-      automationLanes[laneIdx].nodes.sort((a, b) => a.pos.compare(b.pos))
-
-      this.props.setTrack({...this.props.track, automationLanes}, () => {
-        this.getPolylinePoints()
-      })
+      this.context!.addNodeToLane(this.props.track, this.props.lane, {id: uuidv4(), pos, value})
     }
   }
-  
+
   onNodeMove = (node : AutomationNode) => {
-    const points = this.state.polyPoints.slice()
-    const pointIdx = points.findIndex(p => p.node?.id === node.id)
-
-    if (pointIdx) {
-      const yPercentage = inverseLerp(node.value, this.props.lane.minValue, this.props.lane.maxValue)
-
-      points[pointIdx].x = node.pos.toMargin(this.context!.timelinePosOptions) + 3
-      points[pointIdx].y = (this.state.height - 6) - yPercentage * (this.state.height - 6) + 3
-
-      points.sort((a, b) => a.x - b.x)
-
-      points[0].y = points[1].y
-      points[points.length - 1].y = points[points.length - 2].y
-
-      this.setState({polyPoints: points})
-    }
+    this.setState({movingNode: node})
   }
 
   setNode = (node : AutomationNode) => {
@@ -167,57 +118,86 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
 
     if (laneIdx !== -1) {
       automationLanes[laneIdx].nodes = nodes.sort((a, b) => a.pos.compare(b.pos))
-      this.props.setTrack({...this.props.track, automationLanes})
+      this.context!.setTrack({...this.props.track, automationLanes})
+    }
+
+    if (this.context!.selectedNode?.id === node.id) {
+      this.context!.setSelectedNode(node)
     }
   }
 
   render() {
-    const {verticalScale} = this.context!
+    const {verticalScale, selectedNode, setSelectedNode, onNodeClickAway, cursorPos, pasteNode, timelinePosOptions} = this.context!
+    const polylinePoints = this.getPolylinePoints()
 
     if (this.props.lane.show) {
       return (
-        <div
-          style={{
-            width: this.props.width, 
-            minWidth: this.props.minWidth,
-            height: this.props.lane.expanded ? 100 * verticalScale : 30,
-            backgroundColor: "#fff9",
-            borderBottom: `1px solid ${this.props.color}`,
-            padding: "3px 0",
-            position: "relative",
-            ...this.props.style
-          }}
-        >
-          <div 
-            ref={this.ref} 
-            onClick={this.onClick} 
-            style={{width: "100%", height: "100%", position: "relative", marginLeft: -2.5}}
-          >
-            {
-              this.props.lane.expanded &&
-              this.props.lane.nodes.map(n => (
-                <AutomationNodeComponent 
-                  key={n.id} 
-                  node={n} 
-                  lane={this.props.lane} 
-                  onChange={this.onNodeMove}
-                  setNode={this.setNode}
-                  color={this.props.color}
-                />
-              ))
-            }
-            <svg 
-              width="100%" 
-              height="100%"
-              style={{position: "absolute", top: 0, left: 0, zIndex: 19, pointerEvents: "none"}} 
+        <React.Fragment>
+          <AnywhereClickAnchorEl onRightClickAnywhere={e => this.setState({anchorEl: e})}>
+            <div
+              style={{
+                width: this.props.width, 
+                minWidth: this.props.minWidth,
+                height: this.props.lane.expanded ? 100 * verticalScale : 30,
+                backgroundColor: "#fff9",
+                borderBottom: `1px solid #0002`,
+                position: "relative",
+                ...this.props.style
+              }}
             >
-              <polyline
-                points={this.state.polyPoints.map(pp => `${pp.x},${pp.y}`).join(" ")} 
-                style={{fill: "none", stroke: this.props.color, strokeWidth: 2}}
-              />
-            </svg>
-          </div>
-        </div>
+              <div 
+                ref={this.ref} 
+                onClick={this.onClick} 
+                style={{width: "100%", height: "100%", position: "relative", marginLeft: -2}}
+              >
+                {
+                  this.props.lane.expanded &&
+                  this.props.lane.nodes.map(n => (
+                    <AutomationNodeComponent 
+                      key={n.id} 
+                      node={n} 
+                      lane={this.props.lane} 
+                      onChange={this.onNodeMove}
+                      setNode={this.setNode}
+                      color={this.props.color}
+                      isSelected={selectedNode?.id === n.id}
+                      onSelect={setSelectedNode}
+                      onClickAway={onNodeClickAway}
+                      onDragEnd={() => this.setState({movingNode: null})}
+                    />
+                  ))
+                }
+                <svg 
+                  width="100%" 
+                  height="100%"
+                  style={{position: "absolute", top: 0, left: 0, zIndex: 19, pointerEvents: "none"}} 
+                >
+                  <polyline
+                    points={polylinePoints.join(" ")} 
+                    style={{fill: "none", stroke: this.props.color, strokeWidth: 2}}
+                  />
+                </svg>
+              </div>
+            </div>
+          </AnywhereClickAnchorEl>
+          <Menu
+            open={Boolean(this.state.anchorEl)}
+            anchorEl={this.state.anchorEl}
+            onClose={() => this.setState({anchorEl: null})}
+            onClick={e => this.setState({anchorEl: null})}
+          >
+            <MenuList className="p-0" dense style={{outline: "none"}}>
+              <MenuItem onClick={e => pasteNode(true, this.props.lane)}>
+                <MenuIcon icon={<ContentPaste />} />
+                <ListItemText>Paste at Cursor</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={e => pasteNode(false, this.props.lane, getPosFromAnchorEl(this.state.anchorEl!, timelinePosOptions))}>
+                <MenuIcon icon={<ContentPaste />} />
+                <ListItemText>Paste</ListItemText>
+              </MenuItem>
+            </MenuList>
+          </Menu>
+        </React.Fragment>
       )
     }
 

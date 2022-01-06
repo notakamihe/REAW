@@ -1,6 +1,6 @@
 import { Popover, Tooltip } from "@mui/material"
 import React from "react"
-import { clamp, degreeToRad, inverseLerp, lerp } from "renderer/utils"
+import { clamp, degreeToRad, inverseLerp, lerp } from "renderer/utils/helpers"
 
 interface IProps {
   size : number
@@ -187,6 +187,11 @@ export default class Knob extends React.Component<IProps, IState> {
     this.setState({inputValue: e.target.value})
   }
 
+  onContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation()
+    this.setState({anchorEl: this.ref.current, inputValue: this.state.value.toString()})
+  }
+
   onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (this.props.origin !== undefined) {
       const newValue = clamp(this.props.origin, this.props.min, this.props.max)
@@ -245,7 +250,7 @@ export default class Knob extends React.Component<IProps, IState> {
           onMouseDown={() => this.setState({isDragging: true})}
           onMouseUp={this.onMouseUp}
           onMouseMove={e => this.onMouseMove(this.getMovement(e))}
-          onContextMenu={e => this.setState({anchorEl: this.ref.current, inputValue: this.state.value.toString()})}
+          onContextMenu={this.onContextMenu}
           onDoubleClick={this.onDoubleClick}
           style={{
             width: this.props.size,

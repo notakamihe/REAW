@@ -183,7 +183,6 @@ export default class Header extends React.Component<IProps, IState> {
 
     const onTimeSignatureBeatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.value && parseInt(e.target.value) > 0) {
-        console.log(timeSignature)
         const newTimeSignature = {...timeSignature, beats: parseInt(e.target.value)}
         setTimeSignature(newTimeSignature)
       }
