@@ -1,16 +1,17 @@
-import React, { useState } from "react"
+import React, { useRef } from "react"
 import { GridSize, SnapSize, TimeSignature } from "renderer/types/types";
 import TimelinePosition, { TimelinePositionOptions } from "renderer/types/TimelinePosition";
 import { BEAT_WIDTH } from "renderer/utils/vars";
 import { AutomationNode } from "renderer/components/AutomationNodeComponent";
-import { useClickAwayState, useTracks } from "renderer/hooks";
+import { useClickAwayState, useStateWPrev, useTracks } from "renderer/hooks";
 import { Clip } from "renderer/components/ClipComponent";
 import { Track } from "renderer/components/TrackComponent";
 import data from "renderer/tempData";
 import { AutomationLane } from "renderer/components/AutomationLaneTrack";
 import { ClipboardContext, ClipboardItemType } from "./ClipboardContext";
 import { v4 } from "uuid";
-import { fromClip, moveClipToPos } from "renderer/utils/utils";
+import { fromClip, moveClipToPos, preserveClipMargins, preservePosMargin } from "renderer/utils/utils";
+import { Region } from "renderer/components/RegionComponent";
 
 export interface WorkflowContextType {
   tracks : Track[];
@@ -27,7 +28,6 @@ export interface WorkflowContextType {
   snapSize : SnapSize
   setSnapSize : React.Dispatch<React.SetStateAction<SnapSize>>
   timelinePosOptions : TimelinePositionOptions
-  setTimelinePosOptions : React.Dispatch<React.SetStateAction<TimelinePositionOptions>>
   timeSignature : TimeSignature
   setTimeSignature : React.Dispatch<React.SetStateAction<TimeSignature>>
   autoSnap : boolean
@@ -55,9 +55,9 @@ export interface WorkflowContextType {
   deleteClip : (clip : Clip) => void
   deleteNode : (node : AutomationNode) => void
   pasteClip : (atCursor : boolean, track? : Track, pos? : TimelinePosition) => void
-  pasteNode : (atCursor : boolean, lane? : AutomationLane, pos? : TimelinePosition) => void
-  nodeExternallyChanged : boolean
-  setNodeExternallyChanged : React.Dispatch<React.SetStateAction<boolean>>
+  pasteNode : (atCursor : boolean, lane? : AutomationLane, pos? : TimelinePosition) => void,
+  region : Region | null
+  setRegion : React.Dispatch<React.SetStateAction<Region | null>>
 };
 
 export const WorkstationContext = React.createContext<WorkflowContextType | undefined>(undefined);
@@ -65,31 +65,32 @@ export const WorkstationContext = React.createContext<WorkflowContextType | unde
 export const WorkstationProvider: React.FC = ({ children }) => {
   const {clipboardItem} = React.useContext(ClipboardContext)!
 
-  const [tracks, setTracks, setTrack] = useTracks(data);
-  const [verticalScale, setVerticalScale] = React.useState(1);
-  const [horizontalScale, setHorizontalScale] = React.useState(1);
-  const [trackLanesWindowHeight, setTrackLanesWindowHeight] = React.useState(0);
-  const [gridSize, setGridSize] = React.useState(GridSize.ThirtySecondBeat);
-  const [snapSize, setSnapSize] = React.useState(SnapSize.ThirtySecondBeat);
-  const [timeSignature, setTimeSignature] = React.useState({beats: 4, noteValue: 4});
   const [autoSnap, setAutoSnap] = React.useState(true);
   const [cursorPos, setCursorPos] = React.useState(TimelinePosition.fromPos(TimelinePosition.start))
-  const [tempo, setTempo] = React.useState(120);
-  const [isPlaying, setIsPlaying] = React.useState(false);
+  const [gridSize, setGridSize] = React.useState(GridSize.ThirtySecondBeat);
+  const [horizontalScale, setHorizontalScale] = React.useState(1);
   const [isLooping, setIsLooping] = React.useState(false);
+  const [isPlaying, setIsPlaying] = React.useState(false);
   const [isRecording, setIsRecording] = React.useState(false);
   const [metronome, setMetronome] = React.useState(false);
+  const [region, setRegion] = React.useState<Region | null>(null)
   const [selectedClip, setSelectedClip, onClipClickAway] = useClickAwayState<Clip>(null)
   const [selectedNode, setSelectedNode, onNodeClickAway, setCancelClickAway] = useClickAwayState<AutomationNode>(null)
-  const [nodeExternallyChanged, setNodeExternallyChanged] = React.useState(false);
-
-  const [timelinePosOptions, setTimelinePosOptions] = React.useState({
+  const [snapSize, setSnapSize] = React.useState(SnapSize.OneTwentyEighth);
+  const [tempo, setTempo] = React.useState(120);
+  const [timeSignature, setTimeSignature] = React.useState({beats: 4, noteValue: 4});
+  const [trackLanesWindowHeight, setTrackLanesWindowHeight] = React.useState(0);
+  const [tracks, setTracks, setTrack] = useTracks(data);
+  const [timelinePosOptions, setTimelinePosOptions, prevTimelineOptions] = useStateWPrev({
     snapSize, 
     beatWidth: BEAT_WIDTH, 
     horizontalScale,
     timeSignature,
     tempo
   });
+  const [verticalScale, setVerticalScale] = React.useState(1);
+
+  const shouldPreserveMargins = useRef(false);
 
   React.useEffect(() => {
     setTimelinePosOptions({
@@ -104,28 +105,39 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   React.useEffect(() => {
     if (autoSnap) {
       if (horizontalScale < 0.075) {
-        setSnapSize(SnapSize.Measure)
+        setSnapSize(SnapSize.Whole)
       } else if (horizontalScale < 0.1153) {
-        setSnapSize(SnapSize.HalfMeasure)
+        setSnapSize(SnapSize.Half)
       } else if (horizontalScale < 0.1738) {
-        setSnapSize(SnapSize.Beat)
+        setSnapSize(SnapSize.Quarter)
       } else if (horizontalScale < 0.3848) {
-        setSnapSize(SnapSize.HalfBeat)
+        setSnapSize(SnapSize.Eighth)
       } else if (horizontalScale < 0.6791) {
-        setSnapSize(SnapSize.QuarterBeat)
+        setSnapSize(SnapSize.Sixteenth)
       } else if (horizontalScale < 1.8069) {
-        setSnapSize(SnapSize.EighthBeat)
+        setSnapSize(SnapSize.ThirtySecond)
       } else if (horizontalScale < 3.6147) {
-        setSnapSize(SnapSize.SixteenthBeat)
+        setSnapSize(SnapSize.SixtyFourth)
       } else if (horizontalScale < 7.2323) {
-        setSnapSize(SnapSize.ThirtySecondBeat)
+        setSnapSize(SnapSize.OneTwentyEighth)
       } else if (horizontalScale < 14.4647) {
-        setSnapSize(SnapSize.SixtyFourthBeat)
+        setSnapSize(SnapSize.TwoFiftySixth)
       } else {
-        setSnapSize(SnapSize.HundredTwentyEighthBeat)
+        setSnapSize(SnapSize.FiveHundredTwelfth)
       }
     }
   }, [horizontalScale, autoSnap])
+
+  React.useEffect(() => {
+    shouldPreserveMargins.current = true;
+  }, [timeSignature])
+
+  React.useEffect(() => {
+    if (shouldPreserveMargins.current) {
+      preserveMargins()
+      shouldPreserveMargins.current = false;
+    }
+  }, [timelinePosOptions])
 
   const addNodeToLane = (track : Track, lane : AutomationLane, node : AutomationNode) => {
     const automationLanes = track.automationLanes.slice();
@@ -169,12 +181,48 @@ export const WorkstationProvider: React.FC = ({ children }) => {
     }
   }
 
+  const preserveMargins = () => {
+    if (prevTimelineOptions) {
+      const newTracks = tracks.slice()
+
+      for (var i = 0; i < newTracks.length; i++) {
+        for (var j = 0; j < newTracks[i].clips.length; j++) {
+          newTracks[i].clips[j] = preserveClipMargins(newTracks[i].clips[j], prevTimelineOptions, timelinePosOptions);
+
+          if (newTracks[i].clips[j].id === selectedClip?.id)
+            setSelectedClip(newTracks[i].clips[j]);
+        }
+
+        for (var j = 0; j < newTracks[i].automationLanes.length; j++) {
+          const lane = newTracks[i].automationLanes[j];
+
+          for (var k = 0; k < newTracks[i].automationLanes[j].nodes.length; k++) {
+            newTracks[i].automationLanes[j].nodes[k].pos = preservePosMargin(lane.nodes[k].pos, prevTimelineOptions, timelinePosOptions);
+
+            if (lane.nodes[k].id === selectedNode?.id)
+              setSelectedNode(lane.nodes[k]);
+          }
+        }
+      }
+
+      const newRegion : Region | null = region ? {
+        start: preservePosMargin(region.start, prevTimelineOptions, timelinePosOptions),
+        end: preservePosMargin(region.end, prevTimelineOptions, timelinePosOptions)
+      } : null
+  
+      setTracks(newTracks);
+      setCursorPos(preservePosMargin(cursorPos, prevTimelineOptions, timelinePosOptions));
+      setRegion(newRegion);
+    }
+  }
+
   const pasteClip = (atCursor : boolean, track? : Track, pos? : TimelinePosition) => {
     navigator.clipboard.readText().then(text => {
       if (!text) {
         if (clipboardItem?.item && clipboardItem?.type === ClipboardItemType.Clip) {
           const itemClip = clipboardItem?.item as Clip;
           let newClip = fromClip(itemClip);
+          newClip.id = v4();
       
           if (track === undefined) {
             track = tracks.find(t => t.id === clipboardItem?.container);
@@ -240,7 +288,6 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         snapSize,
         setSnapSize,
         timelinePosOptions,
-        setTimelinePosOptions,
         timeSignature,
         setTimeSignature,
         autoSnap,
@@ -269,8 +316,8 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         deleteNode,
         pasteClip,
         pasteNode,
-        nodeExternallyChanged,
-        setNodeExternallyChanged
+        region,
+        setRegion
       }}
     >
       {children}

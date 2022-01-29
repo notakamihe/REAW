@@ -7,113 +7,170 @@ import { SnapSize } from "renderer/types/types";
 import Holdable from "./Holdable";
 import styled from "styled-components"
 import metronomeIcon from "../../../assets/svg/metronome.svg"
-import metronomeIconPink from "../../../assets/svg/metronome-pink.svg"
-import { ButtonAndIcon, EditableDisplay } from "./ui";
+import { ButtonAndIcon, EditableDisplay, NumberInput } from "./ui";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFileExport, faMagnet } from "@fortawesome/free-solid-svg-icons";
+import { faFileExport, faMagnet, faRedo, faUndo } from "@fortawesome/free-solid-svg-icons";
 import SelectSpinBox, { SelectSpinBoxOption } from "./ui/SelectSpinBox";
 
-interface IProps {
-}
+const PlaybackControlButton = styled(IconButton)`
+background-color: #333;
+border-radius: 0!important;
+padding: 2px!important;
 
-interface IState {
-  beatInput : string
-  noteValueInput : string
-  tempoInput : string
-  showTime : boolean
-  optionIdx : number
-}
+&:hover {
+  background-color: #555;
+    transition: background-color 0.2s ease-in-out;
+  }
+`
+
 
 enum SnapSizeOption {
   None,
   Auto,
-  Measure,
-  HalfMeasure,
-  Beat,
-  HalfBeat,
-  QuarterBeat,
-  EighthBeat,
-  SixteenthBeat,
-  ThirtySecondBeat,
-  SixtyFourthBeat,
-  HundredTwentyEighthBeat
+  Whole,
+  Half,
+  Quarter,
+  Eighth,
+  Sixteenth,
+  ThirtySecond,
+  SixtyFourth,
+  OneTwentyEighth,
+  TwoFiftySixth,
+  FiveHundredTwelfth
+}
+  
+interface IProps {
 }
 
-interface PlaybackControlButtonProps {
-  $isactivated : boolean
-  activatedbgcolor? : string
+interface IState {
+  noteValue : number
+  showTime : boolean
+  tempoInput : string
+  snapSizeOptionValue : SnapSizeOption
 }
 
-const PlaybackControlButton = styled(IconButton)`
-  background-color: ${(props : PlaybackControlButtonProps) => props.$isactivated ? props.activatedbgcolor || "#ff5db8!important" : "#333!important"};
-  border-radius: 0!important;
-  border-width: 1px!important;
-  border-color: #555!important;
-  border-style: solid!important;
-  padding: 2px!important;
-
-  &:active {
-    background-color: #ff6db8!important;
-  }
-`
 
 export default class Header extends React.Component<IProps, IState> {
   static contextType = WorkstationContext
   context : React.ContextType<typeof WorkstationContext>
 
+  noteValueOptions = [
+    {value: 32, label: "32"},
+    {value: 16, label: "16"},
+    {value: 8, label: "8"},
+    {value: 4, label: "4"},
+    {value: 2, label: "2"},
+    {value: 1, label: "1"},
+  ]
+
   options = [
     {value: SnapSizeOption.None, label: "None"},
     {value: SnapSizeOption.Auto, label: "Auto"},
-    {value: SnapSizeOption.Measure, label: "Measure"},
-    {value: SnapSizeOption.HalfMeasure, label: "1/2 Measure"},
-    {value: SnapSizeOption.Beat, label: "Beat"},
-    {value: SnapSizeOption.HalfBeat, label: "1/2 Beat"},
-    {value: SnapSizeOption.QuarterBeat, label: "1/4 Beat"},
-    {value: SnapSizeOption.EighthBeat, label: "1/8 Beat"},
-    {value: SnapSizeOption.SixteenthBeat, label: "1/16 Beat"},
-    {value: SnapSizeOption.ThirtySecondBeat, label: "1/32 Beat"},
-    {value: SnapSizeOption.SixtyFourthBeat, label: "1/64 Beat"},
-    {value: SnapSizeOption.HundredTwentyEighthBeat, label: "1/128 Beat"}
+    {value: SnapSizeOption.Whole, label: "Whole"},
+    {value: SnapSizeOption.Half, label: "Half"},
+    {value: SnapSizeOption.Quarter, label: "Quarter"},
+    {value: SnapSizeOption.Eighth, label: "Eighth"},
+    {value: SnapSizeOption.Sixteenth, label: "Sixteenth"},
+    {value: SnapSizeOption.ThirtySecond, label: "1/32"},
+    {value: SnapSizeOption.SixtyFourth, label: "1/64"},
+    {value: SnapSizeOption.OneTwentyEighth, label: "1/128"},
+    {value: SnapSizeOption.TwoFiftySixth, label: "1/256"},
+    {value: SnapSizeOption.FiveHundredTwelfth, label: "1/512"}
   ]
 
   constructor(props: IProps) {
     super(props)
 
     this.state = {
-      beatInput: "",
-      noteValueInput: "",
-      tempoInput: "",
+      noteValue: 1,
       showTime: false,
-      optionIdx: 0
+      tempoInput: "",
+      snapSizeOptionValue: SnapSizeOption.None
     }
+
+    this.onChangeNoteValue = this.onChangeNoteValue.bind(this)
+    this.onChangeSnapSizeOption = this.onChangeSnapSizeOption.bind(this)
   }
 
   componentDidMount() {
     this.setState({
-      beatInput: this.context!.timeSignature.beats.toString(), 
-      noteValueInput: this.context!.timeSignature.noteValue.toString(),
+      noteValue: this.context!.timeSignature.noteValue,
       tempoInput: this.context!.tempo.toString(),
-      optionIdx: this.getOptionIdxBySnapSize()
+      snapSizeOptionValue: this.getOptionBySnapSize()
     })
   }
 
-  getOptionIdxBySnapSize = () => {
+  getOptionBySnapSize = () => {
     if (this.context?.autoSnap)
-      return 1
+      return SnapSizeOption.Auto
 
     switch (this.context?.snapSize) {
-      case SnapSize.None: return 0
-      case SnapSize.Measure: return 2
-      case SnapSize.HalfMeasure: return 3
-      case SnapSize.Beat: return 4
-      case SnapSize.HalfBeat: return 5
-      case SnapSize.QuarterBeat: return 6
-      case SnapSize.EighthBeat: return 7
-      case SnapSize.SixteenthBeat: return 8
-      case SnapSize.ThirtySecondBeat: return 9
-      case SnapSize.SixtyFourthBeat: return 10
-      case SnapSize.HundredTwentyEighthBeat: return 11
-      default: return 0
+      case SnapSize.Whole: return SnapSizeOption.Whole
+      case SnapSize.Half: return SnapSizeOption.Half
+      case SnapSize.Quarter: return SnapSizeOption.Quarter
+      case SnapSize.Eighth: return SnapSizeOption.Eighth
+      case SnapSize.Sixteenth: return SnapSizeOption.Sixteenth
+      case SnapSize.ThirtySecond: return SnapSizeOption.ThirtySecond
+      case SnapSize.SixtyFourth: return SnapSizeOption.SixtyFourth
+      case SnapSize.OneTwentyEighth: return SnapSizeOption.OneTwentyEighth
+      case SnapSize.TwoFiftySixth: return SnapSizeOption.TwoFiftySixth
+      case SnapSize.FiveHundredTwelfth: return SnapSizeOption.FiveHundredTwelfth
+      default: return SnapSizeOption.None
+    }
+  }
+
+  onChangeNoteValue = (option : SelectSpinBoxOption) => {
+    const value = option.value as number
+
+    this.setState({noteValue: value})
+    this.context!.setTimeSignature({...this.context!.timeSignature, noteValue: value})
+  }
+
+  onChangeSnapSizeOption(option : SelectSpinBoxOption) {
+    const value = option.value as SnapSizeOption
+
+    this.setState({snapSizeOptionValue: value})
+
+    if (value === SnapSizeOption.Auto) {
+      this.context!.setAutoSnap(true)
+    } else {
+      this.context!.setAutoSnap(false)
+
+      switch (value) {
+        case SnapSizeOption.None: 
+          this.context!.setSnapSize(SnapSize.None) 
+          break
+        case SnapSizeOption.Whole:
+          this.context!.setSnapSize(SnapSize.Whole)
+          break
+        case SnapSizeOption.Half:
+          this.context!.setSnapSize(SnapSize.Half)
+          break
+        case SnapSizeOption.Quarter:
+          this.context!.setSnapSize(SnapSize.Quarter)
+          break
+        case SnapSizeOption.Eighth:
+          this.context!.setSnapSize(SnapSize.Eighth)
+          break
+        case SnapSizeOption.Sixteenth:
+          this.context!.setSnapSize(SnapSize.Sixteenth)
+          break
+        case SnapSizeOption.ThirtySecond:
+          this.context!.setSnapSize(SnapSize.ThirtySecond)
+          break
+        case SnapSizeOption.SixtyFourth:
+          this.context!.setSnapSize(SnapSize.SixtyFourth)
+          break
+        case SnapSizeOption.OneTwentyEighth:
+          this.context!.setSnapSize(SnapSize.OneTwentyEighth)
+          break
+        case SnapSizeOption.TwoFiftySixth:
+          this.context!.setSnapSize(SnapSize.TwoFiftySixth)
+          break
+        case SnapSizeOption.FiveHundredTwelfth:
+          this.context!.setSnapSize(SnapSize.FiveHundredTwelfth)
+          break
+      }
     }
   }
 
@@ -123,10 +180,6 @@ export default class Header extends React.Component<IProps, IState> {
       setCursorPos,
       timeSignature, 
       setTimeSignature, 
-      autoSnap,
-      setAutoSnap,
-      snapSize,
-      setSnapSize,
       tempo, 
       setTempo,
       isPlaying,
@@ -163,92 +216,9 @@ export default class Header extends React.Component<IProps, IState> {
       setCursorPos(newPos)
     }
 
-    const onChange = (option : SelectSpinBoxOption<SnapSizeOption>) => {
-      const idx = this.options.findIndex(o => o.value === option.value)
-      this.setState({optionIdx: idx})
-      setSnapSizeByOption(option)
-    }
-
-    const onNext = () => {
-      const newIdx = Math.min(this.state.optionIdx + 1, this.options.length - 1)
-      this.setState({optionIdx: newIdx})
-      setSnapSizeByOption(this.options[newIdx])
-    }
-
-    const onPrev = () => {
-      const newIdx = Math.max(this.state.optionIdx - 1, 0)
-      this.setState({optionIdx: newIdx})
-      setSnapSizeByOption(this.options[newIdx])
-    }
-
-    const onTimeSignatureBeatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.value && parseInt(e.target.value) > 0) {
-        const newTimeSignature = {...timeSignature, beats: parseInt(e.target.value)}
-        setTimeSignature(newTimeSignature)
-      }
-    }
-
-    const onTimeSignatureNoteValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.value && parseInt(e.target.value) > 0) {
-        const newTimeSignature = {...timeSignature, noteValue: parseInt(e.target.value)}
-        setTimeSignature(newTimeSignature)
-      }
-    }
-
-    const onTempoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.value && parseInt(e.target.value) > 0) {
-        const newTempo = parseInt(e.target.value)
-        setTempo(newTempo)
-      }
-    }
-
     const stop = () => {
       setIsPlaying(false)
       setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))
-    }
-
-    const setSnapSizeByOption = (option : SelectSpinBoxOption<SnapSizeOption>) => {
-      if (option.value === SnapSizeOption.Auto) {
-        setAutoSnap(true)
-      } else {
-        setAutoSnap(false)
-
-        switch (option.value) {
-          case SnapSizeOption.None:
-            setSnapSize(SnapSize.None)
-            break
-          case SnapSizeOption.Measure:
-            setSnapSize(SnapSize.Measure)
-            break
-          case SnapSizeOption.HalfMeasure:
-            setSnapSize(SnapSize.HalfMeasure)
-            break
-          case SnapSizeOption.Beat:
-            setSnapSize(SnapSize.Beat)
-            break
-          case SnapSizeOption.HalfBeat:
-            setSnapSize(SnapSize.HalfBeat)
-            break
-          case SnapSizeOption.QuarterBeat:
-            setSnapSize(SnapSize.QuarterBeat)
-            break
-          case SnapSizeOption.EighthBeat:
-            setSnapSize(SnapSize.EighthBeat)
-            break
-          case SnapSizeOption.SixteenthBeat:
-            setSnapSize(SnapSize.SixteenthBeat)
-            break
-          case SnapSizeOption.ThirtySecondBeat:
-            setSnapSize(SnapSize.ThirtySecondBeat)
-            break
-          case SnapSizeOption.SixtyFourthBeat:
-            setSnapSize(SnapSize.SixtyFourthBeat)
-            break
-          case SnapSizeOption.HundredTwentyEighthBeat:
-            setSnapSize(SnapSize.HundredTwentyEighthBeat)
-            break
-        }
-      }
     }
 
     return (
@@ -259,18 +229,18 @@ export default class Header extends React.Component<IProps, IState> {
           height: 70, 
           zIndex: 19, 
           backgroundColor: "#fff", 
-          boxShadow: "0 1px 10px 1px #0007", 
+          boxShadow: "0 1px 5px 1px #0002", 
           flexShrink: 0,
           position: "relative"
         }}
       >
-        <div style={{display:"flex",flexDirection:"column",height:"100%", width:80, borderRight:"1px solid #0002"}}>
-          <div className="d-flex justify-content-center">
-            <IconButton className="p-0 mx-2" style={{borderRadius: 0}}>
-              <Undo style={{fontSize: 20}}/>
+        <div style={{display: "flex", flexDirection: "column", height: "100%", width:80}}>
+          <div className="d-flex justify-content-center" style={{flex: 1}}>
+            <IconButton className="p-0" style={{borderRadius: 0, marginRight: 12}}>
+              <FontAwesomeIcon icon={faUndo} style={{fontSize: 12, color: "#000"}} />
             </IconButton>
-            <IconButton className="p-0 mx-2" style={{borderRadius: 0}}>
-              <Redo style={{fontSize: 20}}/>
+            <IconButton className="p-0" style={{borderRadius: 0}}>
+              <FontAwesomeIcon icon={faRedo} style={{fontSize: 12, color: "#000"}} />
             </IconButton>
           </div>
           <ButtonAndIcon 
@@ -290,78 +260,83 @@ export default class Header extends React.Component<IProps, IState> {
         </div>
         <div 
           className="d-flex" 
-          style={{width: 275, backgroundColor: "#0001", height: "100%", flexDirection: "column"}}
+          style={{width: 275, height: "100%", flexDirection: "column", borderRight: "1px solid #333", borderLeft: "1px solid #333"}}
         >
-          <div className="d-flex" style={{backgroundColor: "#fff5", height: 25}}>
+          <div className="d-flex" style={{height: 25}}>
             <div 
               className="d-flex justify-content-center align-items-center" 
               style={{flex: 1}}
             >
-              <EditableDisplay 
-                value={this.state.beatInput} 
+              <NumberInput
+                hoverStyle={{verticalContainer: {visibility: "visible"}}}
+                min={1}
+                max={16}
+                onChange={(value) => setTimeSignature({...timeSignature, beats: value})}
+                reverseDirection
                 style={{
-                  fontSize: 14, 
-                  width: 20, 
-                  textAlign: "center", 
-                  backgroundColor: "#0000", 
-                  border: "none",
-                  outline: "none",
-                  height: 18
+                  container: {width: 30, height: 18, backgroundColor: "#0000"},
+                  incr: {backgroundColor: "#0000"},
+                  incrIcon: {color: "#333"},
+                  input: {fontWeight: "bold", transform: "translateY(2px)"},
+                  decr: {backgroundColor: "#0000"},
+                  decrIcon: {color: "#333"},
+                  verticalContainer: {visibility: "hidden"}
                 }}
-                onChange={e => {this.setState({beatInput: e.target.value}); onTimeSignatureBeatChange(e)}}
-                focusedStyle={{backgroundColor: "#0001"}}
+                value={timeSignature.beats}
+                vertical
               />
-              <span className="mx-1" style={{fontSize: 14}}>/</span>
-              <EditableDisplay 
-                value={this.state.noteValueInput}
+              <span style={{fontSize: 14, color: "#0008", margin: "0 2px"}}>|</span>
+              <SelectSpinBox
+                enableMenu={false}
+                hoverStyle={{buttonsContainer: {visibility: "visible"}}}
+                onChange={this.onChangeNoteValue}
+                options={this.noteValueOptions}
                 style={{
-                  fontSize: 14, 
-                  width: 20, 
-                  textAlign: "center", 
-                  backgroundColor: "#0000", 
-                  border: "none",
-                  outline: "none",
-                  height: 18,
-                  marginBottom: 3,
-                }} 
-                onChange={e => {this.setState({noteValueInput: e.target.value}); onTimeSignatureNoteValueChange(e)}}
-                type="select"
-                className="hide-dropdown-arrow"
-              >
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="4">4</option>
-                <option value="8">8</option>
-                <option value="16">16</option>
-              </EditableDisplay>
+                  buttonsContainer: {visibility: "hidden"},
+                  container: {height: 18, width: 30, backgroundColor: "#0000"},
+                  next: {backgroundColor: "#0000"},
+                  nextIcon: {color: "#333"},
+                  prev: {backgroundColor: "#0000"},
+                  prevIcon: {color: "#333"},
+                  text: {fontWeight: "bold", textAlign: "center"}
+                }}
+                value={this.state.noteValue}
+              />
             </div>
             <div 
               className="d-flex justify-content-center align-items-center" 
               style={{flex: 1, textAlign: "center"}}
               title="Tempo"
             >
-              <EditableDisplay 
-                value={this.state.tempoInput}
+              <NumberInput
+                hoverStyle={{verticalContainer: {visibility: "visible"}}}
+                min={10}
+                max={1000}
+                onChange={(value) => setTempo(value)}
                 style={{
-                  fontSize: 14, 
-                  maxWidth: 50, 
-                  textAlign: "center", 
-                  backgroundColor: "#0000", 
-                  border: "none",
-                  outline: "none",
-                  height: 18
+                  container: {width: 45, height: 18, backgroundColor: "#0000"},
+                  incr: {backgroundColor: "#0000"},
+                  incrIcon: {color: "#333"},
+                  input: {fontWeight: "bold", transform: "translateY(2px)"},
+                  decr: {backgroundColor: "#0000"},
+                  decrIcon: {color: "#333"},
+                  verticalContainer: {visibility: "hidden"}
                 }}
-                type="number" 
-                onChange={e => {this.setState({tempoInput: e.target.value}); onTempoChange(e)}}
-                focusedStyle={{backgroundColor: "#0001"}}
+                typing
+                value={tempo}
+                vertical
               />
             </div>
             <div 
               className="d-flex justify-content-center align-items-center"
               style={{flex: 1, textAlign: "center"}}
             >
-              <IconButton onClick={() => setMetronome(!metronome)}>
-                <img src={metronome ? metronomeIconPink : metronomeIcon} style={{height: 16}} />
+              <IconButton 
+                className="p-1" 
+                onClick={() => setMetronome(!metronome)} 
+                style={{backgroundColor: metronome ? "var(--color-primary)" : "#0004"}}
+              >
+                <object data={metronomeIcon} style={{height: 14}} type="image/svg+xml"></object>
               </IconButton>
             </div>
           </div>
@@ -369,7 +344,7 @@ export default class Header extends React.Component<IProps, IState> {
             <div 
               onClick={() => this.setState({showTime: !this.state.showTime})}
               className="d-flex justify-content-center align-items-center" 
-              style={{flex: 1, backgroundColor: "#ff6db822", cursor: "pointer"}}
+              style={{flex: 1, backgroundColor: "var(--color-primary-muted)", cursor: "pointer"}}
             >
               <h1 className="p-0 m-0" style={{fontSize: 28, textAlign: "center"}}>
                 {
@@ -381,52 +356,36 @@ export default class Header extends React.Component<IProps, IState> {
             </div>
             <div 
             style={{display: "flex", justifyContent: "center", alignItems: "center", flexDirection: 'column'}}>
-              <div className="d-flex" style={{margin: "0"}}>
-                <PlaybackControlButton onClick={() => setIsPlaying(!isPlaying)} $isactivated={isPlaying}>  
-                  <PlayArrow style={{fontSize: 17, color: "#fff"}} />
+              <div className="d-flex" style={{margin: 0, height: "50%"}}>
+                <PlaybackControlButton onClick={() => setIsPlaying(!isPlaying)}>  
+                  <PlayArrow style={{fontSize: 17, color: isPlaying ? "var(--color-primary)" : "#fff"}} />
                 </PlaybackControlButton>
-                <PlaybackControlButton onClick={() => stop()} $isactivated={false} >  
+                <PlaybackControlButton onClick={() => stop()} >  
                   <Stop style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
-                <PlaybackControlButton onClick={() => setIsRecording(!isRecording)} $isactivated={false} >  
+                <PlaybackControlButton onClick={() => setIsRecording(!isRecording)}>  
                   <FiberManualRecord style={{fontSize: 17, color: isRecording ? "#f00" : "#fff"}} />
                 </PlaybackControlButton>
-                <PlaybackControlButton onClick={() => setIsLooping(!isLooping)} $isactivated={isLooping}> 
-                  <Loop style={{fontSize: 17, color: "#fff"}} />
+                <PlaybackControlButton onClick={() => setIsLooping(!isLooping)}> 
+                  <Loop style={{fontSize: 17, color: isLooping ? "var(--color-primary)" : "#fff"}} />
                 </PlaybackControlButton>
               </div>
-              <div className="d-flex" style={{margin: "0"}}>
+              <div className="d-flex" style={{margin: 0, height: "50%"}}>
                 <PlaybackControlButton 
                   onClick={() => setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))} 
-                  $isactivated={false}
                 > 
                   <SkipPrevious style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
-                <PlaybackControlButton 
-                  onClick={() => {}} 
-                  $isactivated={false}
-                > 
+                <PlaybackControlButton onClick={() => {}}> 
                   <SkipNext style={{fontSize: 17, color: "#fff"}} />
                 </PlaybackControlButton>
-                <Holdable 
-                  style={{display: "inline-flex"}} 
-                  timeout={500} 
-                  interval={250} 
-                  onMouseDown={fastForward} 
-                  onHold={fastForward}
-                >
-                  <PlaybackControlButton $isactivated={false} > 
+                <Holdable timeout={500} interval={250} onMouseDown={fastForward} onHold={fastForward}>
+                  <PlaybackControlButton> 
                     <FastForward style={{fontSize: 17, color: "#fff"}} />
                   </PlaybackControlButton>
                 </Holdable>
-                <Holdable 
-                  style={{display: "inline-flex"}} 
-                  timeout={500} 
-                  interval={250} 
-                  onMouseDown={fastRewind} 
-                  onHold={fastRewind}
-                >
-                  <PlaybackControlButton $isactivated={false} > 
+                <Holdable timeout={500} interval={250} onMouseDown={fastRewind} onHold={fastRewind}>
+                  <PlaybackControlButton> 
                     <FastRewind style={{fontSize: 17, color: "#fff"}} />
                   </PlaybackControlButton>
                 </Holdable>
@@ -435,18 +394,26 @@ export default class Header extends React.Component<IProps, IState> {
           </div>
         </div>
         <div
-          className="m-2" 
+          className="p-2" 
           style={{width: 275, height: "100%"}}
         >
           <SelectSpinBox
-            value={this.options[this.state.optionIdx].value}
-            options={this.options}
-            style={{height: 25, width: 130, borderRadius: 5, backgroundColor: "#ff6db822"}}
+            classes={{container: "rb-spin-buttons"}}
             icon={<FontAwesomeIcon icon={faMagnet} style={{fontSize: 10}} />}
-            onChange={o => onChange(o)}
-            onNext={onNext}
-            onPrev={onPrev}
             leftClickOpen
+            onChange={this.onChangeSnapSizeOption}
+            options={this.options}
+            style={{
+              container: {
+                height: 25,
+                width: 130,
+                borderRadius: 3,
+                backgroundColor: "var(--color-primary-muted)",
+                boxShadow: "0 1px 2px 1px #0002",
+              },
+              text: {marginLeft: 4}
+            }}
+            value={this.state.snapSizeOptionValue}
           />
         </div>
       </div>

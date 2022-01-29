@@ -46,7 +46,7 @@ export default class BeatComponent extends React.Component<IProps, IState> {
         style={{
           flexShrink: 0, 
           width: getWidth(), 
-          height: 15, 
+          height: 10, 
           borderLeft: this.props.beat.pos === 1 ? "none" : "1px solid #000", 
           alignItems: "flex-end",
           visibility: horizontalScale > 0.16 ? "visible" : "hidden",

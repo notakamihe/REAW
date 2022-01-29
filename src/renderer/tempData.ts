@@ -10,17 +10,17 @@ const data : Track[] = [
     clips: [
       {
         id: uuidv4(),
-        start: new TimelinePosition(1, 2, 0),
+        start: new TimelinePosition(1, 3, 0),
         end: new TimelinePosition(3, 2, 900),
         startLimit: new TimelinePosition(1, 2, 0),
-        endLimit: new TimelinePosition(3, 2, 900),
+        endLimit: new TimelinePosition(4, 2, 0),
         loopEnd: new TimelinePosition(3, 2, 900),
       },
       {
         id: uuidv4(),
         start: new TimelinePosition(4, 1, 0),
         end: new TimelinePosition(4, 3, 750),
-        startLimit: new TimelinePosition(4, 1, 0),
+        startLimit: null,
         endLimit: null,
         loopEnd: new TimelinePosition(5, 2, 500),
       }

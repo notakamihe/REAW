@@ -20,13 +20,6 @@ export default function GuideLine(props : IProps) {
       {
         loaded &&
         ReactDOM.createPortal(
-          <div style={{position: "absolute", top: 0, bottom: 0, left: props.margin, borderRight: "1px dashed #0004"}}></div>,
-          document.getElementById("timeline")!
-        )
-      }
-      {
-        loaded &&
-        ReactDOM.createPortal(
           <div 
             style={{
               position: "absolute", 
@@ -38,7 +31,7 @@ export default function GuideLine(props : IProps) {
               zIndex: 25
             }}
           ></div>,
-          document.getElementById("track-lanes-window")!
+          document.getElementById("timeline-editor")!
         )
       }
     </React.Fragment>

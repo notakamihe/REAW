@@ -1,27 +1,24 @@
 import React from "react";
 
 interface IProps {  
-  children: React.ReactNode;
+  children: JSX.Element;
   timeout: number;
   interval: number;
-  style? : React.CSSProperties;
   onHold: () => void;
   onMouseDown: () => void;
 }
 
-interface IState {
-}
-
-export default class Holdable extends React.Component<IProps, IState> {
+export default class Holdable extends React.Component<IProps, {}> {
   private timeoutID: any;
 
   constructor(props: IProps) {
     super(props);
+    this.onMouseDown = this.onMouseDown.bind(this);
   }
 
-  onMouseDown = () => {
+  onMouseDown() {
     this.props.onMouseDown();
-
+  
     this.timeoutID = setTimeout(() => {
       this.timeoutID = setInterval(() => {
         this.props.onHold();
@@ -30,15 +27,10 @@ export default class Holdable extends React.Component<IProps, IState> {
   }
   
   render() {
-    return (
-      <div 
-        style={this.props.style} 
-        onMouseDown={this.onMouseDown} 
-        onMouseUp={e => clearTimeout(this.timeoutID)}
-        onMouseLeave={e => clearTimeout(this.timeoutID)}
-      >
-        {this.props.children}
-      </div>
-    )
+    return React.cloneElement(this.props.children, {
+      onMouseDown: this.onMouseDown,
+      onMouseUp: () => clearTimeout(this.timeoutID),
+      onMouseOut: () => clearTimeout(this.timeoutID)
+    })
   }
 }

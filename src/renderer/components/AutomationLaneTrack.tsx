@@ -1,5 +1,5 @@
 import React from "react"
-import {Accordion, AccordionDetails, AccordionSummary, Divider, IconButton, Menu, MenuItem, MenuList, Slider, styled, Typography} from "@mui/material"
+import {Accordion, AccordionDetails, AccordionSummary, Divider, IconButton, Menu, MenuItem, MenuList, styled, Typography} from "@mui/material"
 import automation from "./../../../assets/svg/automation.svg"
 import { WorkstationContext } from "renderer/context/WorkstationContext"
 import { ID, ValidatedInput } from "renderer/types/types"
@@ -11,13 +11,7 @@ import { clamp, laneContainsNode, lerp } from "renderer/utils/helpers"
 import TimelinePosition from "renderer/types/TimelinePosition"
 import { v4 } from "uuid"
 import { withStyles } from '@mui/styles';
-
-interface IProps {
-  automationLane : AutomationLane
-  track : Track
-  classes? : any
-  color : string
-}
+import { ConfirmationInput, Slider} from "./ui"
 
 export interface AutomationLane {
   id : ID
@@ -29,24 +23,29 @@ export interface AutomationLane {
   maxValue : number
 }
 
+
+const styles = () => ({
+  thumb: {
+    "&": {width: 12, height: 12},
+    "&:after": {width: 0, height: 0}
+  }
+});
+
+interface IProps {
+  automationLane : AutomationLane
+  track : Track
+  classes? : any
+  color : string
+}
+
 interface IState {
   anchorEl : HTMLElement | null
   pos : ValidatedInput
+  sliderValue : number
   value : ValidatedInput
   valueInputText : string
   prevSelectedNode : AutomationNode | null
 }
-
-const styles = (theme : any) => ({
-  valueLabel: {
-    "& > span > span": {fontSize: 12},
-    "&": {padding: "0px 4px"},
-  },
-  thumb: {
-    "&": {width: 15, height: 15},
-    "&:after": {width: 0, height: 0}
-  }
-});
 
 class AutomationLaneTrack extends React.Component<IProps, IState> {
   static contextType = WorkstationContext
@@ -57,30 +56,33 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
     
     this.state = {
       anchorEl : null,
-      pos : {value: "", valid: true},
-      value : {value: "", valid: true},
-      valueInputText : "",
+      pos: {value: "", valid: true},
+      sliderValue: 0,
+      value: {value: "", valid: true},
+      valueInputText: "",
       prevSelectedNode : null
     }
 
     this.onAway = this.onAway.bind(this)
-    this.onChangeValueInputText = this.onChangeValueInputText.bind(this)
-    this.onChangeSlider = this.onChangeSlider.bind(this)
+    this.onChangeCommitted = this.onChangeCommitted.bind(this)
+    this.onConfirm = this.onConfirm.bind(this)
     this.onSubmit = this.onSubmit.bind(this)
     this.removeLane = this.removeLane.bind(this)
     this.toggleExpand = this.toggleExpand.bind(this)
   }
 
   componentDidUpdate() {
-    if (
-      ((!this.context!.nodeExternallyChanged && this.state.prevSelectedNode !== this.context!.selectedNode) ||
-      (this.state.prevSelectedNode?.id !== this.context!.selectedNode?.id)) && 
-      (laneContainsNode(this.props.automationLane, this.context!.selectedNode) || !this.context!.selectedNode)
-    ) {
-      this.setState({
-        prevSelectedNode: this.context!.selectedNode,
-        valueInputText: this.context!.selectedNode?.value.toString() || ""
-      })
+    if (JSON.stringify(this.state.prevSelectedNode) != JSON.stringify(this.context!.selectedNode)) {
+      if (laneContainsNode(this.props.automationLane, this.context!.selectedNode)) {
+        this.setState({
+          prevSelectedNode: this.context!.selectedNode, 
+          sliderValue: this.context!.selectedNode!.value, 
+          valueInputText: this.context!.selectedNode!.value.toFixed(2)
+        })
+      } else if (!this.context!.selectedNode) {
+        const mid = lerp(0.5, this.props.automationLane.minValue, this.props.automationLane.maxValue)
+        this.setState({prevSelectedNode: null, sliderValue: mid, valueInputText: ""})
+      }
     }
   }
 
@@ -88,30 +90,26 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
     return this.props.track.automationLanes.filter(t => !t.show)
   }
 
-  getValue() {
-    if (laneContainsNode(this.props.automationLane, this.context!.selectedNode))
-      return this.context!.selectedNode?.value ?? 0
-
-    return this.props.automationLane.minValue
-  }
-
   onAway = () => {
     if (laneContainsNode(this.props.automationLane, this.context!.selectedNode))
       this.context!.setCancelClickAway(false)
   }
 
-  onChangeSlider = (e : Event, value : number | number[]) => {
-    this.setSelectedNodeValue(value as number)
-    this.setState({valueInputText: value.toString()})
+  onChangeCommitted = (e : any) => {
+    this.setSelectedNodeValue(this.state.sliderValue)
+    this.setState({valueInputText: this.state.sliderValue.toFixed(2)})
   }
 
-  onChangeValueInputText = (e : React.ChangeEvent<HTMLInputElement>) => {
-    this.setState({valueInputText: e.target.value})
+  onConfirm = (e : React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
 
-    const newValue = Number(Number(e.target.value).toFixed(2))
+    const newValue = Number(Number(this.state.valueInputText).toFixed(2))
 
-    if (e.target.value != "" && !isNaN(newValue)) {
-      this.setSelectedNodeValue(clamp(newValue, this.props.automationLane.minValue, this.props.automationLane.maxValue))
+    if (this.state.valueInputText != "" && !isNaN(newValue)) {
+      const clampedValue = clamp(newValue, this.props.automationLane.minValue, this.props.automationLane.maxValue)
+
+      this.setSelectedNodeValue(clampedValue)
+      this.setState({sliderValue: clampedValue})
     }
   }
 
@@ -157,21 +155,6 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
     this.setState({anchorEl : null})
   }
 
-  removeSelectedNode = () => {
-    const automationLanes = this.props.track.automationLanes.slice()
-    const laneIndex = automationLanes.findIndex(t => t.id === this.props.automationLane.id)
-
-    if (laneIndex !== -1) {
-      const nodeIndex = automationLanes[laneIndex].nodes.findIndex(n => n.id === this.context!.selectedNode?.id)
-
-      if (nodeIndex !== -1) {
-        automationLanes[laneIndex].nodes.splice(nodeIndex, 1)
-        this.context!.setTrack({...this.props.track, automationLanes})
-        this.context!.setSelectedNode(null)
-      }
-    }
-  }
-
   setSelectedNodeValue = (value : number) => {
     const automationLanes = this.props.track.automationLanes.slice()
     const laneIndex = automationLanes.findIndex(t => t.id === this.props.automationLane.id)
@@ -185,8 +168,6 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
         this.context!.setSelectedNode(automationLanes[laneIndex].nodes[nodeIndex])
       }
     }
-
-    this.context!.setNodeExternallyChanged(true)
   }
 
   switchLane = (lane : AutomationLane) => {
@@ -197,7 +178,7 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
     const newLaneIdx = automationLanes.findIndex(t => t.id === lane.id)
     
     if (oldLaneIdx === newLaneIdx)
-    return
+      return
     
     if (oldLaneIdx > -1) {
       automationLanes[oldLaneIdx].show = false
@@ -217,9 +198,9 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
   }
   
   render() {
-    const {verticalScale, selectedNode, setCancelClickAway} = this.context!
-    const disabled = !selectedNode || !laneContainsNode(this.props.automationLane, selectedNode)
     const {classes} = this.props
+    const {verticalScale, selectedNode, setCancelClickAway, deleteNode} = this.context!
+    const disabled = !selectedNode || !laneContainsNode(this.props.automationLane, selectedNode)
 
     if (this.props.automationLane.show) {
       return (
@@ -251,14 +232,11 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
             <MouseDownAwayListener onMouseDown={() => setCancelClickAway(true)} onAway={this.onAway}>
               <AccordionDetails className="p-0" style={{backgroundColor:"#ddd", height:(100 * verticalScale) - 30}}>
                 <div 
-                  className="px-1 py-0 scrollbar2 d-flex" 
+                  className="py-0 scrollbar2 thin-thumb d-flex" 
                   style={{width: "100%", height: "100%", overflowY: "auto", flexDirection: "column"}}
                 >
                   <div className="mt-2" style={{flexGrow: 1}}>
-                    <form 
-                      className="d-flex justify-content-center align-items-center"
-                      onSubmit={this.onSubmit}
-                    >
+                    <form onSubmit={this.onSubmit} className="d-flex justify-content-center align-items-center">
                       <IconButton 
                         type="submit" 
                         className="p-0" 
@@ -279,10 +257,11 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
                           backgroundColor: this.state.pos.valid ? "#fff9" : "#f002",
                           color: this.state.pos.valid ? "#000" : "#f00",
                           outline: "none",
-                          fontSize: 13,
+                          fontSize: 14,
                           width: 60,
                           textAlign: "center",
                           marginRight: 8,
+                          boxShadow: "0 1px 2px 1px #0004"
                         }}
                       />
                       <input
@@ -295,57 +274,44 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
                           backgroundColor: this.state.value.valid ? "#fff9" : "#f002",
                           color: this.state.value.valid ? "#000" : "#f00",
                           outline: "none",
-                          fontSize: 13,
+                          fontSize: 14,
                           width: 35,
-                          textAlign: "center"
+                          textAlign: "center",
+                          boxShadow: "0 1px 2px 1px #0004"
                         }}
                       />
                     </form>
                   </div>
                   <div 
-                    className="d-flex align-items-center px-1 py-0 col-12 mt-2 mb-2"
+                    className="d-flex align-items-center px-2 py-0 col-12 mt-2 mb-2"
                     style={{opacity: laneContainsNode(this.props.automationLane, selectedNode) ? 1 : 0.5}}
                   >
                     <IconButton 
                       disabled={disabled}
                       style={{padding: 2, marginRight: 8, backgroundColor: "#0003"}}
-                      onClick={() => this.removeSelectedNode()}
+                      onClick={() => {if (selectedNode) deleteNode(selectedNode)}}
                     >
                       <Delete style={{fontSize: 14, color: "#0008"}} />
                     </IconButton>
-                    <input
-                      value={this.state.valueInputText}
-                      onChange={this.onChangeValueInputText}
+                    <ConfirmationInput
                       disabled={disabled}
-                      style={{
-                        borderRadius: 2, 
-                        border: "none", 
-                        backgroundColor: "#fff9",
-                        outline: "none",
-                        fontSize: 13,
-                        width: 35,
-                        marginRight: 12
-                      }}
+                      onChange={e => this.setState({valueInputText: e.target.value})}
+                      onConfirm={this.onConfirm}
+                      style={{height: 20, marginRight: 8}}
+                      value={this.state.valueInputText}
                     />
-                    <div className="p-0 m-0" style={{position: "relative", flex: 1, textAlign: "center"}}>
-                      <Slider 
-                        disabled={disabled}
-                        value={this.getValue()}
-                        min={this.props.automationLane.minValue}
-                        max={this.props.automationLane.maxValue}
-                        onChange={this.onChangeSlider}
-                        valueLabelDisplay="auto"
-                        classes={{valueLabel: classes.valueLabel, thumb: classes.thumb}}
-                        className="remove-spacing"
-                        style={{
-                          width: "85%",
-                          position: "absolute", 
-                          top: 0, 
-                          left: "50%", 
-                          transform: "translate(-50%, -50%)"
-                        }}
-                      />
-                    </div>
+                    <Slider 
+                      classes={{valueLabel: classes.valueLabel, thumb: classes.thumb}}
+                      className="remove-spacing"
+                      disabled={disabled}
+                      label={this.state.sliderValue.toFixed(2)}
+                      min={this.props.automationLane.minValue}
+                      max={this.props.automationLane.maxValue}
+                      onChange={(e, v) => this.setState({sliderValue: v as number})}
+                      onChangeCommitted={this.onChangeCommitted}
+                      style={{flex: 1}}
+                      value={this.state.sliderValue}
+                    />
                   </div>
                 </div>
               </AccordionDetails>

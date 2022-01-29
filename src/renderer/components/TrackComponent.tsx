@@ -9,7 +9,6 @@ import { Button, ButtonGroup, IconButton, ListItemText, MenuItem, Menu, MenuList
 import { Add, AddCircle, Delete } from "@mui/icons-material"
 import {v4 as uuidv4} from "uuid"
 import styled from "styled-components"
-import TimelinePosition from "renderer/types/TimelinePosition"
 import { AnywhereClickAnchorEl, AutomationLaneTrack } from "."
 import { AutomationLane } from "./AutomationLaneTrack"
 import { getLaneColor, getRandomTrackColor, hslToHex, hueFromHex, shadeColor } from "renderer/utils/helpers"
@@ -22,9 +21,9 @@ interface IProps {
 }
 
 type IState = {
+  anchorEl : HTMLElement | null
   currentEffectIdx : number
   value : number
-  anchorEl : HTMLElement | null
 }
 
 export interface Track {
@@ -81,9 +80,9 @@ class TrackComponent extends React.Component<IProps, IState> {
     super(props)
 
     this.state = {
+      anchorEl: null,
       currentEffectIdx: 0,
       value: 0,
-      anchorEl: null
     }
 
     this.changeHue = this.changeHue.bind(this)
@@ -126,7 +125,7 @@ class TrackComponent extends React.Component<IProps, IState> {
     this.context!.setTracks(newTracks)
   }
 
-  onChangeEffect = (e : SelectSpinBoxOption<ID>) => {
+  onChangeEffect = (e : SelectSpinBoxOption) => {
     const idx = this.props.track.effects.findIndex(effect => effect.id === e.value)
     this.setState({ currentEffectIdx : idx })
   }
@@ -176,34 +175,42 @@ class TrackComponent extends React.Component<IProps, IState> {
                 value={this.props.track.name}
                 className="text-center m-0 p-0 col-12" 
                 style={{backgroundColor: "#0000", fontSize: 14, fontWeight: "bold", outline: "none", border: "none", height: "100%"}}
-                onChange={e => setTrack({...this.props.track, name: e.target.value})}
+                onChange={(e : React.ChangeEvent<HTMLInputElement>) => setTrack({...this.props.track, name: e.target.value})}
               />
             </div>
             <div 
               className="mx-1" 
               style={{
-                display: verticalScale < 1 ? "flex" : "block", 
+                display: verticalScale < 0.9 ? "flex" : "block", 
                 alignItems: "center", 
-                marginTop: verticalScale < 0.8 && this.props.track.automationEnabled ? 0 : 4
+                marginTop: verticalScale < 0.9 && this.props.track.automationEnabled ? 0 : 4
               }}
             >
               <SelectSpinBox
-                icon={<img src={fx} style={{height: 15}} />}
                 actionIcon={
-                  <IconButton className="p-0" style={{backgroundColor: "#333"}} onClick={addEffect}>
+                  <IconButton className="p-0 rounded-circle" style={{backgroundColor: "#333"}} onClick={addEffect}>
                     <Add style={{fontSize: 15, color: "#fff"}} />
                   </IconButton>
                 }
-                value={this.props.track.effects[this.state.currentEffectIdx]?.id}
-                options={this.props.track.effects.map(effect => ({ label: effect.name, value: effect.id }))}
-                onChange={this.onChangeEffect}
-                onPrev={() => this.setState({currentEffectIdx: Math.max(0, this.state.currentEffectIdx - 1)})}
-                onNext={() => this.setState({currentEffectIdx: Math.min(this.props.track.effects.length - 1, this.state.currentEffectIdx + 1)})}
-                style={{margin: "0 auto", width: "100%", height: 20, backgroundColor: "#fff9", borderRadius: 5, boxShadow: "0 2px 2px 0px #0004"}}
+                classes={{container: "rb-spin-buttons"}}
                 defaultText="No Effects"
+                icon={<img src={fx} style={{height: 15}} />}
+                onChange={this.onChangeEffect}
+                options={this.props.track.effects.map(effect => ({ label: effect.name, value: effect.id }))}
                 onClick={() => console.log("clicked")}
+                style={{
+                  container: {
+                    margin: "0 auto", 
+                    width: "100%", 
+                    height: 20, 
+                    backgroundColor: "#fff9", 
+                    borderRadius: 3, 
+                    boxShadow: "0 2px 2px 0px #0004"
+                  },
+                }}
+                value={this.props.track.effects[this.state.currentEffectIdx]?.id}
               />
-              <div className={`d-flex align-items-center ${verticalScale < 1 ? "" : "mt-1"}`}>
+              <div className={`d-flex align-items-center ${verticalScale < 0.9 ? "" : "mt-1"}`}>
                 <div style={{flex: 1, marginRight: 4}}>
                   <ButtonGroup>
                     <TrackButton 
@@ -266,12 +273,12 @@ class TrackComponent extends React.Component<IProps, IState> {
             {
               this.props.track.automationEnabled &&
               <div 
-                className="text-center m-0 p-0 position-absolute"
+                className="text-center m-0 p-0 position-absolute pe-none"
                 style={{bottom: verticalScale < 0.8 ? 0 : 4, left: 0, right: 0, cursor: "pointer"}}
               >
                 <IconButton
                   onClick={addAutomationLane}
-                  className="m-0 p-0" 
+                  className="m-0 p-0 pe-auto" 
                   style={{backgroundColor: shadeColor(this.props.track.color, -50)}}
                 >
                   <Add style={{fontSize: 16}} />

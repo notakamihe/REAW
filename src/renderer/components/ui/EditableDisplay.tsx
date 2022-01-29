@@ -1,20 +1,15 @@
 import React from "react";
 
 interface IProps {
-  value: any;
-  onChange: (value: any) => void;
-  type?: string;
   style?: React.CSSProperties;
   focusedStyle?: React.CSSProperties;
-  className?: string;
-  children?: React.ReactNode;
 }
 
 interface IState {
   isFocused: boolean;
 }
 
-export default class EditableDisplay extends React.Component<IProps, IState> {
+export default class EditableDisplay extends React.Component<IProps & React.HTMLProps<HTMLInputElement>, IState> {
   constructor(props: IProps) {
     super(props);
 
@@ -38,25 +33,11 @@ export default class EditableDisplay extends React.Component<IProps, IState> {
     return (
       <React.Fragment>
         {
-          this.props.type === "select" ?
-          <select
-            value={this.props.value}
-            style={this.getStyle()}
-            onChange={this.props.onChange}
-            onFocus={e => this.setState({isFocused: true})}
-            onBlur={e => this.setState({isFocused: false})}
-            className={this.props.className}
-          >
-            {this.props.children}
-          </select> :
           <input 
-            value={this.props.value}
+            {...this.props}
             style={this.getStyle()}
-            type={this.props.type || "text"} 
-            onChange={this.props.onChange}
-            onFocus={e => this.setState({isFocused: true})}
-            onBlur={e => this.setState({isFocused: false})}
-            className={this.props.className}
+            onFocus={e => {this.setState({isFocused: true}); this.props.onFocus && this.props.onFocus(e)}}
+            onBlur={e => {this.setState({isFocused: false}); this.props.onBlur && this.props.onBlur(e)}}
           />
         }
       </React.Fragment>

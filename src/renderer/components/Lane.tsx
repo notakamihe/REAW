@@ -3,70 +3,88 @@ import { ListItemText, Menu, MenuItem, MenuList } from "@mui/material";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import { getLaneColor } from "renderer/utils/helpers";
-import { getPosFromAnchorEl, moveClipToPos } from "renderer/utils/utils";
+import { getPosFromAnchorEl } from "renderer/utils/utils";
 import { AnywhereClickAnchorEl, ClipComponent } from ".";
 import AutomationLaneComponent from "./AutomationLaneComponent";
 import { Clip } from "./ClipComponent";
 import { MenuIcon } from "./icons";
 import { Track } from "./TrackComponent";
-
+ 
 interface IProps {
-  width : number
-  minWidth : number
   track : Track
-  onTrackChange : (e : React.MouseEvent<HTMLDivElement,MouseEvent>,rect : DOMRect,track : Track,clip : Clip) => void
   style? : React.CSSProperties
 }
-
+ 
 interface IState {
   anchorEl : HTMLElement | null
 }
-
+ 
 class Lane extends React.Component<IProps, IState> {
   static contextType = WorkstationContext
   context : React.ContextType<typeof WorkstationContext>
-
+ 
   constructor(props : IProps) {
     super(props)
-
+ 
     this.state = {
       anchorEl: null
     }
-
+ 
+    this.changeLane = this.changeLane.bind(this)
     this.setClip = this.setClip.bind(this)
   }
-
+ 
   addClip(clip : Clip) {
     const clips = this.props.track.clips.slice()
-    
+   
     clips.push(clip)
     this.context!.setTrack({...this.props.track, clips})
   }
-
+ 
+  changeLane(track : Track, clip : Clip, changeToAbove : boolean) {
+    const tracks = this.context!.tracks.slice()
+    const trackIndex = tracks.findIndex(t => t.id === track.id)
+   
+    if (trackIndex !== -1) {
+      const clipIndex = tracks[trackIndex].clips.findIndex(c => c.id === clip.id)
+ 
+      if (clipIndex !== -1) {
+        tracks[trackIndex].clips.splice(clipIndex, 1)
+ 
+        if (changeToAbove) {
+          tracks[Math.max(0, trackIndex - 1)].clips.push(clip)
+        } else {
+          tracks[Math.min(tracks.length - 1, trackIndex + 1)].clips.push(clip)
+        }
+ 
+        this.context!.setTracks(tracks)
+      }
+    }
+  }
+ 
   setClip(clip : Clip) {
     const clips = this.props.track.clips.slice()
     const index = clips.findIndex(c => c.id === clip.id)
-
-    if (index) {
+ 
+    if (index !== -1) {
       clips[index] = clip
       this.context!.setTrack({...this.props.track, clips})
     }
-
+ 
     if (clip.id === this.context!.selectedClip?.id) {
       this.context!.setSelectedClip(clip)
     }
   }
-
+ 
   render() {
     const {verticalScale, selectedClip, setSelectedClip, onClipClickAway, timelinePosOptions, pasteClip} = this.context!
-
+ 
     return (
       <React.Fragment>
         <AnywhereClickAnchorEl onRightClickAnywhere={e => this.setState({anchorEl: e})}>
-          <div 
+          <div
             style={{
-              width: this.props.width, 
-              minWidth: this.props.minWidth,
+              width: "100%",
               height: 100 * verticalScale,
               position: "relative",
               ...this.props.style
@@ -74,16 +92,15 @@ class Lane extends React.Component<IProps, IState> {
           >
             {
               this.props.track.clips.map(clip => (
-                <ClipComponent 
-                  key={clip.id} 
-                  clip={clip} 
+                <ClipComponent
+                  key={clip.id}
+                  clip={clip}
                   track={this.props.track}
                   isSelected={selectedClip?.id === clip.id}
                   onSelect={setSelectedClip}
                   onClickAway={onClipClickAway}
-                  onTrackChange={this.props.onTrackChange}
+                  onChangeLane={this.changeLane}
                   setClip={this.setClip}
-                  color={this.props.track.color}
                 />
               ))
             }
@@ -112,9 +129,7 @@ class Lane extends React.Component<IProps, IState> {
             <AutomationLaneComponent
               key={lane.id}
               lane={lane}
-              width={this.props.width} 
-              minWidth={this.props.minWidth}
-              style={{backgroundColor: "#aaa"}} 
+              style={{backgroundColor: "#aaa"}}
               track={this.props.track}
               color={getLaneColor(this.props.track.automationLanes, idx, this.props.track.color)}
             />
@@ -124,5 +139,5 @@ class Lane extends React.Component<IProps, IState> {
     )
   }
 }
-
+ 
 export default Lane

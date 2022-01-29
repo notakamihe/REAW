@@ -257,12 +257,11 @@ export default class Knob extends React.Component<IProps, IState> {
             height: this.props.size,
             borderRadius: this.props.size / 2,
             backgroundColor: "white",
-            zIndex: 25,
             ...this.props.style
           }}
         >
           <Tooltip title={this.state.value} placement="top" open={this.state.isDragging || this.state.isScrolling}>
-            <div style={{width: "100%", height: "100%", position: "relative", zIndex: 25}}>
+            <div style={{width: "100%", height: "100%", position: "relative"}}>
               <canvas 
                 ref={this.canvasArcRef}
                 style={{

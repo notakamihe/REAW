@@ -1,70 +1,50 @@
-import { ContentCopy, ContentCut, ContentPaste, Delete, Keyboard, Remove } from "@mui/icons-material";
-import { ClickAwayListener, ListItemIcon, ListItemText, Menu, MenuItem, MenuList, Popover, Tooltip } from "@mui/material";
+import { Check, ContentCopy, ContentCut, Delete, Keyboard } from "@mui/icons-material";
+import { ClickAwayListener, ListItemText, Menu, MenuItem, MenuList } from "@mui/material";
 import React from "react";
-import { DraggableEvent } from "react-draggable";
-import { DraggableData, Rnd } from "react-rnd";
 import { ClipboardContext, ClipboardItemType } from "renderer/context/ClipboardContext";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
-import { ID } from "renderer/types/types";
 import { clamp, inverseLerp, lerp } from "renderer/utils/helpers";
-import { GuideLine, MouseDownAwayListener } from ".";
+import { DNR, GuideLine } from ".";
 import { AutomationLane } from "./AutomationLaneTrack";
+import { DNRData } from "./DNR";
 import { MenuIcon } from "./icons";
+import { ConfirmationInput, Tooltip } from "./ui";
+
+export interface AutomationNode {
+  id : string
+  pos : TimelinePosition
+  value : number
+}
+
 
 interface IProps {
-  node : AutomationNode
-  lane : AutomationLane
   color : string
-  onChange? : (node : AutomationNode) => void
-  setNode : (node : AutomationNode) => void
   isSelected : boolean
-  onSelect : (node : AutomationNode | null) => void
-  onClickAway : (node : AutomationNode | null) => void
-  onDragEnd? : () => void
+  lane : AutomationLane
+  node : AutomationNode
+  onClickAway : (node : AutomationNode) => void
+  onMove? : (node : AutomationNode) => void
+  onSelect : (node : AutomationNode) => void
+  setNode : (node : AutomationNode) => void
 }
 
 interface IState {
-  pos : TimelinePosition
-  value : number
-  tempPos : TimelinePosition
-  tempValue : number
-  prevX : number
-  prevY : number
+  anchorEl : HTMLElement | null
+  guideLineMargin : number
+  height : number
+  inputValue : string
   isDragging : boolean
   isHovering : boolean
-  anchorEl : HTMLElement | null
   showInput : boolean
-  inputValue : string
-  height : number
-  verticalScale : number
-  guideLineMargin : number
-}
-
-export interface AutomationNode {
-  id : ID
-  pos : TimelinePosition
-  value : number
-}
-
-const noResizing = {
-  left: false, 
-  right: false, 
-  bottom: false, 
-  top: false, 
-  topRight: false, 
-  topLeft: false, 
-  bottomRight: false, 
-  bottomLeft: false
+  tempNode : AutomationNode | null
 }
 
 class AutomationNodeComponent extends React.Component<IProps, IState> {
   static contextType = WorkstationContext
   context : React.ContextType<typeof WorkstationContext>
 
-  private ref : React.RefObject<HTMLDivElement>
-
-  height : number = 0
+  private ref : React.RefObject<DNR>
 
   constructor(props : IProps) {
     super(props)
@@ -72,226 +52,184 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
     this.ref = React.createRef()
 
     this.state = {
-      pos: this.props.node.pos,
-      value: this.props.node.value,
-      tempPos: this.props.node.pos,
-      tempValue: this.props.node.value,
-      prevX: 0,
-      prevY: 0,
+      anchorEl: null,
+      guideLineMargin: 0,
+      height: 0,
+      inputValue: this.props.node.value.toString(),
       isDragging: false,
       isHovering: false,
-      anchorEl: null,
       showInput: false,
-      inputValue: this.props.node.value.toString(),
-      height: 0,
-      verticalScale: 0,
-      guideLineMargin: 0
+      tempNode: null
     }
 
-    this.onContextMenu = this.onContextMenu.bind(this)
+    this.onDrag = this.onDrag.bind(this)
+    this.onDragStart = this.onDragStart.bind(this)
+    this.onDragStop = this.onDragStop.bind(this)
     this.onSubmit = this.onSubmit.bind(this)
   }
 
   componentDidMount() {
-    this.setState({prevX: this.state.pos.toMargin(this.context!.timelinePosOptions), prevY: this.getY()})
+    const parentEl = this.ref.current?.ref.current?.parentElement
+
+    if (parentEl) {
+      this.setState({height: parentEl.clientHeight - 6})
+    }
   }
 
   componentDidUpdate() {
-    if (this.state.verticalScale !== this.context!.verticalScale) {
-      this.setState({
-        verticalScale: this.context!.verticalScale, 
-        height: (this.ref.current ? this.ref.current.getBoundingClientRect().height - 6 : 0)
-      })
-    }
+    const parentEl = this.ref.current?.ref.current?.parentElement
 
-    if (this.context!.nodeExternallyChanged && this.context!.selectedNode?.id === this.props.node.id) {
-      this.setState({
-        value: this.props.node.value,
-        tempValue: this.props.node.value
-      })
-      this.context!.setNodeExternallyChanged(false)
+    if (parentEl && this.state.height !== parentEl.clientHeight - 6) {
+      this.setState({height: parentEl.clientHeight - 6})
     }
   }
 
-  getTitleText = () => {
+  getPosAndValueFromXY(x : number, y : number) {
+    const {measures, beats, fraction} = TimelinePosition.fromWidth(x, this.context!.timelinePosOptions)
+    const pos = new TimelinePosition(measures + 1, beats + 1, fraction)
+    const value = lerp(1 - y / this.state.height, this.props.lane.minValue, this.props.lane.maxValue)
+
+    return {pos, value: Number(value.toFixed(2))}
+  }
+
+  getTitle() {
     if (this.state.isDragging)
-      return `Pos: ${this.state.tempPos.toString()}, Value: ${this.state.tempValue.toFixed(2)}`
-    return `Pos: ${this.state.pos.toString()}, Value: ${this.state.value.toFixed(2)}`
+      return `Pos: ${this.state.tempNode?.pos.toString()}, Value: ${this.state.tempNode?.value.toFixed(2)}`
+
+    return `Pos: ${this.props.node.pos.toString()}, Value: ${this.props.node.value.toFixed(2)}`
   }
 
-  getY = () => {
-    const percentage = inverseLerp(this.state.value, this.props.lane.minValue, this.props.lane.maxValue)
-    return (this.state.height - this.state.height * percentage)
+  onDrag(e : MouseEvent, data : DNRData) {
+    e.preventDefault();
+
+    let {pos, value} = this.getPosAndValueFromXY(data.coords.startX, data.coords.startY)
+
+    this.props.onMove && this.props.onMove({id: this.props.node.id, pos, value})
+
+    const titlePos = TimelinePosition.fromPos(pos)
+    titlePos.snap(this.context!.timelinePosOptions)
+
+    this.setState({tempNode: {id: this.props.node.id, pos: titlePos, value}, guideLineMargin: data.coords.startX + 1})
   }
 
-  onContextMenu = (e : React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation()
-    this.setState({anchorEl: e.currentTarget, inputValue: this.state.value.toString()})
+  onDragStart(e : React.MouseEvent, data : DNRData) {
+    this.props.onSelect(this.props.node)
+    this.setState({isDragging: true, tempNode: {...this.props.node}, guideLineMargin: data.coords.startX + 1})
   }
 
-  onSubmit = (e : React.FormEvent<HTMLFormElement>) => {
+  onDragStop(e : MouseEvent, data : DNRData) {
+    this.setState({isDragging: false, tempNode: null})
+
+    if (data.deltaWidth !== 0 || data.deltaHeight !== 0) {
+      let {pos, value} = this.getPosAndValueFromXY(data.coords.startX, data.coords.startY)
+      pos.snap(this.context!.timelinePosOptions)
+      this.props.setNode({...this.props.node, pos, value})
+    }
+  }
+
+  onSubmit(e : React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     
-    let newValue
+    const inputValue = parseFloat(this.state.inputValue)
 
-    if (Number.isNaN(parseFloat(this.state.inputValue)))
-      newValue = this.state.value
-    else
-      newValue = clamp(parseFloat(this.state.inputValue), this.props.lane.minValue, this.props.lane.maxValue)
+    if (!Number.isNaN(inputValue)) {
+      const value = Number(clamp(inputValue, this.props.lane.minValue, this.props.lane.maxValue).toFixed(2))
+      const newTempNode = {...this.props.node, value}
 
-    newValue = parseFloat(newValue.toFixed(2))
+      this.setState({tempNode: newTempNode})
+      this.props.setNode({...this.props.node, value})
+      this.props.onMove && this.props.onMove(newTempNode)
+    }
 
-    this.setState({value: newValue, tempValue: newValue, showInput: false}, this.setNode)
-
-    if (this.props.onChange)
-        this.props.onChange({id: this.props.node.id, pos: this.state.pos, value: newValue})
+    this.setState({showInput: false})
   }
 
-  setNode = () => {
-    this.props.setNode({
-      id: this.props.node.id,
-      pos: this.state.pos,
-      value: this.state.value
-    })
+  valueToY() {
+    const percentage = inverseLerp(this.props.node.value, this.props.lane.minValue, this.props.lane.maxValue)
+    return (this.state.height - this.state.height * percentage)
   }
 
   render() {
     const {timelinePosOptions, deleteNode} = this.context!
-    const y = this.getY()
-
-    const getPosAndValueFromXY = (x : number, y : number) => {
-      let pos = TimelinePosition.fromPos(TimelinePosition.start)
-      const {measures, beats, fraction} = TimelinePosition.fromWidth(x, timelinePosOptions)
-      pos.add(measures, beats, fraction, true, timelinePosOptions)
-      
-      const value = lerp(1 - y / this.state.height, this.props.lane.minValue, this.props.lane.maxValue)
-
-      return {pos, value}
-    }
-
-    const onDrag = (e : DraggableEvent, data : DraggableData) => {
-      let {pos, value} = getPosAndValueFromXY(data.x, data.y)
-      this.setState({tempPos: pos, tempValue: value, guideLineMargin: data.x + 1})
-
-      if (this.props.onChange)
-        this.props.onChange({id: this.props.node.id, pos, value})
-    }
-
-    const onDragStart = (e : DraggableEvent, data : DraggableData) => {
-      this.props.onSelect(this.props.node) 
-      this.setState({isDragging: true})
-    }
-
-    const onDragStop = (e : DraggableEvent, data : DraggableData) => {
-      let pos = TimelinePosition.fromPos(this.state.pos)
-      let value = this.state.value
-
-      if (this.state.prevX !== data.x || this.state.prevY !== data.y) {
-        const newPosAndValue = getPosAndValueFromXY(data.x, data.y)
-
-        pos = newPosAndValue.pos
-        value = newPosAndValue.value
-      }
-
-      this.setState({pos,value:Number(value.toFixed(2)),prevX:data.x,prevY:data.y,isDragging:false}, this.setNode)
-      this.props.onDragEnd && this.props.onDragEnd()
-    }
+    const posMargin = this.props.node.pos.toMargin(timelinePosOptions)
+    const title = this.getTitle()
+    const y = this.valueToY()
 
     return (
       <ClipboardContext.Consumer>
         {clipboard => (
           <React.Fragment>
-            <MouseDownAwayListener onAway={() => this.props.onClickAway(this.props.node)}>
-              <Rnd 
-                id={this.props.node.id.toString()}
-                bounds="parent"
-                position={{x: this.state.pos.toMargin(timelinePosOptions), y: y}}
-                onDrag={onDrag}
-                onDragStart={onDragStart}
-                onDragStop={onDragStop}
-                size={{width: 6, height: 6}}
-                enableResizing={noResizing}
-                style={{
-                  backgroundColor: this.props.isSelected ? "#fff" : this.props.color, 
-                  borderRadius: "50%", 
-                  border: "1px solid #0008", 
-                  zIndex: 20
-                }}
+            <DNR
+              coords={{startX: posMargin, startY: y, endX: posMargin + 6, endY: y + 6}}
+              disableResizing
+              onClickAway={() => this.props.onClickAway(this.props.node)}
+              onContextMenu={e => {e?.stopPropagation();this.setState({anchorEl: e!.currentTarget as HTMLElement})}}
+              onDrag={this.onDrag}
+              onDragStart={this.onDragStart}
+              onDragStop={this.onDragStop}
+              ref={this.ref}
+              style={{
+                backgroundColor: this.props.isSelected ? "#fff" : this.props.color, 
+                borderRadius: "50%", 
+                border: "1px solid #0008", 
+                zIndex: this.props.isSelected ? 12 : 11,
+              }}
+            >
+              <Tooltip 
+                open={this.state.isDragging || this.state.isHovering} 
+                placement={{horizontal: "center", vertical: "top"}} 
+                title={title}
               >
-                {
-                  this.state.isDragging &&
-                  <GuideLine margin={this.state.guideLineMargin} />
-                }
-                <Tooltip 
-                  placement="top"
-                  open={this.state.isDragging || this.state.isHovering} 
-                  title={this.getTitleText()} 
-                >
-                  <div 
-                    onMouseOver={() => this.setState({isHovering: true})}
-                    onMouseLeave={() => this.setState({isHovering: false})}
-                    onContextMenu={this.onContextMenu}
-                    style={{width: "100%", height: "100%"}}
-                  >
+                <div 
+                  onMouseOver={() => this.setState({isHovering: true})}
+                  onMouseOut={() => this.setState({isHovering: false})}
+                  style={{width: "100%", height: "100%"}}
+                ></div>
+              </Tooltip>
+              <Menu
+                className="p-0"
+                anchorEl={this.state.anchorEl}
+                open={Boolean(this.state.anchorEl)}
+                onClose={() => this.setState({anchorEl: null})}
+                onMouseDown={e => e.stopPropagation()}
+                onClick={e => this.setState({anchorEl: null})}
+              >
+                <MenuList className="p-0" dense style={{outline: "none"}}>
+                  <MenuItem onClick={e => {
+                    clipboard?.copy({item: this.props.node, type: ClipboardItemType.Node, container: this.props.lane.id})
+                    deleteNode(this.props.node)
+                  }}>
+                    <MenuIcon icon={<ContentCut />} />
+                    <ListItemText>Cut</ListItemText>
+                  </MenuItem>
+                  <MenuItem onClick={e => clipboard?.copy({item: this.props.node, type: ClipboardItemType.Node, container: this.props.lane.id})}>
+                    <MenuIcon icon={<ContentCopy />} />
+                    <ListItemText>Copy</ListItemText>
+                  </MenuItem>
+                  <MenuItem onClick={(e) => this.setState({showInput: true, inputValue: this.props.node.value.toFixed(2)})}>
+                    <MenuIcon icon={<Keyboard />} />
+                    <ListItemText>Type Value</ListItemText>
+                  </MenuItem>
+                  <MenuItem onClick={(e) => deleteNode(this.props.node)}>
+                    <MenuIcon icon={<Delete />} />
+                    <ListItemText>Delete</ListItemText>
+                  </MenuItem>
+                </MenuList>
+              </Menu>
+              {
+                this.state.showInput &&
+                <ClickAwayListener onClickAway={e => this.setState({showInput: false})}>
+                  <div style={{position: "absolute", top: 0, right: -8, transform: "translate(100%, -50%)"}}>
+                    <ConfirmationInput
+                      onChange={e => this.setState({inputValue: e.target.value})} 
+                      onConfirm={this.onSubmit}
+                      value={this.state.inputValue} 
+                    />
                   </div>
-                </Tooltip>
-                <Menu
-                  className="p-0"
-                  anchorEl={this.state.anchorEl}
-                  open={Boolean(this.state.anchorEl)}
-                  onClose={() => this.setState({anchorEl: null})}
-                  onMouseDown={e => e.stopPropagation()}
-                  onClick={e => this.setState({anchorEl: null})}
-                >
-                  <MenuList className="p-0" dense style={{outline: "none"}}>
-                    <MenuItem onClick={e => {
-                      clipboard?.copy({item: this.props.node, type: ClipboardItemType.Node, container: this.props.lane.id})
-                      deleteNode(this.props.node)
-                    }}>
-                      <MenuIcon icon={<ContentCut />} />
-                      <ListItemText>Cut</ListItemText>
-                    </MenuItem>
-                    <MenuItem onClick={e => clipboard?.copy({item: this.props.node, type: ClipboardItemType.Node, container: this.props.lane.id})}>
-                      <MenuIcon icon={<ContentCopy />} />
-                      <ListItemText>Copy</ListItemText>
-                    </MenuItem>
-                    <MenuItem onClick={(e) => this.setState({anchorEl: null, showInput: true})}>
-                      <MenuIcon icon={<Keyboard />} />
-                      <ListItemText>Type Value</ListItemText>
-                    </MenuItem>
-                    <MenuItem onClick={(e) => deleteNode(this.props.node)}>
-                      <MenuIcon icon={<Delete />} />
-                      <ListItemText>Delete</ListItemText>
-                    </MenuItem>
-                  </MenuList>
-                </Menu>
-                {
-                  this.state.showInput &&
-                  <ClickAwayListener onClickAway={e => this.setState({showInput: false})}>
-                    <form 
-                      onSubmit={this.onSubmit} 
-                      style={{position: "absolute", top: 0, right: -4, transform: "translate(100%, -50%)"}}
-                      onMouseDown={e => e.stopPropagation()}
-                    >
-                      <input 
-                        autoFocus
-                        value={this.state.inputValue} 
-                        onChange={e => this.setState({inputValue: e.target.value})} 
-                        style={{
-                          backgroundColor: "#fff",
-                          width: 40,
-                          border: "none",
-                          borderRadius: 3,
-                          fontSize: 14,
-                          outline: "none"
-                        }}
-                      />
-                    </form>
-                  </ClickAwayListener>
-                }
-              </Rnd>
-            </MouseDownAwayListener>
-            <div ref={this.ref} style={{height: "100%", position: "absolute"}}></div>
+                </ClickAwayListener>
+              }
+            </DNR>
+            {this.state.isDragging && <GuideLine margin={this.state.guideLineMargin} />}
           </React.Fragment>
         )}
       </ClipboardContext.Consumer>

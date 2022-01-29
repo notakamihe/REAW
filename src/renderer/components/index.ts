@@ -5,6 +5,7 @@ import AutomationNodeComponent from "./AutomationNodeComponent";
 import BeatComponent from "./BeatComponent";
 import ClipComponent from "./ClipComponent";
 import Cursor from "./Cursor";
+import DNR from "./DNR";
 import GuideLine from "./GuideLine";
 import Header from "./Header";
 import Holdable from "./Holdable";
@@ -12,6 +13,7 @@ import KeyListener from "./KeyListener";
 import Lane from "./Lane";
 import MeasureComponent from "./MeasureComponent";
 import MouseDownAwayListener from "./MouseDownAwayListener";
+import RegionComponent from "./RegionComponent";
 import TimelineComponent from "./TimelineComponent";
 import TrackComponent from "./TrackComponent";
 
@@ -22,7 +24,8 @@ export {
   AutomationNodeComponent,
   BeatComponent, 
   ClipComponent, 
-  Cursor, 
+  Cursor,
+  DNR,
   GuideLine,
   Header, 
   Holdable, 
@@ -30,6 +33,7 @@ export {
   Lane,
   MeasureComponent, 
   MouseDownAwayListener,
+  RegionComponent,
   TimelineComponent, 
   TrackComponent 
 }

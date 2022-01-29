@@ -1,14 +1,10 @@
 import { ListItemIcon } from "@mui/material";
 import React from "react";
 
-interface IProps {
-  icon : JSX.Element;
-}
-
-export default function MenuIcon(props : IProps) {
+export default function MenuIcon(props : {icon : JSX.Element}) {
   return (
     <ListItemIcon className="remove-spacing">
-      {React.cloneElement(props.icon, {style: {marginRight: 8, fontSize: 14}})}
+      {React.cloneElement(props.icon, {style: {...props.icon.props.style, marginRight: 8, fontSize: 14}})}
     </ListItemIcon>
   )
 }

@@ -19,16 +19,16 @@ export enum GridSize {
 
 export enum SnapSize {
   None = 0,
-  Measure = 0.25,
-  HalfMeasure = 0.5,
-  Beat = 1,
-  HalfBeat = 2,
-  QuarterBeat = 4,
-  EighthBeat = 8,
-  SixteenthBeat = 16,
-  ThirtySecondBeat = 32,
-  SixtyFourthBeat = 64,
-  HundredTwentyEighthBeat = 128
+  Whole = 0.25,
+  Half = 0.5,
+  Quarter = 1,
+  Eighth = 2,
+  Sixteenth = 4,
+  ThirtySecond = 8,
+  SixtyFourth = 16,
+  OneTwentyEighth = 32,
+  TwoFiftySixth = 64,
+  FiveHundredTwelfth = 128
 }
 
 export interface TimeSignature {

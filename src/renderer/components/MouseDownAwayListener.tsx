@@ -8,21 +8,21 @@ interface IProps {
 }
 
 export default function MouseDownAwayListener(props : IProps) {
-  const [preventOnAway, setPreventOnAway] = React.useState(false);
+  const preventOnAway= React.useRef(false);
 
   const handleClickAway = (e : MouseEvent | TouchEvent) => {
-    if (!preventOnAway) {
+    if (!preventOnAway.current) {
       props.onAway()
     } 
   
-    setPreventOnAway(false);
+    preventOnAway.current = false;
   }
 
   return (
     <ClickAwayListener onClickAway={handleClickAway}>
       {React.cloneElement(props.children, {
-        onMouseDown: () => {props.onMouseDown && props.onMouseDown(); setPreventOnAway(true)},
-        onMouseUp: () => setPreventOnAway(false)
+        onMouseDown: () => {props.onMouseDown && props.onMouseDown(); preventOnAway.current = true},
+        onMouseUp: () => preventOnAway.current = false,
       })}
     </ClickAwayListener>
   )

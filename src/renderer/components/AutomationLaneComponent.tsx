@@ -1,4 +1,3 @@
-import { debounce } from "debounce";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
@@ -11,22 +10,21 @@ import {v4 as uuidv4} from "uuid";
 import { ListItemText, Menu, MenuItem, MenuList } from "@mui/material";
 import { MenuIcon } from "./icons";
 import { ContentPaste } from "@mui/icons-material";
-import { ClipboardContext, ClipboardItemType } from "renderer/context/ClipboardContext";
+import ResizeDetector from "react-resize-detector";
 import { getPosFromAnchorEl } from "renderer/utils/utils";
 
 interface IProps {
   lane : AutomationLane
-  width : number
-  minWidth : number
   color : string
   style? : React.CSSProperties
   track : Track
 }
 
 interface IState {
-  height : number
-  movingNode : AutomationNode | null
   anchorEl : HTMLElement | null
+  height : number
+  width : number
+  movingNode : AutomationNode | null
 }
 
 export default class AutomationLaneComponent extends React.Component<IProps, IState> {
@@ -41,22 +39,15 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
     this.ref = React.createRef()
 
     this.state = {
+      anchorEl: null,
       height: 0,
-      movingNode: null,
-      anchorEl: null
-    }
-
-    this.onNodeMove = debounce(this.onNodeMove, 10)
-  }
-
-  componentDidUpdate(prevProps : IProps) {
-    if (this.ref.current && this.state.height !== this.ref.current.clientHeight) {
-      this.setState({height: (this.ref.current ? this.ref.current.clientHeight : 0)})
+      width: 0,
+      movingNode: null
     }
   }
 
   getPolylinePoints() {
-    const nodes = this.props.lane.nodes
+    const nodes = this.props.lane.nodes.slice()
     const points = []
 
     if (this.state.movingNode) {
@@ -80,8 +71,8 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
       
       points.push(`${x + 3},${y + 3}`)
       
-      if (i === nodes.length - 1 && this.ref.current) {
-        points.push(`${this.ref.current.clientWidth},${y + 3}`)
+      if (i === nodes.length - 1) {
+        points.push(`${this.state.width},${y + 3}`)
       }
     }
 
@@ -97,6 +88,7 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
       const pos = new TimelinePosition(measures + 1, beats + 1, fraction)
       const value = lerp(1 - y / this.state.height, this.props.lane.minValue, this.props.lane.maxValue)
 
+      pos.snap(this.context!.timelinePosOptions)
       this.context!.addNodeToLane(this.props.track, this.props.lane, {id: uuidv4(), pos, value})
     }
   }
@@ -106,19 +98,18 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
   }
 
   setNode = (node : AutomationNode) => {
-    const nodes = this.props.lane.nodes.slice()
-    const nodeIdx = nodes.findIndex(n => n.id === node.id)
-
-    if (nodeIdx !== -1) {
-      nodes[nodeIdx] = node
-    }
-
     const automationLanes = this.props.track.automationLanes
-    const laneIdx = automationLanes.findIndex(l => l.id === this.props.lane.id)
+    const laneIndex = automationLanes.findIndex(l => l.id === this.props.lane.id)
 
-    if (laneIdx !== -1) {
-      automationLanes[laneIdx].nodes = nodes.sort((a, b) => a.pos.compare(b.pos))
-      this.context!.setTrack({...this.props.track, automationLanes})
+    if (laneIndex !== -1) {
+      const nodeIndex = automationLanes[laneIndex].nodes.findIndex(n => n.id === node.id)
+
+      if (nodeIndex !== -1) {
+        automationLanes[laneIndex].nodes[nodeIndex] = node
+        automationLanes[laneIndex].nodes.sort((a, b) => a.pos.compare(b.pos))
+        this.context!.setTrack({...this.props.track, automationLanes})
+        this.setState({movingNode: null})
+      }
     }
 
     if (this.context!.selectedNode?.id === node.id) {
@@ -127,59 +118,59 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
   }
 
   render() {
-    const {verticalScale, selectedNode, setSelectedNode, onNodeClickAway, cursorPos, pasteNode, timelinePosOptions} = this.context!
+    const {verticalScale, selectedNode, setSelectedNode, onNodeClickAway, pasteNode, timelinePosOptions} = this.context!
     const polylinePoints = this.getPolylinePoints()
 
     if (this.props.lane.show) {
       return (
         <React.Fragment>
-          <AnywhereClickAnchorEl onRightClickAnywhere={e => this.setState({anchorEl: e})}>
-            <div
-              style={{
-                width: this.props.width, 
-                minWidth: this.props.minWidth,
-                height: this.props.lane.expanded ? 100 * verticalScale : 30,
-                backgroundColor: "#fff9",
-                borderBottom: `1px solid #0002`,
-                position: "relative",
-                ...this.props.style
-              }}
-            >
-              <div 
-                ref={this.ref} 
-                onClick={this.onClick} 
-                style={{width: "100%", height: "100%", position: "relative", marginLeft: -2}}
+          <ResizeDetector handleWidth handleHeight onResize={(w, h) => this.setState({width: w||0,height: h||0})}>
+            <AnywhereClickAnchorEl onRightClickAnywhere={e => this.setState({anchorEl: e})}>
+              <div
+                style={{
+                  width: "100%",
+                  height: this.props.lane.expanded ? 100 * verticalScale : 30,
+                  backgroundColor: "#fff9",
+                  borderBottom: `1px solid #0002`,
+                  position: "relative",
+                  ...this.props.style
+                }}
               >
-                {
-                  this.props.lane.expanded &&
-                  this.props.lane.nodes.map(n => (
-                    <AutomationNodeComponent 
-                      key={n.id} 
-                      node={n} 
-                      lane={this.props.lane} 
-                      onChange={this.onNodeMove}
-                      setNode={this.setNode}
-                      color={this.props.color}
-                      isSelected={selectedNode?.id === n.id}
-                      onSelect={setSelectedNode}
-                      onClickAway={onNodeClickAway}
-                      onDragEnd={() => this.setState({movingNode: null})}
-                    />
-                  ))
-                }
-                <svg 
-                  width="100%" 
-                  height="100%"
-                  style={{position: "absolute", top: 0, left: 0, zIndex: 19, pointerEvents: "none"}} 
+                <div 
+                  ref={this.ref} 
+                  onClick={this.onClick} 
+                  style={{width: "100%", height: "100%", position: "relative", marginLeft: -2}}
                 >
-                  <polyline
-                    points={polylinePoints.join(" ")} 
-                    style={{fill: "none", stroke: this.props.color, strokeWidth: 2}}
-                  />
-                </svg>
+                  {
+                    this.props.lane.expanded &&
+                    this.props.lane.nodes.map(n => (
+                      <AutomationNodeComponent 
+                        key={n.id} 
+                        color={this.props.color}
+                        isSelected={selectedNode?.id === n.id}
+                        lane={this.props.lane} 
+                        node={n} 
+                        onClickAway={onNodeClickAway}
+                        onMove={this.onNodeMove}
+                        onSelect={setSelectedNode}
+                        setNode={this.setNode}
+                      />
+                    ))
+                  }
+                  <svg 
+                    width="100%" 
+                    height="100%"
+                    style={{position: "absolute", top: 0, left: 0, pointerEvents: "none", zIndex: 10}} 
+                  >
+                    <polyline
+                      points={polylinePoints.join(" ")} 
+                      style={{fill: "none", stroke: this.props.color, strokeWidth: 2}}
+                    />
+                  </svg>
+                </div>
               </div>
-            </div>
-          </AnywhereClickAnchorEl>
+            </AnywhereClickAnchorEl>
+          </ResizeDetector>
           <Menu
             open={Boolean(this.state.anchorEl)}
             anchorEl={this.state.anchorEl}

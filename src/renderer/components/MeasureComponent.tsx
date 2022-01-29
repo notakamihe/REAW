@@ -45,7 +45,7 @@ export default class MeasureComponent extends React.Component<IProps, IState> {
         style={{
           flexShrink: 0, 
           width: this.props.measure.numberOfBeats * BEAT_WIDTH * horizontalScale, 
-          height: 30, 
+          height: 25, 
           borderLeft: "1px solid #000", 
           alignItems: "flex-end",
           visibility: showMeasure() ? "visible" : "hidden",

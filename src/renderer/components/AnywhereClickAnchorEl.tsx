@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 
 interface IProps {
   children : JSX.Element,
@@ -6,13 +6,14 @@ interface IProps {
 }
 
 export default function AnywhereClickAnchorEl(props : IProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
   const [x, setX] = React.useState(0);
   const [y, setY] = React.useState(0);
 
-  const ref = React.useRef<HTMLDivElement>(null);
-
   const onContextMenu = (e : React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault()
 
     setX(e.clientX - e.currentTarget.getBoundingClientRect().left);
     setY(e.clientY - e.currentTarget.getBoundingClientRect().top);
@@ -22,12 +23,9 @@ export default function AnywhereClickAnchorEl(props : IProps) {
   return (
     React.cloneElement(
       props.children,
-      {
-        onContextMenu: onContextMenu,
-        style: {...props.children.props.style, position: "relative"},
-      }, 
-      ...React.Children.map(props.children, (child : JSX.Element, idx : number) => {
-        return React.cloneElement(child, {key: idx});
+      {onContextMenu: onContextMenu, style: {...props.children.props.style}},
+      ...React.Children.map(props.children.props.children || [], (child : JSX.Element, idx : number) => {
+        return child ? React.cloneElement(child, {key: idx}, child.props.children || []) : null;
       }),
       <div ref={ref} style={{position: "absolute", left: x, top: y}}></div>
     )
