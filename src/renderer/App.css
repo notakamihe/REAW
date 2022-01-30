@@ -12,8 +12,10 @@ button {
   border: none;
 }
 
-input::-webkit-outer-spin-button, 
-input::-webkit-inner-spin-button { margin-left: 8px; } 
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  margin-left: 8px;
+}
 
 object {
   pointer-events: none;
@@ -42,8 +44,8 @@ object {
 
 .clip-loop-container {
   position: absolute;
-  inset: -1px -1px 0px auto!important;
-  transform: translate(100%, 0%)!important;
+  inset: -1px -1px 0px auto !important;
+  transform: translate(100%, 0%) !important;
 }
 
 .disable-highlighting {
@@ -68,12 +70,12 @@ object {
 }
 
 .hide-scrollbar::-webkit-scrollbar {
-  width: 0!important;
-  height: 0!important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .hide-vertical-scrollbar::-webkit-scrollbar {
-  width: 0!important;
+  width: 0 !important;
 }
 
 .outline-none {
@@ -123,7 +125,7 @@ object {
 
 .timeline-scrollbar::-webkit-scrollbar {
   width: 10px;
-  height: 0!important;
+  height: 0 !important;
   background-color: #0000;
 }
 
@@ -134,10 +136,12 @@ object {
 }
 
 .remove-spacing {
-  padding: 0px!important;
-  margin: 0px!important;
-  min-height: 0px!important;
-  min-width: 0px!important
+  padding: 0px !important;
+  margin: 0px !important;
+  min-height: 0px !important;
+  min-width: 0px !important;
 }
 
-::-webkit-scrollbar-corner {background-color: #333;}
+::-webkit-scrollbar-corner {
+  background-color: #333;
+}

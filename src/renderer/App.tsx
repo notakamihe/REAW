@@ -1,5 +1,5 @@
 import { ThemeProvider } from '@emotion/react';
-import { MemoryRouter as Router, Switch, Route } from 'react-router-dom';
+import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
 import { ClipboardProvider } from './context/ClipboardContext';
 import { WorkstationProvider } from './context/WorkstationContext';
@@ -12,9 +12,9 @@ export default function App() {
       <ClipboardProvider>
         <WorkstationProvider>
             <Router>
-              <Switch>
-                <Route path="/" component={Workstation} />
-              </Switch>
+              <Routes>
+                <Route path="/" element={<Workstation />} />
+              </Routes>
             </Router>
         </WorkstationProvider>
       </ClipboardProvider>

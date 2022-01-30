@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "es2021",
     "module": "commonjs",
-    "lib": ["es5", "es6", "dom", "dom.iterable"],
+    "lib": ["dom", "esnext"],
     "declaration": true,
     "declarationMap": true,
     "jsx": "react-jsx",
@@ -10,12 +10,10 @@
     "pretty": true,
     "sourceMap": true,
     "baseUrl": "./src",
-    /* Additional Checks */
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    /* Module Resolution Options */
     "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
