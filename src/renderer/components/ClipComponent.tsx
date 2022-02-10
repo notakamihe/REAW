@@ -3,7 +3,7 @@ import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
 import { ID } from "renderer/types/types";
 import { shadeColor } from "renderer/utils/helpers";
-import { fromClip, marginToPos, moveClipToPos } from "renderer/utils/utils";
+import { copyClip, marginToPos, clipAtPos } from "renderer/utils/utils";
 import { Track } from "./TrackComponent";
 import trimToLeft from "../../../assets/svg/trim-to-left.svg";
 import trimToRight from "../../../assets/svg/trim-to-right.svg";
@@ -17,14 +17,16 @@ import { ContentCopy, ContentCut, Delete, HorizontalRule, VolumeMute } from "@mu
 import { ClipboardContext, ClipboardItemType } from "renderer/context/ClipboardContext";
 import split from "../../../assets/svg/split.svg"
 import region from "../../../assets/svg/region.svg"
+import { Region } from "./RegionComponent";
 
-export interface Clip {
-  id : ID
-  start : TimelinePosition
+export interface Clip extends Region {
   end : TimelinePosition
-  startLimit : TimelinePosition | null
   endLimit : TimelinePosition | null
+  id : ID
   loopEnd : TimelinePosition | null
+  muted : boolean
+  start : TimelinePosition
+  startLimit : TimelinePosition | null
 }
 
 
@@ -157,7 +159,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
 
   moveClipByMargin(margin : number) {
     const newStartPos = marginToPos(margin, this.context!.timelinePosOptions)
-    const newClip = moveClipToPos(newStartPos, this.props.clip, this.context!.timelinePosOptions)
+    const newClip = clipAtPos(newStartPos, this.props.clip, this.context!.timelinePosOptions)
     this.props.setClip(newClip)
   }
 
@@ -192,7 +194,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
   onLoopStop(e : MouseEvent, dir : ResizeDirection, ref : HTMLElement, data : DNRData) {
     const options = this.context!.timelinePosOptions
     const {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(data.width), options)
-    const newClip = fromClip(this.props.clip)
+    const newClip = copyClip(this.props.clip)
     const newLoopEnd = newClip.end.add(measures, beats, fraction, false, options)
     
     newClip.loopEnd = newLoopEnd.compare(newClip.end) > 0 ? newLoopEnd : null
@@ -234,7 +236,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
       this.setGuideLineMargins(data.coords.startX, null, null)
     
     if (ref.offsetWidth > totalWidth && this.props.clip.loopEnd) {
-      const clip = fromClip(this.props.clip)
+      const clip = copyClip(this.props.clip)
       
       clip.loopEnd = null
       this.props.setClip(clip)
@@ -257,7 +259,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
     this.setState({isResizing: false})
 
     if (data.deltaWidth != 0) {
-      const newClip = fromClip(this.props.clip)
+      const newClip = copyClip(this.props.clip)
   
       if (dir === ResizeDirection.Left) {
         const newStartPos = marginToPos(data.coords.startX, this.context!.timelinePosOptions)
@@ -305,7 +307,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
   }
 
   render() {
-    const {timelinePosOptions, verticalScale, deleteClip} = this.context!
+    const {timelinePosOptions, verticalScale, deleteClip, duplicateClip, toggleMuteClip} = this.context!
     const bounds = this.getBounds()
     const width = this.state.isResizing ? this.state.tempWidth : 
       TimelinePosition.toWidth(this.props.clip.start, this.props.clip.end, timelinePosOptions)
@@ -346,8 +348,13 @@ export default class ClipComponent extends React.Component<IProps, IState> {
                   style={{
                     backgroundColor: this.props.isSelected ? "#fff" : shadeColor(this.props.track.color, 15),
                     zIndex: this.props.isSelected ? 10 : 9,
+                    opacity: this.props.clip.muted ? 0.5 : 1
                   }}
                 >
+                  {
+                    this.props.clip.muted && (width > 25 || loopWidth > 5) &&
+                    <p style={{position: "absolute", top: 0, left: 2, fontSize: 12, color: "#0008", fontWeight: "bold"}}>M</p>
+                  }
                   <Menu
                     className="p-0"
                     anchorEl={this.state.anchorEl}
@@ -375,26 +382,26 @@ export default class ClipComponent extends React.Component<IProps, IState> {
                         <ListItemText>Delete</ListItemText>
                       </MenuItem>
                       <Divider />
-                      <MenuItem>
+                      <MenuItem onClick={() => duplicateClip(this.props.clip)}>
                         <MenuIcon icon={<FontAwesomeIcon icon={faClone} />} />
                         <ListItemText>Duplicate</ListItemText>
                       </MenuItem>
                       <MenuItem>
-                        <MenuIcon icon={<object data={split} style={{height: 14}} type="image/svg+xml"></object>} />
+                        <MenuIcon icon={<img src={split} style={{height: 14}} />} />
                         <ListItemText>Split</ListItemText>
                       </MenuItem>
                       <MenuItem>
-                        <MenuIcon icon={<object data={split} style={{height: 14}} type="image/svg+xml"></object>} />
+                        <MenuIcon icon={<img src={split} style={{height: 14}} />} />
                         <ListItemText>Split At Cursor</ListItemText>
                       </MenuItem>
                       <MenuItem>
-                        <MenuIcon icon={<object data={region} style={{height:14}} type="image/svg+xml"></object>} />
+                        <MenuIcon icon={<img src={region} style={{height:14}} />} />
                         <ListItemText>Set Region To Clip</ListItemText>
                       </MenuItem>
                       <Divider />
-                      <MenuItem>
+                      <MenuItem onClick={() => toggleMuteClip(this.props.clip)}>
                         <MenuIcon icon={<VolumeMute />} />
-                        <ListItemText>Mute</ListItemText>
+                        <ListItemText>{this.props.clip.muted ? "Unmute" : "Mute"}</ListItemText>
                       </MenuItem>
                     </MenuList>
                   </Menu>

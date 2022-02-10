@@ -14,13 +14,15 @@ import { withStyles } from '@mui/styles';
 import { ConfirmationInput, Slider} from "./ui"
 
 export interface AutomationLane {
+  expanded : boolean
   id : ID
+  isPan? : boolean
+  isVolume? : boolean
   label : string
+  maxValue : number
+  minValue : number
   nodes: AutomationNode[]
   show : boolean
-  expanded : boolean
-  minValue : number
-  maxValue : number
 }
 
 

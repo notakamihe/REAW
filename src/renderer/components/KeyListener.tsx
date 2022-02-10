@@ -20,7 +20,7 @@ export default class KeyListener extends React.Component<IProps> {
     return (
       <WorkstationContext.Consumer>
         {wc => {
-          const {selectedClip, tracks, selectedNode, deleteClip, deleteNode, pasteClip, pasteNode} = wc!
+          const {selectedClip, tracks, selectedNode, deleteClip, deleteNode, duplicateClip, pasteClip, pasteNode, toggleMuteClip} = wc!
 
           const onCopy = (e : React.ClipboardEvent<HTMLDivElement>) => {
             if (selectedClip) {
@@ -52,6 +52,14 @@ export default class KeyListener extends React.Component<IProps> {
                 deleteClip(selectedClip)
               } else if (selectedNode) {
                 deleteNode(selectedNode)
+              }
+            } else if (e.ctrlKey && e.key === "d") {
+              if (selectedClip) {
+                duplicateClip(selectedClip)
+              }
+            } else if (e.ctrlKey && e.key === "m") {
+              if (selectedClip) {
+                toggleMuteClip(selectedClip)
               }
             }
           }

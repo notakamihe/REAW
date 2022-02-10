@@ -168,7 +168,7 @@ export default class Workstation extends React.Component<IProps, IState> {
                       </div>
                     </div>
                     <div style={{width: "100%"}}>
-                      {tracks.map((track, index) => <TrackComponent key={index} track={track} />)}
+                      {tracks.map((track, idx) => <TrackComponent key={idx} index={idx} track={track} />)}
                     </div>
                 </div>
                 </ScrollSyncPane>

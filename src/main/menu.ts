@@ -41,14 +41,14 @@ export default class MenuBuilder {
     this.mainWindow.webContents.on('context-menu', (_, props) => {
       const { x, y } = props;
 
-      Menu.buildFromTemplate([
-        {
-          label: 'Inspect element',
-          click: () => {
-            this.mainWindow.webContents.inspectElement(x, y);
-          },
-        },
-      ]).popup({ window: this.mainWindow });
+      // Menu.buildFromTemplate([
+      //   {
+      //     label: 'Inspect element',
+      //     click: () => {
+      //       this.mainWindow.webContents.inspectElement(x, y);
+      //     },
+      //   },
+      // ]).popup({ window: this.mainWindow });
     });
   }
 

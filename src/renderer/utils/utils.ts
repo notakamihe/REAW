@@ -4,7 +4,7 @@ import TimelinePosition, { TimelinePositionOptions } from "renderer/types/Timeli
 import { v4 as uuidv4 } from "uuid";
 import { getRandomTrackColor } from "./helpers";
 
-export function fromClip(clip: Clip) : Clip {
+export function copyClip(clip: Clip) : Clip {
   return {
     id: clip.id,
     start: TimelinePosition.fromPos(clip.start),
@@ -12,6 +12,7 @@ export function fromClip(clip: Clip) : Clip {
     startLimit: clip.startLimit ? TimelinePosition.fromPos(clip.startLimit) : null,
     endLimit: clip.endLimit ? TimelinePosition.fromPos(clip.endLimit) : null,
     loopEnd: clip.loopEnd ? TimelinePosition.fromPos(clip.loopEnd) : null,
+    muted: clip.muted
   }
 }
 
@@ -24,6 +25,7 @@ export function getBaseTrack(tracks: Track[]) {
     effects: [],
     mute: false,
     solo: false,
+    armed: false,
     automationEnabled: false,
     volume: 0,
     pan: 0,
@@ -35,7 +37,8 @@ export function getBaseTrack(tracks: Track[]) {
         maxValue: 6,
         nodes: [],
         show: false,
-        expanded: true
+        expanded: true,
+        isVolume: true
       },
       {
         id: uuidv4(),
@@ -44,7 +47,8 @@ export function getBaseTrack(tracks: Track[]) {
         maxValue: 100,
         nodes: [],
         show: false,
-        expanded: true
+        expanded: true,
+        isPan: true
       }
     ]
   }
@@ -59,7 +63,7 @@ export function marginToPos(margin : number, options: TimelinePositionOptions) :
   return new TimelinePosition(measures + 1, beats + 1, fraction)
 }
 
-export function moveClipToPos(to : TimelinePosition, clip : Clip, options : TimelinePositionOptions) : Clip {
+export function clipAtPos(to : TimelinePosition, clip : Clip, options : TimelinePositionOptions) : Clip {
   to = TimelinePosition.fromPos(to)
   const start = TimelinePosition.fromPos(clip.start)
   const end = TimelinePosition.fromPos(clip.end)
@@ -87,7 +91,7 @@ export function moveClipToPos(to : TimelinePosition, clip : Clip, options : Time
 }
 
 export function preserveClipMargins(clip : Clip, prevOptions : TimelinePositionOptions, options : TimelinePositionOptions) {
-  const newClip = fromClip(clip)
+  const newClip = copyClip(clip)
 
   newClip.start = preservePosMargin(newClip.start, prevOptions, options)
   newClip.end = preservePosMargin(newClip.end, prevOptions, options)

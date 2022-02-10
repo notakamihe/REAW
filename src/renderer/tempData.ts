@@ -15,6 +15,7 @@ const data : Track[] = [
         startLimit: new TimelinePosition(1, 2, 0),
         endLimit: new TimelinePosition(4, 2, 0),
         loopEnd: new TimelinePosition(3, 2, 900),
+        muted: false
       },
       {
         id: uuidv4(),
@@ -23,6 +24,7 @@ const data : Track[] = [
         startLimit: null,
         endLimit: null,
         loopEnd: new TimelinePosition(5, 2, 500),
+        muted: false
       }
     ],
     effects: [
@@ -37,6 +39,7 @@ const data : Track[] = [
     ],
     mute: false,
     solo: false,
+    armed: false,
     automationEnabled: true,
     volume: 0,
     pan: 0,
@@ -48,6 +51,7 @@ const data : Track[] = [
         maxValue: 6,
         show: false,
         expanded: true,
+        isVolume: true,
         nodes: [
           {
             id: uuidv4(),
@@ -78,6 +82,7 @@ const data : Track[] = [
         maxValue: 100,
         show: false,
         expanded: true,
+        isPan: true,
         nodes: [
           {
             id: uuidv4(),

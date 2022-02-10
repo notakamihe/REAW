@@ -10,54 +10,56 @@ import data from "renderer/tempData";
 import { AutomationLane } from "renderer/components/AutomationLaneTrack";
 import { ClipboardContext, ClipboardItemType } from "./ClipboardContext";
 import { v4 } from "uuid";
-import { fromClip, moveClipToPos, preserveClipMargins, preservePosMargin } from "renderer/utils/utils";
+import { copyClip, clipAtPos, preserveClipMargins, preservePosMargin } from "renderer/utils/utils";
 import { Region } from "renderer/components/RegionComponent";
 
 export interface WorkflowContextType {
-  tracks : Track[];
-  setTracks : (tracks : Track[], callback? : () => void) => void;
-  setTrack : (track : Track, callback? : () => void) => void;
-  verticalScale : number
-  setVerticalScale : React.Dispatch<React.SetStateAction<number>>
-  horizontalScale : number
-  setHorizontalScale : React.Dispatch<React.SetStateAction<number>>
-  trackLanesWindowHeight : number
-  setTrackLanesWindowHeight : React.Dispatch<React.SetStateAction<number>>
-  gridSize : GridSize
-  setGridSize: React.Dispatch<React.SetStateAction<GridSize>>
-  snapSize : SnapSize
-  setSnapSize : React.Dispatch<React.SetStateAction<SnapSize>>
-  timelinePosOptions : TimelinePositionOptions
-  timeSignature : TimeSignature
-  setTimeSignature : React.Dispatch<React.SetStateAction<TimeSignature>>
-  autoSnap : boolean
-  setAutoSnap : React.Dispatch<React.SetStateAction<boolean>>
-  cursorPos : TimelinePosition
-  setCursorPos : React.Dispatch<React.SetStateAction<TimelinePosition>>
-  tempo : number
-  setTempo : React.Dispatch<React.SetStateAction<number>>
-  isPlaying : boolean
-  setIsPlaying : React.Dispatch<React.SetStateAction<boolean>>
-  isLooping : boolean
-  setIsLooping : React.Dispatch<React.SetStateAction<boolean>>
-  isRecording : boolean
-  setIsRecording : React.Dispatch<React.SetStateAction<boolean>>
-  metronome : boolean
-  setMetronome : React.Dispatch<React.SetStateAction<boolean>>
-  selectedClip : Clip | null
-  setSelectedClip : (clip : Clip | null) => void
-  onClipClickAway : (clip : Clip | null) => void
-  selectedNode : AutomationNode | null
-  setSelectedNode : (newState: AutomationNode | null) => void
-  onNodeClickAway : (node : AutomationNode | null) => void
-  setCancelClickAway : (cancel : boolean) => void
   addNodeToLane : (track : Track, lane : AutomationLane, node : AutomationNode) => void
+  autoSnap : boolean
+  cursorPos : TimelinePosition
   deleteClip : (clip : Clip) => void
   deleteNode : (node : AutomationNode) => void
+  duplicateClip : (clip : Clip) => void
+  gridSize : GridSize
+  horizontalScale : number
+  isLooping : boolean
+  isPlaying : boolean
+  isRecording : boolean
+  metronome : boolean
+  onClipClickAway : (clip : Clip | null) => void
+  onNodeClickAway : (node : AutomationNode | null) => void
   pasteClip : (atCursor : boolean, track? : Track, pos? : TimelinePosition) => void
   pasteNode : (atCursor : boolean, lane? : AutomationLane, pos? : TimelinePosition) => void,
   region : Region | null
+  selectedClip : Clip | null
+  selectedNode : AutomationNode | null
+  setAutoSnap : React.Dispatch<React.SetStateAction<boolean>>
+  setCancelClickAway : (cancel : boolean) => void
+  setCursorPos : React.Dispatch<React.SetStateAction<TimelinePosition>>
+  setGridSize: React.Dispatch<React.SetStateAction<GridSize>>
+  setHorizontalScale : React.Dispatch<React.SetStateAction<number>>
+  setIsLooping : React.Dispatch<React.SetStateAction<boolean>>
+  setIsPlaying : React.Dispatch<React.SetStateAction<boolean>>
+  setIsRecording : React.Dispatch<React.SetStateAction<boolean>>
+  setMetronome : React.Dispatch<React.SetStateAction<boolean>>
   setRegion : React.Dispatch<React.SetStateAction<Region | null>>
+  setSelectedClip : (clip : Clip | null) => void
+  setSelectedNode : (newState: AutomationNode | null) => void
+  setSnapSize : React.Dispatch<React.SetStateAction<SnapSize>>
+  setTempo : React.Dispatch<React.SetStateAction<number>>
+  setTimeSignature : React.Dispatch<React.SetStateAction<TimeSignature>>
+  setTrack : (track : Track, callback? : () => void) => void;
+  setTrackLanesWindowHeight : React.Dispatch<React.SetStateAction<number>>
+  setTracks : (tracks : Track[], callback? : () => void) => void;
+  setVerticalScale : React.Dispatch<React.SetStateAction<number>>
+  snapSize : SnapSize
+  tempo : number
+  timelinePosOptions : TimelinePositionOptions
+  timeSignature : TimeSignature
+  toggleMuteClip : (clip : Clip) => void
+  tracks : Track[];
+  trackLanesWindowHeight : number
+  verticalScale : number
 };
 
 export const WorkstationContext = React.createContext<WorkflowContextType | undefined>(undefined);
@@ -181,6 +183,15 @@ export const WorkstationProvider: React.FC = ({ children }) => {
     }
   }
 
+  const duplicateClip = (clip : Clip) => {
+    const track = tracks.find(t => t.clips.find(c => c.id === clip.id));
+
+    if (track) {
+      const newClip = clipAtPos(clip.loopEnd || clip.end, {...clip, id: v4()}, timelinePosOptions)
+      setTrack({...track, clips: [...track.clips, newClip]});
+    }
+  }
+
   const preserveMargins = () => {
     if (prevTimelineOptions) {
       const newTracks = tracks.slice()
@@ -221,7 +232,7 @@ export const WorkstationProvider: React.FC = ({ children }) => {
       if (!text) {
         if (clipboardItem?.item && clipboardItem?.type === ClipboardItemType.Clip) {
           const itemClip = clipboardItem?.item as Clip;
-          let newClip = fromClip(itemClip);
+          let newClip = copyClip(itemClip);
           newClip.id = v4();
       
           if (track === undefined) {
@@ -230,9 +241,9 @@ export const WorkstationProvider: React.FC = ({ children }) => {
       
           if (track) {
             if (atCursor) {
-              newClip = moveClipToPos(cursorPos, newClip, timelinePosOptions);
+              newClip = clipAtPos(cursorPos, newClip, timelinePosOptions);
             } else if (pos) {
-              newClip = moveClipToPos(pos, newClip, timelinePosOptions);
+              newClip = clipAtPos(pos, newClip, timelinePosOptions);
             }
       
             setTrack({...track, clips: [...track.clips, newClip]});
@@ -271,53 +282,64 @@ export const WorkstationProvider: React.FC = ({ children }) => {
     })
   }
 
+  const toggleMuteClip = (clip : Clip) => {
+    const track = tracks.find(t => t.clips.find(c => c.id === clip.id));
+
+    if (track) {
+      const newClip = {...clip, muted: !clip.muted};
+      setTrack({...track, clips: track.clips.map(c => c.id === clip.id ? newClip : c)});
+    }
+  }
+  
   return (
     <WorkstationContext.Provider 
       value={{ 
-        tracks,
-        setTracks,
-        setTrack,
-        verticalScale, 
-        setVerticalScale, 
-        horizontalScale, 
-        setHorizontalScale,
-        trackLanesWindowHeight,
-        setTrackLanesWindowHeight,
-        gridSize,
-        setGridSize,
-        snapSize,
-        setSnapSize,
-        timelinePosOptions,
-        timeSignature,
-        setTimeSignature,
-        autoSnap,
-        setAutoSnap,
-        cursorPos,
-        setCursorPos,
-        tempo,
-        setTempo,
-        isPlaying,
-        setIsPlaying,
-        isLooping,
-        setIsLooping,
-        isRecording,
-        setIsRecording,
-        metronome,
-        setMetronome,
-        selectedClip,
-        setSelectedClip,
-        onClipClickAway,
-        selectedNode,
-        setSelectedNode,
-        onNodeClickAway,
-        setCancelClickAway,
         addNodeToLane,
+        autoSnap,
+        cursorPos,
         deleteClip,
         deleteNode,
+        duplicateClip,
+        gridSize,
+        horizontalScale, 
+        isLooping,
+        isPlaying,
+        isRecording,
+        metronome,
+        onClipClickAway,
+        onNodeClickAway,
         pasteClip,
         pasteNode,
         region,
-        setRegion
+        selectedClip,
+        selectedNode,
+        setAutoSnap,
+        setCancelClickAway,
+        setCursorPos,
+        setGridSize,
+        setHorizontalScale,
+        setIsLooping,
+        setIsPlaying,
+        setIsRecording,
+        setMetronome,
+        setRegion,
+        setSelectedClip,
+        setSelectedNode,
+        setSnapSize,
+        setTempo,
+        setTimeSignature,
+        setTrack,
+        setTrackLanesWindowHeight,
+        setTracks,
+        setVerticalScale, 
+        snapSize,
+        tempo,
+        timelinePosOptions,
+        timeSignature,
+        toggleMuteClip,
+        trackLanesWindowHeight,
+        tracks,
+        verticalScale
       }}
     >
       {children}

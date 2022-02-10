@@ -48,35 +48,49 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
 
   getPolylinePoints() {
     const nodes = this.props.lane.nodes.slice()
-    const points = []
+    let points : string[] = []
 
-    if (this.state.movingNode) {
-      const nodeIdx = nodes.findIndex(n => n.id === this.state.movingNode!.id)
-
-      if (nodeIdx !== -1) {
-        nodes[nodeIdx] = this.state.movingNode
-        nodes.sort((a, b) => a.pos.compare(b.pos))
+    if (nodes.length > 0) {
+      if (this.state.movingNode) {
+        const nodeIdx = nodes.findIndex(n => n.id === this.state.movingNode!.id)
+  
+        if (nodeIdx !== -1) {
+          nodes[nodeIdx] = this.state.movingNode
+          nodes.sort((a, b) => a.pos.compare(b.pos))
+        }
       }
-    }
-
-    for (let i = 0; i < nodes.length; i++) {
-      let node = nodes[i]
-      
-      const yPercentage = inverseLerp(node.value, this.props.lane.minValue, this.props.lane.maxValue)
-      const x = node.pos.toMargin(this.context!.timelinePosOptions)
-      const y = (this.state.height - 6) - yPercentage * (this.state.height - 6)
-
-      if (i === 0)
-        points.push(`${0},${y + 3}`)
-      
-      points.push(`${x + 3},${y + 3}`)
-      
-      if (i === nodes.length - 1) {
-        points.push(`${this.state.width},${y + 3}`)
+  
+      for (let i = 0; i < nodes.length; i++) {
+        let node = nodes[i]
+        
+        const x = node.pos.toMargin(this.context!.timelinePosOptions)
+        const y = this.getY(node.value)
+  
+        if (i === 0)
+          points.push(`${0},${y + 3}`)
+        
+        points.push(`${x + 3},${y + 3}`)
+        
+        if (i === nodes.length - 1) {
+          points.push(`${this.state.width},${y + 3}`)
+        }
+      }
+    } else {
+      if (this.props.lane.isVolume) {
+        const y = this.getY(this.props.track.volume)
+        points = [`0,${y + 3}`, `${this.state.width},${y + 3}`]
+      } else if (this.props.lane.isPan) {
+        const y = this.getY(this.props.track.pan)
+        points = [`0,${y + 3}`, `${this.state.width},${y + 3}`]
       }
     }
 
     return points
+  }
+
+  getY(value : number) {
+    const percentage = inverseLerp(value, this.props.lane.minValue, this.props.lane.maxValue)
+    return (this.state.height - 6) - percentage * (this.state.height - 6)
   }
 
   onClick = (e : React.MouseEvent<HTMLDivElement>) => {
@@ -120,6 +134,7 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
   render() {
     const {verticalScale, selectedNode, setSelectedNode, onNodeClickAway, pasteNode, timelinePosOptions} = this.context!
     const polylinePoints = this.getPolylinePoints()
+    const strokeWidth = this.props.lane.nodes.length === 0 && (this.props.lane.isVolume || this.props.lane.isPan) ? 1 : 2
 
     if (this.props.lane.show) {
       return (
@@ -164,7 +179,7 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
                   >
                     <polyline
                       points={polylinePoints.join(" ")} 
-                      style={{fill: "none", stroke: this.props.color, strokeWidth: 2}}
+                      style={{fill: "none", stroke: this.props.color, strokeWidth}}
                     />
                   </svg>
                 </div>

@@ -28,7 +28,7 @@ export default class Metronome extends React.Component {
         onClick={() => setMetronome(!metronome)} 
         style={{backgroundColor: metronome ? "var(--color-primary)" : "#0004"}}
       >
-        <object data={metronomeIcon} style={{height: 14}} type="image/svg+xml"></object>
+        <img src={metronomeIcon} style={{height: 14}} />
       </IconButton>
     )
   }
