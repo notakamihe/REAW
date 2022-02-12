@@ -4,11 +4,12 @@ import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import { getLaneColor } from "renderer/utils/helpers";
 import { getPosFromAnchorEl } from "renderer/utils/utils";
-import { AnywhereClickAnchorEl, ClipComponent } from ".";
+import { AnywhereClickAnchorEl, ClipComponent, RegionComponent } from ".";
 import AutomationLaneComponent from "./AutomationLaneComponent";
 import { Clip } from "./ClipComponent";
 import { MenuIcon } from "./icons";
 import { Track } from "./TrackComponent";
+import region from "../../../assets/svg/region.svg"
  
 interface IProps {
   track : Track
@@ -17,6 +18,7 @@ interface IProps {
  
 interface IState {
   anchorEl : HTMLElement | null
+  regionAnchorEl : HTMLElement | null
 }
  
 class Lane extends React.Component<IProps, IState> {
@@ -27,7 +29,8 @@ class Lane extends React.Component<IProps, IState> {
     super(props)
  
     this.state = {
-      anchorEl: null
+      anchorEl: null,
+      regionAnchorEl: null
     }
  
     this.changeLane = this.changeLane.bind(this)
@@ -77,7 +80,17 @@ class Lane extends React.Component<IProps, IState> {
   }
  
   render() {
-    const {verticalScale, selectedClip, setSelectedClip, onClipClickAway, timelinePosOptions, pasteClip} = this.context!
+    const {
+      createClipFromTrackRegion,
+      onClipClickAway, 
+      pasteClip,
+      selectedClip, 
+      setSelectedClip, 
+      setTrackRegion,
+      timelinePosOptions, 
+      trackRegion,
+      verticalScale, 
+    } = this.context!
  
     return (
       <React.Fragment>
@@ -87,9 +100,20 @@ class Lane extends React.Component<IProps, IState> {
               width: "100%",
               height: 100 * verticalScale,
               position: "relative",
+              cursor: "text",
               ...this.props.style
             }}
           >
+            <RegionComponent 
+              containerStyle={{position: "absolute", inset: 0}}
+              onClickAway={() => setTrackRegion(null)}
+              onContainerMouseDown={() => {if (!trackRegion || trackRegion.track.id !== this.props.track.id) setTrackRegion(null)}}
+              onDelete={() => setTrackRegion(null)}
+              onRightClickAnywhere={e => this.setState({regionAnchorEl: e})}
+              onSetRegion={region => setTrackRegion(region ? {region, track: this.props.track} : null)}
+              region={!trackRegion || trackRegion.track.id !== this.props.track.id ? null : trackRegion.region}
+              regionStyle={{backgroundColor: "#fff6"}}
+            />
             {
               this.props.track.clips.map(clip => (
                 <ClipComponent
@@ -120,6 +144,19 @@ class Lane extends React.Component<IProps, IState> {
             <MenuItem onClick={() => pasteClip(false, this.props.track, getPosFromAnchorEl(this.state.anchorEl!, timelinePosOptions))}>
               <MenuIcon icon={<ContentPaste />} />
               <ListItemText>Paste</ListItemText>
+            </MenuItem>
+          </MenuList>
+        </Menu>
+        <Menu
+          open={Boolean(this.state.regionAnchorEl)}
+          anchorEl={this.state.regionAnchorEl}
+          onClose={() => this.setState({regionAnchorEl: null})}
+          onClick={e => this.setState({regionAnchorEl: null})}
+        >
+          <MenuList className="p-0" dense style={{outline: "none"}}>
+            <MenuItem onClick={createClipFromTrackRegion}>
+              <MenuIcon icon={<img src={region} style={{height: 14}} />} />
+              <ListItemText>Create Clip From Region</ListItemText>
             </MenuItem>
           </MenuList>
         </Menu>

@@ -3,7 +3,7 @@ import { Button, IconButton } from "@mui/material";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
-import { SnapSize } from "renderer/types/types";
+import { SnapGridSize } from "renderer/types/types";
 import Holdable from "./Holdable";
 import styled from "styled-components"
 import metronomeIcon from "../../../assets/svg/metronome.svg"
@@ -11,6 +11,7 @@ import { ButtonAndIcon, EditableDisplay, NumberInput } from "./ui";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFileExport, faMagnet, faRedo, faUndo } from "@fortawesome/free-solid-svg-icons";
 import SelectSpinBox, { SelectSpinBoxOption } from "./ui/SelectSpinBox";
+import Metronome from "./Metronome";
 
 const PlaybackControlButton = styled(IconButton)`
 background-color: #333;
@@ -104,17 +105,17 @@ export default class Header extends React.Component<IProps, IState> {
     if (this.context?.autoSnap)
       return SnapSizeOption.Auto
 
-    switch (this.context?.snapSize) {
-      case SnapSize.Whole: return SnapSizeOption.Whole
-      case SnapSize.Half: return SnapSizeOption.Half
-      case SnapSize.Quarter: return SnapSizeOption.Quarter
-      case SnapSize.Eighth: return SnapSizeOption.Eighth
-      case SnapSize.Sixteenth: return SnapSizeOption.Sixteenth
-      case SnapSize.ThirtySecond: return SnapSizeOption.ThirtySecond
-      case SnapSize.SixtyFourth: return SnapSizeOption.SixtyFourth
-      case SnapSize.OneTwentyEighth: return SnapSizeOption.OneTwentyEighth
-      case SnapSize.TwoFiftySixth: return SnapSizeOption.TwoFiftySixth
-      case SnapSize.FiveHundredTwelfth: return SnapSizeOption.FiveHundredTwelfth
+    switch (this.context?.snapGridSize) {
+      case SnapGridSize.Whole: return SnapSizeOption.Whole
+      case SnapGridSize.Half: return SnapSizeOption.Half
+      case SnapGridSize.Quarter: return SnapSizeOption.Quarter
+      case SnapGridSize.Eighth: return SnapSizeOption.Eighth
+      case SnapGridSize.Sixteenth: return SnapSizeOption.Sixteenth
+      case SnapGridSize.ThirtySecond: return SnapSizeOption.ThirtySecond
+      case SnapGridSize.SixtyFourth: return SnapSizeOption.SixtyFourth
+      case SnapGridSize.OneTwentyEighth: return SnapSizeOption.OneTwentyEighth
+      case SnapGridSize.TwoFiftySixth: return SnapSizeOption.TwoFiftySixth
+      case SnapGridSize.FiveHundredTwelfth: return SnapSizeOption.FiveHundredTwelfth
       default: return SnapSizeOption.None
     }
   }
@@ -138,37 +139,37 @@ export default class Header extends React.Component<IProps, IState> {
 
       switch (value) {
         case SnapSizeOption.None: 
-          this.context!.setSnapSize(SnapSize.None) 
+          this.context!.setSnapGridSize(SnapGridSize.None) 
           break
         case SnapSizeOption.Whole:
-          this.context!.setSnapSize(SnapSize.Whole)
+          this.context!.setSnapGridSize(SnapGridSize.Whole)
           break
         case SnapSizeOption.Half:
-          this.context!.setSnapSize(SnapSize.Half)
+          this.context!.setSnapGridSize(SnapGridSize.Half)
           break
         case SnapSizeOption.Quarter:
-          this.context!.setSnapSize(SnapSize.Quarter)
+          this.context!.setSnapGridSize(SnapGridSize.Quarter)
           break
         case SnapSizeOption.Eighth:
-          this.context!.setSnapSize(SnapSize.Eighth)
+          this.context!.setSnapGridSize(SnapGridSize.Eighth)
           break
         case SnapSizeOption.Sixteenth:
-          this.context!.setSnapSize(SnapSize.Sixteenth)
+          this.context!.setSnapGridSize(SnapGridSize.Sixteenth)
           break
         case SnapSizeOption.ThirtySecond:
-          this.context!.setSnapSize(SnapSize.ThirtySecond)
+          this.context!.setSnapGridSize(SnapGridSize.ThirtySecond)
           break
         case SnapSizeOption.SixtyFourth:
-          this.context!.setSnapSize(SnapSize.SixtyFourth)
+          this.context!.setSnapGridSize(SnapGridSize.SixtyFourth)
           break
         case SnapSizeOption.OneTwentyEighth:
-          this.context!.setSnapSize(SnapSize.OneTwentyEighth)
+          this.context!.setSnapGridSize(SnapGridSize.OneTwentyEighth)
           break
         case SnapSizeOption.TwoFiftySixth:
-          this.context!.setSnapSize(SnapSize.TwoFiftySixth)
+          this.context!.setSnapGridSize(SnapGridSize.TwoFiftySixth)
           break
         case SnapSizeOption.FiveHundredTwelfth:
-          this.context!.setSnapSize(SnapSize.FiveHundredTwelfth)
+          this.context!.setSnapGridSize(SnapGridSize.FiveHundredTwelfth)
           break
       }
     }
@@ -197,7 +198,7 @@ export default class Header extends React.Component<IProps, IState> {
       let newPos = TimelinePosition.fromPos(cursorPos)
       const newTimelinePosOptions = {...timelinePosOptions}
 
-      newTimelinePosOptions.snapSize = SnapSize.None
+      newTimelinePosOptions.snapSize = SnapGridSize.None
       newPos.add(0, 0, 250, true, newTimelinePosOptions)
 
       setCursorPos(newPos)
@@ -207,7 +208,7 @@ export default class Header extends React.Component<IProps, IState> {
       let newPos = TimelinePosition.fromPos(cursorPos)
       const newTimelinePosOptions = {...timelinePosOptions}
 
-      newTimelinePosOptions.snapSize = SnapSize.None
+      newTimelinePosOptions.snapSize = SnapGridSize.None
       newPos.subtract(0, 0, 250, true, newTimelinePosOptions)
 
       if (newPos.compare(TimelinePosition.start) < 0)
@@ -277,7 +278,7 @@ export default class Header extends React.Component<IProps, IState> {
                   container: {width: 30, height: 18, backgroundColor: "#0000"},
                   incr: {backgroundColor: "#0000"},
                   incrIcon: {color: "#333"},
-                  input: {fontWeight: "bold", transform: "translateY(2px)"},
+                  input: {fontWeight: "bold", transform: "translateY(1px)"},
                   decr: {backgroundColor: "#0000"},
                   decrIcon: {color: "#333"},
                   verticalContainer: {visibility: "hidden"}
@@ -331,13 +332,7 @@ export default class Header extends React.Component<IProps, IState> {
               className="d-flex justify-content-center align-items-center"
               style={{flex: 1, textAlign: "center"}}
             >
-              <IconButton 
-                className="p-1" 
-                onClick={() => setMetronome(!metronome)} 
-                style={{backgroundColor: metronome ? "var(--color-primary)" : "#0004"}}
-              >
-                <object data={metronomeIcon} style={{height: 14}} type="image/svg+xml"></object>
-              </IconButton>
+              <Metronome />
             </div>
           </div>
           <div className="d-flex" style={{flex: 1}}>

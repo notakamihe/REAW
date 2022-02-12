@@ -2,7 +2,7 @@ import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
 import { marginToPos } from "renderer/utils/utils";
-import { DNR } from ".";
+import { AnywhereClickAnchorEl, DNR } from ".";
 import { DNRData, ResizeDirection } from "./DNR";
 
 export interface Region {
@@ -10,21 +10,37 @@ export interface Region {
   end : TimelinePosition
 }
 
+interface IProps {
+  containerStyle? : React.CSSProperties
+  onClickAway? : () => void
+  onContainerMouseDown? : (e : React.MouseEvent<HTMLDivElement>) => void
+  onDelete? : () => void
+  onRightClickAnywhere? : (e : HTMLElement | null) => void
+  onSetRegion : (region : Region | null) => void
+  region : Region | null
+  regionStyle? : React.CSSProperties
+}
 
 interface IState {
+  height : number
   newRegionStartPos : TimelinePosition | null
   newRegionEndPos : TimelinePosition | null
   isCreatingNewRegion : boolean
 }
 
-export default class RegionComponent extends React.Component<{}, IState> {
+export default class RegionComponent extends React.Component<IProps, IState> {
   static contextType = WorkstationContext;
   context : React.ContextType<typeof WorkstationContext>;
+
+  containerRef : React.RefObject<HTMLDivElement>
 
   constructor(props : any) {
     super(props);
 
+    this.containerRef = React.createRef();
+
     this.state = {
+      height: 0,
       newRegionStartPos: null,
       newRegionEndPos: null,
       isCreatingNewRegion: false
@@ -33,7 +49,18 @@ export default class RegionComponent extends React.Component<{}, IState> {
     this.onMouseDown = this.onMouseDown.bind(this);
     this.onMouseMove = this.onMouseMove.bind(this);
     this.onMouseUp = this.onMouseUp.bind(this);
+    this.onRegionClickAway = this.onRegionClickAway.bind(this);
     this.onResizeStop = this.onResizeStop.bind(this);
+  }
+
+  componentDidMount() {
+    this.setState({height: this.containerRef.current?.clientHeight || 0})
+  }
+
+  componentDidUpdate() {
+    if (this.state.height !== this.containerRef.current?.clientHeight) {
+      this.setState({height: this.containerRef.current?.clientHeight || 0})
+    }
   }
 
   getNewRegionMarginAndWidth() {
@@ -54,6 +81,8 @@ export default class RegionComponent extends React.Component<{}, IState> {
   }
 
   onMouseDown(e : React.MouseEvent<HTMLDivElement>) {
+    this.props.onContainerMouseDown?.(e)
+
     const x = e.clientX - e.currentTarget.getBoundingClientRect().left
     const newRegionStartPos = marginToPos(x, this.context!.timelinePosOptions)
 
@@ -81,7 +110,7 @@ export default class RegionComponent extends React.Component<{}, IState> {
     const newRegionEndPos = marginToPos(margin, this.context!.timelinePosOptions)
     
     this.setState({newRegionEndPos})
-    this.context!.setRegion(null)
+    this.props.onSetRegion(null)
   }
 
   onMouseUp(e : MouseEvent) {
@@ -97,17 +126,22 @@ export default class RegionComponent extends React.Component<{}, IState> {
       if (newRegionEndPos.compare(this.state.newRegionStartPos) !== 0) {
         this.setState({newRegionEndPos}, () => {
           if (this.state.newRegionEndPos!.compare(this.state.newRegionStartPos!) < 0)
-            this.context!.setRegion({start: this.state.newRegionEndPos!, end: this.state.newRegionStartPos!})
+            this.props.onSetRegion({start: this.state.newRegionEndPos!, end: this.state.newRegionStartPos!})
           else
-            this.context!.setRegion({start: this.state.newRegionStartPos!, end: this.state.newRegionEndPos!})
+            this.props.onSetRegion({start: this.state.newRegionStartPos!, end: this.state.newRegionEndPos!})
         })
       }
     }
   }
 
+  onRegionClickAway(e : Event) {
+    if (this.containerRef.current?.contains(e.target as Node))
+      this.props.onClickAway?.()
+  }
+
   onResizeStop(e : MouseEvent, dir : ResizeDirection, ref : HTMLElement, data : DNRData) {
-    if (this.context!.region) {
-      let newRegion = {...this.context!.region}
+    if (this.props.region) {
+      let newRegion = {...this.props.region}
 
       if (dir === ResizeDirection.Left) {
         const startPos = marginToPos(data.coords.startX, this.context!.timelinePosOptions)
@@ -120,46 +154,54 @@ export default class RegionComponent extends React.Component<{}, IState> {
       }
 
       if (newRegion.start.compare(newRegion.end) >= 0)
-        this.context!.setRegion(null)
+        this.props.onSetRegion(null)
       else
-        this.context!.setRegion(newRegion)
+        this.props.onSetRegion(newRegion)
     }
   }
 
   render() {
-    const {isLooping, region, timelinePosOptions} = this.context!
+    const {isLooping, timelinePosOptions} = this.context!
     const {left, width} = this.getNewRegionMarginAndWidth()
 
     return (
-      <div onMouseDown={this.onMouseDown} style={{width: "100%", height: "100%", position: "relative"}}>
+      <div 
+        onMouseDown={this.onMouseDown} 
+        ref={this.containerRef} 
+        style={{width: "100%", height: "100%", position: "relative", ...this.props.containerStyle}}
+      >
         {
           this.state.isCreatingNewRegion &&
           <div 
             style={{
+              ...this.props.regionStyle,
               position: "absolute", 
               top: 0, 
               left, 
               width,
               height: "100%",
-              backgroundColor: isLooping ? "var(--color-primary-light)" : "#0004"
             }}
           ></div>
         }
         {
-          region &&
-          <DNR
-            coords={{
-              startX: region.start.toMargin(timelinePosOptions), 
-              startY: 0, 
-              endX: region.end.toMargin(timelinePosOptions), 
-              endY: 10
-            }}
-            disableDragging
-            enableResizing={{left: true, right: true}}
-            onDoubleClick={() => this.context!.setRegion(null)}
-            onResizeStop={this.onResizeStop}
-            style={{backgroundColor: isLooping ? "var(--color-primary-light)" : "#0004"}}
-          />
+          this.props.region &&
+          <AnywhereClickAnchorEl onRightClickAnywhere={e => this.props.onRightClickAnywhere?.(e)}>
+            <DNR
+              coords={{
+                startX: this.props.region.start.toMargin(timelinePosOptions), 
+                startY: 0, 
+                endX: this.props.region.end.toMargin(timelinePosOptions), 
+                endY: this.state.height
+              }}
+              disableDragging
+              enableResizing={{left: true, right: true}}
+              onClickAway={this.onRegionClickAway}
+              onDoubleClick={this.props.onDelete}
+              onMouseDown={e => e.stopPropagation()}
+              onResizeStop={this.onResizeStop}
+              style={this.props.regionStyle}
+            />
+          </AnywhereClickAnchorEl>
         }
       </div>
     )

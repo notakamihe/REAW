@@ -1,6 +1,7 @@
 import React from "react";
 import { ClipboardContext, ClipboardItemType } from "renderer/context/ClipboardContext";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
+import TimelinePosition from "renderer/types/TimelinePosition";
 
 interface IProps {
   children : JSX.Element
@@ -20,7 +21,20 @@ export default class KeyListener extends React.Component<IProps> {
     return (
       <WorkstationContext.Consumer>
         {wc => {
-          const {selectedClip, tracks, selectedNode, deleteClip, deleteNode, duplicateClip, pasteClip, pasteNode, toggleMuteClip} = wc!
+          const {
+            createClipFromTrackRegion,
+            deleteClip, 
+            deleteNode, 
+            duplicateClip, 
+            pasteClip, 
+            pasteNode, 
+            selectedClip, 
+            selectedNode, 
+            setCursorPos,
+            toggleMuteClip,
+            trackRegion,
+            tracks
+          } = wc!
 
           const onCopy = (e : React.ClipboardEvent<HTMLDivElement>) => {
             if (selectedClip) {
@@ -53,6 +67,8 @@ export default class KeyListener extends React.Component<IProps> {
               } else if (selectedNode) {
                 deleteNode(selectedNode)
               }
+            } else if (e.key === "Home") {
+              setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))
             } else if (e.ctrlKey && e.key === "d") {
               if (selectedClip) {
                 duplicateClip(selectedClip)
@@ -60,6 +76,10 @@ export default class KeyListener extends React.Component<IProps> {
             } else if (e.ctrlKey && e.key === "m") {
               if (selectedClip) {
                 toggleMuteClip(selectedClip)
+              }
+            } else if (e.ctrlKey && e.key === "n") {
+              if (trackRegion) {
+                createClipFromTrackRegion()
               }
             }
           }

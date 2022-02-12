@@ -178,6 +178,7 @@ interface IProps {
   onDrag? : (e : MouseEvent, data: DNRData) => void
   onDragStart? : (e : React.MouseEvent, data: DNRData) => void
   onDragStop? : (e : MouseEvent, data: DNRData) => void
+  onMouseDown? : (e : React.MouseEvent) => void
   onMouseOver? : (e : React.MouseEvent) => void
   onMouseOut? : (e : React.MouseEvent) => void
   onResize? : (e : MouseEvent, dir : ResizeDirection, ref : HTMLElement, data: DNRData) => void
@@ -307,6 +308,8 @@ export default class DNR extends React.Component<IProps, IState> {
   }
 
   onMouseDownDrag = (event: React.MouseEvent) => {
+    this.props.onMouseDown?.(event);
+
     if (this.props.disableDragging || (!this.props.allowAnyClick && event.button !== 0))
       return
 
@@ -315,6 +318,8 @@ export default class DNR extends React.Component<IProps, IState> {
   }
 
   onMouseDownResize = (event: React.MouseEvent, dir : ResizeDirection) => {
+    this.props.onMouseDown?.(event);
+
     if (!this.props.allowAnyClick && event.button !== 0)
       return
     

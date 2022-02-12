@@ -17,7 +17,7 @@ const Cursor = React.forwardRef<HTMLDivElement, IProps>((props, ref) => {
       ref={ref}
       style={{
         position: "absolute", 
-        top: 10,
+        top: 12,
         left: -4 + props.pos.toMargin(timelinePosOptions), 
         zIndex: 24,
         pointerEvents: "none"
@@ -30,7 +30,7 @@ const Cursor = React.forwardRef<HTMLDivElement, IProps>((props, ref) => {
           bottom: 0,
           left: 4,
           backgroundColor: "var(--color-primary)", 
-          height: props.height, 
+          height: (props.height || 0) - 5, 
           width: 2, 
           transform: "translate(0px, 100%)"
         }}

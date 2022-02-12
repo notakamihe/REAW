@@ -25,6 +25,7 @@ interface IState {
   height : number
   width : number
   movingNode : AutomationNode | null
+  prevNodes : AutomationNode[]
 }
 
 export default class AutomationLaneComponent extends React.Component<IProps, IState> {
@@ -42,7 +43,22 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
       anchorEl: null,
       height: 0,
       width: 0,
-      movingNode: null
+      movingNode: null,
+      prevNodes: []
+    }
+  }
+
+  componentDidUpdate() {
+    if (JSON.stringify(this.state.prevNodes) !== JSON.stringify(this.props.lane.nodes)) {
+      this.setState({prevNodes: this.props.lane.nodes.slice()})
+
+      if (this.props.lane.nodes.length === 1) {
+        if (this.props.lane.isVolume) {
+          this.context!.setTrack({...this.props.track, volume: this.props.lane.nodes[0].value})
+        } else if (this.props.lane.isPan) {
+          this.context!.setTrack({...this.props.track, pan: this.props.lane.nodes[0].value})
+        }
+      }
     }
   }
 

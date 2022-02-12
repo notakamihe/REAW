@@ -17,7 +17,7 @@ interface IProps {
   offset : number
   size : number
   step : number
-  style? : React.CSSProperties
+  style? : {container?: React.CSSProperties, knob?: React.CSSProperties}
   title? : string
   value : number
 }
@@ -68,8 +68,12 @@ export default class Knob extends React.Component<IProps, IState> {
     this.ref.current?.addEventListener("wheel", this.onWheel, {passive: false})
   }
 
-  componentDidUpdate() {
+  componentDidUpdate(prevProps : IProps) {
     this.drawMeter()
+
+    if (prevProps.value !== this.props.value) {
+      this.setState({value: this.props.value})
+    }
   }
 
   componentWillUnmount() {
@@ -246,7 +250,7 @@ export default class Knob extends React.Component<IProps, IState> {
 
   render() {
     return (
-      <div title={this.props.title}>
+      <div style={this.props.style?.container} title={this.props.title}>
         <div style={{cursor: "ns-resize", pointerEvents: this.props.disabled ? "none" : "auto"}}>
           <div
             ref={this.ref}
@@ -261,12 +265,14 @@ export default class Knob extends React.Component<IProps, IState> {
               borderRadius: this.props.size / 2,
               backgroundColor: "white",
               opacity: this.props.disabled ? 0.5 : 1,
-              ...this.props.style
+              ...this.props.style?.knob
             }}
           >
             <Tooltip title={this.state.value} placement="top" open={this.state.isDragging || this.state.isScrolling}>
               <div style={{width: "100%", height: "100%", position: "relative"}}>
                 <canvas 
+                  width={this.props.size * 1.4}
+                  height={this.props.size * 1.4}
                   ref={this.canvasArcRef}
                   style={{
                     position: "absolute", 

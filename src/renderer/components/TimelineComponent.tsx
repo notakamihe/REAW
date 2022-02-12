@@ -1,48 +1,126 @@
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
-import { SnapSize } from "renderer/types/types";
+import { SnapGridSize } from "renderer/types/types";
 import { marginToPos } from "renderer/utils/utils";
-import { MeasureComponent } from ".";
-import { Measure } from "./MeasureComponent";
 
 interface IProps {
-  numMeasures : number;
   style? : React.CSSProperties;
+  width : number
+  window : HTMLElement | null
 }
 
-interface IState {
-
-}
-
-export default class TimelineComponent extends React.Component<IProps, IState> {
+export default class TimelineComponent extends React.Component<IProps> {
   static contextType = WorkstationContext
   context : React.ContextType<typeof WorkstationContext>
+
+  canvasRef : React.RefObject<HTMLCanvasElement>
 
   constructor(props : any) {
     super(props)
 
+    this.canvasRef = React.createRef()
+
     this.onClick = this.onClick.bind(this)
   }
 
-  onClick(e : React.MouseEvent<HTMLDivElement>) {
-    const options = {...this.context!.timelinePosOptions}
+  componentDidMount() {
+    this.drawTimeline()
+  }
 
-    if (this.context!.autoSnap && options.horizontalScale >= 19)
-      options.snapSize = SnapSize.None
+  componentDidUpdate() {
+    this.drawTimeline()
+  }
+
+  drawTimeline() {
+    const canvas = this.canvasRef.current
     
-    const x = e.clientX - e.currentTarget.getBoundingClientRect().x
-    const newCursorPos = marginToPos(x, options)
+    if (canvas) {
+      const ctx = canvas.getContext("2d")
 
-    newCursorPos.snap(options)
+      if (ctx && this.props.window) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+        ctx.fillStyle = "#777"
+        ctx.lineWidth = 1
+        ctx.strokeStyle = "#777"
+        
+        const options = this.context!.timelinePosOptions
+
+        const beats = options.timeSignature.beats
+        const scale = options.horizontalScale
+        const subdivisions = 1 / Math.max(SnapGridSize.OneTwentyEighth, options.snapSize)
+        const beatWidth = options.beatWidth * scale
+        const subdivisionWidth = beatWidth / subdivisions
+        const measureWidth = beatWidth * beats
+
+        const {measures} = TimelinePosition.fromWidth(this.props.window.scrollLeft, options)
+        const offset = this.props.window.scrollLeft - measures * measureWidth
+
+        const numMeasures = Math.ceil(this.props.width / measureWidth) + 1
+        const numMeasuresToSkip = Math.max(0, Math.floor((-0.866 * measureWidth + 98.8582) / (measureWidth + 1.2335)))
+        const power = Math.ceil(Math.sqrt(beatWidth - 130) * 0.091)
+
+        for (let i = 0; i < numMeasures; i++) {
+          const x = i * measureWidth - offset
+          const measure = i + measures + 1
+
+          if (i % (numMeasuresToSkip + 1) === 0) {
+            ctx.beginPath()
+            ctx.moveTo(x, 1)
+            ctx.lineTo(x, canvas.height)
+            ctx.stroke()
+  
+            ctx.textAlign = "left"
+            ctx.fillText(measureWidth >= 70 ? `${measure}.1.0` : (measure).toString(), x + 4, 13)
+  
+            if (beatWidth >= 12.5 && numMeasuresToSkip === 0) {
+              for (let j = 0; j < beats; j++) {
+                const beatX = x + j * beatWidth
+    
+                if (j > 0) {
+                  ctx.beginPath()
+                  ctx.moveTo(beatX, 20)
+                  ctx.lineTo(beatX, canvas.height)
+                  ctx.stroke()
+    
+                  if (beatWidth > 50) {
+                    ctx.textAlign = "left"
+                    ctx.fillText(`${measure}.${j + 1}.0`, beatX + 4, 27)
+                  }
+                }
+    
+                for (let k = 0; k < subdivisions; k++) {
+                  const subdivisionsX = beatX + k * subdivisionWidth
+    
+                  if (k > 0 && k % (subdivisions / 2 ** power) === 0) {
+                    ctx.beginPath()
+                    ctx.moveTo(subdivisionsX, 30)
+                    ctx.lineTo(subdivisionsX, canvas.height)
+                    ctx.stroke()
+
+                    ctx.textAlign = "center"
+                    ctx.fillText(`${measure}.${j + 1}.${Math.round(k / subdivisions * 1000)}`, subdivisionsX, 29)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  onClick(e : React.MouseEvent<HTMLDivElement>) {  
+    const x = e.clientX - e.currentTarget.getBoundingClientRect().x
+    const newCursorPos = marginToPos(x, this.context!.timelinePosOptions)
+
+    newCursorPos.snap(this.context!.timelinePosOptions)
 
     this.context!.setCursorPos(newCursorPos)
   }
 
   render() {
-    const {timelinePosOptions} = this.context!
-
-
     return (
       <div 
         className="d-flex disable-highlighting" 
@@ -50,11 +128,12 @@ export default class TimelineComponent extends React.Component<IProps, IState> {
         onDragStart={e => e.preventDefault()}
         style={{width: "100%", height: "100%", alignItems: "flex-end", ...this.props.style}}
       >
-        {
-          [...Array(this.props.numMeasures)].map((_, i) => (
-            <MeasureComponent key={i} measure={new Measure(i+1, timelinePosOptions.timeSignature.beats)} />
-          ))
-        }
+        <canvas 
+          height={33} 
+          ref={this.canvasRef} 
+          style={{position: "sticky", left: 0, borderBottom: "1px solid #777"}} 
+          width={this.props.width}
+        ></canvas>
       </div>
     )
   }

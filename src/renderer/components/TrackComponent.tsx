@@ -165,7 +165,7 @@ class TrackComponent extends React.Component<IProps, IState> {
       }
     }
 
-    return `Pan: ${Math.abs(this.props.track.pan)}% ${this.props.track.pan > 0 ? "R" : this.props.track.pan === 0 ? "Center" : "L"}`
+    return `Pan: ${Math.abs(this.props.track.pan).toFixed(2)}% ${this.props.track.pan > 0 ? "R" : this.props.track.pan === 0 ? "Center" : "L"}`
   }
 
   getVolumeTitle() {
@@ -344,7 +344,7 @@ class TrackComponent extends React.Component<IProps, IState> {
                     onChange={this.onVolumeKnobChange}
                     origin={0}
                     size={20} 
-                    style={{backgroundColor: "#fff9", boxShadow: "0 1px 2px 1px #0008", marginRight: 6}}
+                    style={{knob: {backgroundColor: "#fff9", boxShadow: "0 1px 2px 1px #0008"}, container: {marginRight: 8}}}
                     title={volumeTitle}
                     value={this.props.track.volume}
                   />
@@ -361,7 +361,7 @@ class TrackComponent extends React.Component<IProps, IState> {
                     onChange={this.onPanKnobChange}
                     origin={0}
                     size={20} 
-                    style={{backgroundColor: "#fff9", boxShadow: "0 1px 2px 1px #0008"}}
+                    style={{knob: {backgroundColor: "#fff9", boxShadow: "0 1px 2px 1px #0008"}}}
                     title={panTitle}
                     value={this.props.track.pan}
                   />

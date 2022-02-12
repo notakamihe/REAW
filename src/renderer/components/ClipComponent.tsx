@@ -440,20 +440,20 @@ export default class ClipComponent extends React.Component<IProps, IState> {
                   >
                     {
                       this.props.track.automationEnabled &&
-                      this.props.track.automationLanes.filter(l => l.show).map((_, idx) => (
+                      this.props.track.automationLanes.filter(l => l.show).map((l, idx) => (
                         <div 
                           key={idx} 
                           className="clip"
                           style={{
                             width: width, 
-                            height: 100 * verticalScale, 
+                            height: l.expanded ? 100 * verticalScale : 30, 
                             backgroundColor: shadeColor(this.props.track.color, 30)
                           }}
                         >
                           <Loop
                             clipWidth={width}   
                             color={shadeColor(this.props.track.color, 45)} 
-                            style={{right: 0, transform: "translate(100%, 0)", height: 100 * verticalScale}}
+                            style={{right: 0, transform: "translate(100%, 0)", height: l.expanded ? 100 * verticalScale : 30}}
                             width={loopWidth}   
                           />
                         </div>

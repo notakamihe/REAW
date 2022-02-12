@@ -1,7 +1,7 @@
-import { SnapSize, TimeSignature } from "./types"
+import { SnapGridSize, TimeSignature } from "./types"
 
 export interface TimelinePositionOptions {
-  snapSize : SnapSize
+  snapSize : SnapGridSize
   beatWidth : number
   horizontalScale : number,
   timeSignature : TimeSignature,
@@ -67,16 +67,16 @@ export default class TimelinePosition {
       frac %= 1000
     }
 
-    if (snap && options.snapSize !== SnapSize.None) {
-      if (options.snapSize >= SnapSize.Quarter) {
-        const interval = 1000 / options.snapSize
+    if (snap && options.snapSize !== SnapGridSize.None) {
+      if (options.snapSize <= SnapGridSize.Quarter) {
+        const interval = 1000 * options.snapSize
         frac = Math.round(frac / interval) * interval
       } else {
         let step = 1
 
-        if (options.snapSize === SnapSize.Whole)
+        if (options.snapSize === SnapGridSize.Whole)
           step = Math.min(1000 * options.timeSignature.beats, 4000)
-        else if (options.snapSize === SnapSize.Half)
+        else if (options.snapSize === SnapGridSize.Half)
           step = Math.min(1000 * options.timeSignature.beats, 2000)
 
         const measureFraction = options.timeSignature.beats * 1000
@@ -262,16 +262,16 @@ export default class TimelinePosition {
       frac = 1000 - Math.abs(frac)
     }
 
-    if (snap && options.snapSize !== SnapSize.None) {
-      if (options.snapSize >= SnapSize.Quarter) {
-        const interval = 1000 / options.snapSize
+    if (snap && options.snapSize !== SnapGridSize.None) {
+      if (options.snapSize <= SnapGridSize.Quarter) {
+        const interval = 1000 * options.snapSize
         frac = Math.round(frac / interval) * interval
       } else {
         let step = 1
 
-        if (options.snapSize === SnapSize.Whole)
+        if (options.snapSize === SnapGridSize.Whole)
           step = Math.min(1000 * options.timeSignature.beats, 4000)
-        else if (options.snapSize === SnapSize.Half)
+        else if (options.snapSize === SnapGridSize.Half)
           step = Math.min(1000 * options.timeSignature.beats, 2000)
 
         const measureFraction = options.timeSignature.beats * 1000

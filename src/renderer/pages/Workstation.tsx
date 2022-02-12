@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { Add, Remove } from "@mui/icons-material"
 import { WorkstationContext } from "renderer/context/WorkstationContext"
 import { getBaseTrack } from "renderer/utils/utils"
+import ResizeDetector from "react-resize-detector"
 
 function ZoomButton(props : {vertical: boolean, decrease: boolean, onZoom: () => void}) {
   return (
@@ -48,6 +49,7 @@ export default class Workstation extends React.Component<IProps, IState> {
   private cursorRef : React.RefObject<HTMLDivElement>
   private editorRef : React.RefObject<HTMLDivElement>
   private editorWindowRef : React.RefObject<HTMLDivElement>
+  private timelineRef : React.RefObject<TimelineComponent>
   
   constructor(props : any) {
     super(props)
@@ -55,10 +57,11 @@ export default class Workstation extends React.Component<IProps, IState> {
     this.cursorRef = React.createRef()
     this.editorRef = React.createRef()
     this.editorWindowRef = React.createRef()
+    this.timelineRef = React.createRef()
     
     this.state = {
       editorWidth: 10000,
-      editorWindowWidth: 900,
+      editorWindowWidth: 0,
       horizontalScale: 1,
       centerZoomOnCursor: false
     }
@@ -129,7 +132,7 @@ export default class Workstation extends React.Component<IProps, IState> {
   }
 
   render() {
-    const {tracks, horizontalScale, trackLanesWindowHeight, cursorPos} = this.context!
+    const {tracks, horizontalScale, trackLanesWindowHeight, cursorPos, songRegion, setSongRegion, isLooping} = this.context!
     const editorWindowHeight = this.editorWindowRef.current ? this.editorWindowRef.current.clientHeight - 45 : 0
 
     return (
@@ -153,8 +156,8 @@ export default class Workstation extends React.Component<IProps, IState> {
                         style={{flexDirection: "column", margin: 6, marginLeft: 12}}
                       >
                         <div className="d-flex">
-                          <ZoomButton vertical={false} decrease={false} onZoom={() => this.zoom(false, 0.1203 * horizontalScale)} />
-                          <ZoomButton vertical={false} decrease onZoom={() => this.zoom(false, -0.1203 * horizontalScale)} />
+                          <ZoomButton vertical={false} decrease={false} onZoom={() => this.zoom(false, 0.2406 * horizontalScale)} />
+                          <ZoomButton vertical={false} decrease onZoom={() => this.zoom(false, -0.2406 * horizontalScale)} />
                         </div>
                         <div className="d-flex">
                           <ZoomButton vertical decrease={false} onZoom={() => this.zoom(true, 0.2)} />
@@ -173,36 +176,49 @@ export default class Workstation extends React.Component<IProps, IState> {
                 </div>
                 </ScrollSyncPane>
                 <ScrollSyncPane>
-                  <div 
-                    ref={this.editorWindowRef}
-                    className="scrollbar thin-thumb" 
-                    style={{flex: 1, overflow: "scroll overlay", position: "relative", height: "100%"}}
-                  >
+                  <ResizeDetector handleWidth onResize={(w, h) => this.setState({editorWindowWidth: w || 0})}>
                     <div 
-                      id="timeline-editor" 
-                      ref={this.editorRef} 
-                      style={{width: this.state.editorWidth * horizontalScale, minWidth: "100%"}}
+                      className="scrollbar thin-thumb" 
+                      onScroll={() => this.timelineRef.current?.drawTimeline()}
+                      ref={this.editorWindowRef}
+                      style={{flex: 1, overflow: "scroll overlay", position: "relative", height: "100%"}}
                     >
-                      <div style={{position: "sticky", top: 0, width: "100%", height: 45, zIndex: 15, backgroundColor: "#eee"}}>
-                        <div style={{width: "100%", height: 10, backgroundColor: "#ccc"}}>
-                          <RegionComponent />
-                        </div>
-                        <Cursor ref={this.cursorRef} pos={cursorPos} height={trackLanesWindowHeight - 35} /> 
-                        <TimelineComponent numMeasures={50} style={{height: 35}} />
-                      </div>
-                      <div style={{width: "100%", minHeight: editorWindowHeight}}>
-                        {
-                          tracks.map((track, idx) => (
-                            <Lane
-                              key={idx}
-                              track={track}
-                              style={{backgroundColor: "#ccc", borderBottom: "1px solid #0002"}}
+                      <div 
+                        id="timeline-editor" 
+                        ref={this.editorRef} 
+                        style={{width: this.state.editorWidth * horizontalScale, minWidth: "100%"}}
+                      >
+                        <div style={{position: "sticky", top: 0, width: "100%", height: 45, zIndex: 15, backgroundColor: "#eee"}}>
+                          <div style={{width: "100%", height: 12, backgroundColor: "#ccc"}}>
+                            <RegionComponent 
+                              onDelete={() => setSongRegion(null)} 
+                              onSetRegion={(region) => setSongRegion(region)} 
+                              region={songRegion} 
+                              regionStyle={{backgroundColor: isLooping ? "var(--color-primary)" : "#0004"}}
                             />
-                          ))
-                        }
+                          </div>
+                          <Cursor ref={this.cursorRef} pos={cursorPos} height={trackLanesWindowHeight - 33} /> 
+                          <TimelineComponent 
+                            ref={this.timelineRef} 
+                            style={{height: 33}} 
+                            width={this.state.editorWindowWidth} 
+                            window={this.editorWindowRef.current}
+                          />
+                        </div>
+                        <div style={{width: "100%", minHeight: editorWindowHeight}}>
+                          {
+                            tracks.map((track, idx) => (
+                              <Lane
+                                key={idx}
+                                track={track}
+                                style={{backgroundColor: "#ccc", borderBottom: "1px solid #0002"}}
+                              />
+                            ))
+                          }
+                        </div>
                       </div>
                     </div>
-                </div>
+                  </ResizeDetector>
                 </ScrollSyncPane>
               </div>
             </ScrollSync>

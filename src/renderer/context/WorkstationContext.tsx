@@ -1,5 +1,5 @@
 import React, { useRef } from "react"
-import { GridSize, SnapSize, TimeSignature } from "renderer/types/types";
+import { SnapGridSize, TimeSignature } from "renderer/types/types";
 import TimelinePosition, { TimelinePositionOptions } from "renderer/types/TimelinePosition";
 import { BEAT_WIDTH } from "renderer/utils/vars";
 import { AutomationNode } from "renderer/components/AutomationNodeComponent";
@@ -16,11 +16,11 @@ import { Region } from "renderer/components/RegionComponent";
 export interface WorkflowContextType {
   addNodeToLane : (track : Track, lane : AutomationLane, node : AutomationNode) => void
   autoSnap : boolean
+  createClipFromTrackRegion : () => void
   cursorPos : TimelinePosition
   deleteClip : (clip : Clip) => void
   deleteNode : (node : AutomationNode) => void
   duplicateClip : (clip : Clip) => void
-  gridSize : GridSize
   horizontalScale : number
   isLooping : boolean
   isPlaying : boolean
@@ -30,29 +30,30 @@ export interface WorkflowContextType {
   onNodeClickAway : (node : AutomationNode | null) => void
   pasteClip : (atCursor : boolean, track? : Track, pos? : TimelinePosition) => void
   pasteNode : (atCursor : boolean, lane? : AutomationLane, pos? : TimelinePosition) => void,
-  region : Region | null
   selectedClip : Clip | null
   selectedNode : AutomationNode | null
   setAutoSnap : React.Dispatch<React.SetStateAction<boolean>>
   setCancelClickAway : (cancel : boolean) => void
   setCursorPos : React.Dispatch<React.SetStateAction<TimelinePosition>>
-  setGridSize: React.Dispatch<React.SetStateAction<GridSize>>
   setHorizontalScale : React.Dispatch<React.SetStateAction<number>>
   setIsLooping : React.Dispatch<React.SetStateAction<boolean>>
   setIsPlaying : React.Dispatch<React.SetStateAction<boolean>>
   setIsRecording : React.Dispatch<React.SetStateAction<boolean>>
   setMetronome : React.Dispatch<React.SetStateAction<boolean>>
-  setRegion : React.Dispatch<React.SetStateAction<Region | null>>
   setSelectedClip : (clip : Clip | null) => void
   setSelectedNode : (newState: AutomationNode | null) => void
-  setSnapSize : React.Dispatch<React.SetStateAction<SnapSize>>
+  setSnapGridSize : React.Dispatch<React.SetStateAction<SnapGridSize>>
+  setSongRegion : React.Dispatch<React.SetStateAction<Region | null>>
   setTempo : React.Dispatch<React.SetStateAction<number>>
   setTimeSignature : React.Dispatch<React.SetStateAction<TimeSignature>>
   setTrack : (track : Track, callback? : () => void) => void;
   setTrackLanesWindowHeight : React.Dispatch<React.SetStateAction<number>>
+  setTrackRegion : React.Dispatch<React.SetStateAction<{region: Region, track: Track} | null>>
   setTracks : (tracks : Track[], callback? : () => void) => void;
   setVerticalScale : React.Dispatch<React.SetStateAction<number>>
-  snapSize : SnapSize
+  snapGridSize : SnapGridSize
+  songRegion : Region | null
+  trackRegion : {region: Region, track: Track} | null
   tempo : number
   timelinePosOptions : TimelinePositionOptions
   timeSignature : TimeSignature
@@ -69,22 +70,22 @@ export const WorkstationProvider: React.FC = ({ children }) => {
 
   const [autoSnap, setAutoSnap] = React.useState(true);
   const [cursorPos, setCursorPos] = React.useState(TimelinePosition.fromPos(TimelinePosition.start))
-  const [gridSize, setGridSize] = React.useState(GridSize.ThirtySecondBeat);
   const [horizontalScale, setHorizontalScale] = React.useState(1);
   const [isLooping, setIsLooping] = React.useState(false);
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [isRecording, setIsRecording] = React.useState(false);
   const [metronome, setMetronome] = React.useState(false);
-  const [region, setRegion] = React.useState<Region | null>(null)
+  const [songRegion, setSongRegion] = React.useState<Region | null>(null)
   const [selectedClip, setSelectedClip, onClipClickAway] = useClickAwayState<Clip>(null)
   const [selectedNode, setSelectedNode, onNodeClickAway, setCancelClickAway] = useClickAwayState<AutomationNode>(null)
-  const [snapSize, setSnapSize] = React.useState(SnapSize.OneTwentyEighth);
+  const [snapGridSize, setSnapGridSize] = React.useState(SnapGridSize.OneTwentyEighth);
   const [tempo, setTempo] = React.useState(120);
   const [timeSignature, setTimeSignature] = React.useState({beats: 4, noteValue: 4});
   const [trackLanesWindowHeight, setTrackLanesWindowHeight] = React.useState(0);
+  const [trackRegion, setTrackRegion] = React.useState<{region: Region, track: Track} | null>(null)
   const [tracks, setTracks, setTrack] = useTracks(data);
   const [timelinePosOptions, setTimelinePosOptions, prevTimelineOptions] = useStateWPrev({
-    snapSize, 
+    snapSize: snapGridSize, 
     beatWidth: BEAT_WIDTH, 
     horizontalScale,
     timeSignature,
@@ -96,36 +97,36 @@ export const WorkstationProvider: React.FC = ({ children }) => {
 
   React.useEffect(() => {
     setTimelinePosOptions({
-      snapSize, 
+      snapSize: snapGridSize, 
       beatWidth: BEAT_WIDTH, 
       horizontalScale,
       timeSignature,
       tempo
     });
-  }, [horizontalScale, snapSize, timeSignature, tempo])
+  }, [horizontalScale, snapGridSize, timeSignature, tempo])
 
   React.useEffect(() => {
     if (autoSnap) {
       if (horizontalScale < 0.075) {
-        setSnapSize(SnapSize.Whole)
+        setSnapGridSize(SnapGridSize.Whole)
       } else if (horizontalScale < 0.1153) {
-        setSnapSize(SnapSize.Half)
+        setSnapGridSize(SnapGridSize.Half)
       } else if (horizontalScale < 0.1738) {
-        setSnapSize(SnapSize.Quarter)
+        setSnapGridSize(SnapGridSize.Quarter)
       } else if (horizontalScale < 0.3848) {
-        setSnapSize(SnapSize.Eighth)
+        setSnapGridSize(SnapGridSize.Eighth)
       } else if (horizontalScale < 0.6791) {
-        setSnapSize(SnapSize.Sixteenth)
+        setSnapGridSize(SnapGridSize.Sixteenth)
       } else if (horizontalScale < 1.8069) {
-        setSnapSize(SnapSize.ThirtySecond)
+        setSnapGridSize(SnapGridSize.ThirtySecond)
       } else if (horizontalScale < 3.6147) {
-        setSnapSize(SnapSize.SixtyFourth)
+        setSnapGridSize(SnapGridSize.SixtyFourth)
       } else if (horizontalScale < 7.2323) {
-        setSnapSize(SnapSize.OneTwentyEighth)
+        setSnapGridSize(SnapGridSize.OneTwentyEighth)
       } else if (horizontalScale < 14.4647) {
-        setSnapSize(SnapSize.TwoFiftySixth)
+        setSnapGridSize(SnapGridSize.TwoFiftySixth)
       } else {
-        setSnapSize(SnapSize.FiveHundredTwelfth)
+        setSnapGridSize(SnapGridSize.FiveHundredTwelfth)
       }
     }
   }, [horizontalScale, autoSnap])
@@ -150,6 +151,24 @@ export const WorkstationProvider: React.FC = ({ children }) => {
       automationLanes[laneIndex].nodes.sort((a, b) => a.pos.compare(b.pos))
       
       setTrack({...track, automationLanes});
+    }
+  }
+
+  const createClipFromTrackRegion = () => {
+    if (trackRegion) {
+      if (trackRegion.region) {
+        const clip = {
+          id: v4(), 
+          start: trackRegion.region.start, 
+          end: trackRegion.region.end, 
+          startLimit: null, 
+          endLimit: null, 
+          loopEnd: null, 
+          muted: false
+        }
+
+        setTrack({...trackRegion.track, clips: [...trackRegion.track.clips, clip]})
+      }
     }
   }
 
@@ -216,14 +235,14 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         }
       }
 
-      const newRegion : Region | null = region ? {
-        start: preservePosMargin(region.start, prevTimelineOptions, timelinePosOptions),
-        end: preservePosMargin(region.end, prevTimelineOptions, timelinePosOptions)
+      const newSongRegion : Region | null = songRegion ? {
+        start: preservePosMargin(songRegion.start, prevTimelineOptions, timelinePosOptions),
+        end: preservePosMargin(songRegion.end, prevTimelineOptions, timelinePosOptions)
       } : null
   
       setTracks(newTracks);
       setCursorPos(preservePosMargin(cursorPos, prevTimelineOptions, timelinePosOptions));
-      setRegion(newRegion);
+      setSongRegion(newSongRegion);
     }
   }
 
@@ -296,11 +315,11 @@ export const WorkstationProvider: React.FC = ({ children }) => {
       value={{ 
         addNodeToLane,
         autoSnap,
+        createClipFromTrackRegion,
         cursorPos,
         deleteClip,
         deleteNode,
         duplicateClip,
-        gridSize,
         horizontalScale, 
         isLooping,
         isPlaying,
@@ -310,29 +329,30 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         onNodeClickAway,
         pasteClip,
         pasteNode,
-        region,
         selectedClip,
         selectedNode,
         setAutoSnap,
         setCancelClickAway,
         setCursorPos,
-        setGridSize,
         setHorizontalScale,
         setIsLooping,
         setIsPlaying,
         setIsRecording,
         setMetronome,
-        setRegion,
         setSelectedClip,
         setSelectedNode,
-        setSnapSize,
+        setSnapGridSize,
+        setSongRegion,
         setTempo,
         setTimeSignature,
         setTrack,
         setTrackLanesWindowHeight,
+        setTrackRegion,
         setTracks,
         setVerticalScale, 
-        snapSize,
+        snapGridSize,
+        songRegion,
+        trackRegion,
         tempo,
         timelinePosOptions,
         timeSignature,
