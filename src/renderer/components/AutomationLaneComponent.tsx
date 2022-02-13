@@ -46,6 +46,10 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
       movingNode: null,
       prevNodes: []
     }
+
+    this.onClick = this.onClick.bind(this)
+    this.onNodeMove = this.onNodeMove.bind(this)
+    this.setNode = this.setNode.bind(this)
   }
 
   componentDidUpdate() {

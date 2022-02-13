@@ -145,7 +145,7 @@ export default class Workstation extends React.Component<IProps, IState> {
                 <ScrollSyncPane>
                   <div
                     className="hide-vertical-scrollbar scrollbar" 
-                    style={{width: 200, height: "100%", overflow: "scroll"}}
+                    style={{width: 200, height: "100%", overflow: "scroll", flexShrink: 0}}
                   >
                     <div 
                       className="col-12 d-flex align-items-center"
@@ -205,7 +205,7 @@ export default class Workstation extends React.Component<IProps, IState> {
                             window={this.editorWindowRef.current}
                           />
                         </div>
-                        <div style={{width: "100%", minHeight: editorWindowHeight}}>
+                        <div style={{width: "100%", minHeight: editorWindowHeight - 1}}>
                           {
                             tracks.map((track, idx) => (
                               <Lane

@@ -165,8 +165,20 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
       const nodeIndex = automationLanes[laneIndex].nodes.findIndex(n => n.id === this.context!.selectedNode?.id)
 
       if (nodeIndex !== -1) {
+        let volume = this.props.track.volume
+        let pan = this.props.track.pan
+
         automationLanes[laneIndex].nodes[nodeIndex].value = value
-        this.context!.setTrack({...this.props.track, automationLanes})
+
+        if (automationLanes[laneIndex].nodes.length === 1) {
+          if (automationLanes[laneIndex].isVolume) {
+            volume = value
+          } else if (automationLanes[laneIndex].isPan) {
+            pan = value
+          }
+        }
+
+        this.context!.setTrack({...this.props.track, automationLanes, volume, pan})
         this.context!.setSelectedNode(automationLanes[laneIndex].nodes[nodeIndex])
       }
     }

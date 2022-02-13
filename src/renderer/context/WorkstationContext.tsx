@@ -239,10 +239,19 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         start: preservePosMargin(songRegion.start, prevTimelineOptions, timelinePosOptions),
         end: preservePosMargin(songRegion.end, prevTimelineOptions, timelinePosOptions)
       } : null
+
+      const newTrackRegion = trackRegion ? {
+        ...trackRegion,
+        region: {
+          start: preservePosMargin(trackRegion.region.start, prevTimelineOptions, timelinePosOptions),
+          end: preservePosMargin(trackRegion.region.end, prevTimelineOptions, timelinePosOptions)
+        }
+      } : null
   
       setTracks(newTracks);
       setCursorPos(preservePosMargin(cursorPos, prevTimelineOptions, timelinePosOptions));
       setSongRegion(newSongRegion);
+      setTrackRegion(newTrackRegion);
     }
   }
 

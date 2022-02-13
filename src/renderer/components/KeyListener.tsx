@@ -25,12 +25,16 @@ export default class KeyListener extends React.Component<IProps> {
             createClipFromTrackRegion,
             deleteClip, 
             deleteNode, 
-            duplicateClip, 
+            duplicateClip,
+            isPlaying,
+            isRecording,
             pasteClip, 
             pasteNode, 
             selectedClip, 
             selectedNode, 
             setCursorPos,
+            setIsPlaying,
+            setIsRecording,
             toggleMuteClip,
             trackRegion,
             tracks
@@ -69,6 +73,15 @@ export default class KeyListener extends React.Component<IProps> {
               }
             } else if (e.key === "Home") {
               setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))
+            } else if (e.code === "Space") {
+              if (document.activeElement?.nodeName.toLowerCase() !== "input") {
+                if (isRecording) {
+                  setIsRecording(false)
+                  setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))
+                } else {
+                  setIsPlaying(!isPlaying)
+                }
+              }
             } else if (e.ctrlKey && e.key === "d") {
               if (selectedClip) {
                 duplicateClip(selectedClip)
@@ -80,6 +93,10 @@ export default class KeyListener extends React.Component<IProps> {
             } else if (e.ctrlKey && e.key === "n") {
               if (trackRegion) {
                 createClipFromTrackRegion()
+              }
+            } else if (e.key === "r") {
+              if (document.activeElement?.nodeName.toLowerCase() !== "input") {
+                setIsRecording(true)
               }
             }
           }
