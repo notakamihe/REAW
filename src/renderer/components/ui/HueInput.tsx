@@ -26,8 +26,8 @@ const Range = styled.input`
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     border: 2px solid #fff;
     background-color: ${(props : RangeProps) => props.$thumbcolor};
@@ -36,18 +36,15 @@ const Range = styled.input`
 `
 
 export default function HueInput(props : IProps) {
-  const [value, setValue] = React.useState(props.value)
-
   return (
     <Range 
       type="range" 
       min={0}
       max={360}
-      value={value}
-      onChange={e => setValue(parseInt(e.target.value))}
-      onMouseUp={() => props.onChange(value)}
+      value={props.value}
+      onChange={e => props.onChange(e.target.valueAsNumber)}
       style={{width: "100%", height: 12, ...props.style}} 
-      $thumbcolor={hslToHex(value, 100, 50)}
+      $thumbcolor={hslToHex(props.value, 100, 50)}
     />
   )
 }

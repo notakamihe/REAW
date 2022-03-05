@@ -1,10 +1,4 @@
-import {
-  app,
-  Menu,
-  shell,
-  BrowserWindow,
-  MenuItemConstructorOptions,
-} from 'electron';
+import {app, Menu, shell, BrowserWindow, MenuItemConstructorOptions} from 'electron';
 
 interface DarwinMenuItemConstructorOptions extends MenuItemConstructorOptions {
   selector?: string;
@@ -19,13 +13,6 @@ export default class MenuBuilder {
   }
 
   buildMenu(): Menu {
-    if (
-      process.env.NODE_ENV === 'development' ||
-      process.env.DEBUG_PROD === 'true'
-    ) {
-      this.setupDevelopmentEnvironment();
-    }
-
     const template =
       process.platform === 'darwin'
         ? this.buildDarwinTemplate()
@@ -35,21 +22,6 @@ export default class MenuBuilder {
     Menu.setApplicationMenu(menu);
 
     return menu;
-  }
-
-  setupDevelopmentEnvironment(): void {
-    this.mainWindow.webContents.on('context-menu', (_, props) => {
-      const { x, y } = props;
-
-      // Menu.buildFromTemplate([
-      //   {
-      //     label: 'Inspect element',
-      //     click: () => {
-      //       this.mainWindow.webContents.inspectElement(x, y);
-      //     },
-      //   },
-      // ]).popup({ window: this.mainWindow });
-    });
   }
 
   buildDarwinTemplate(): MenuItemConstructorOptions[] {
@@ -100,44 +72,86 @@ export default class MenuBuilder {
         },
       ],
     };
-    const subMenuViewDev: MenuItemConstructorOptions = {
-      label: 'View',
+
+    const subMenuView : MenuItemConstructorOptions = {
+      label: "View",
       submenu: [
         {
-          label: 'Reload',
-          accelerator: 'Command+R',
+          label: "Toggle Master Track",
+          accelerator: "CmdOrCtrl+Alt+M",
           click: () => {
-            this.mainWindow.webContents.reload();
-          },
+            this.mainWindow.webContents.send("toggle-master-track");
+          }
+        }
+      ]
+    }
+
+    const subMenuViewDev: MenuItemConstructorOptions[] = [
+      {type: "separator"},
+      {
+        label: 'Reload',
+        accelerator: 'Command+R',
+        click: () => {
+          this.mainWindow.webContents.reload();
         },
-        {
-          label: 'Toggle Full Screen',
-          accelerator: 'Ctrl+Command+F',
-          click: () => {
-            this.mainWindow.setFullScreen(!this.mainWindow.isFullScreen());
-          },
+      },
+      {
+        label: 'Toggle Full Screen',
+        accelerator: 'Ctrl+Command+F',
+        click: () => {
+          this.mainWindow.setFullScreen(!this.mainWindow.isFullScreen());
         },
-        {
-          label: 'Toggle Developer Tools',
-          accelerator: 'Alt+Command+I',
-          click: () => {
-            this.mainWindow.webContents.toggleDevTools();
-          },
+      },
+      {
+        label: 'Toggle Developer Tools',
+        accelerator: 'Alt+Command+I',
+        click: () => {
+          this.mainWindow.webContents.toggleDevTools();
         },
-      ],
-    };
-    const subMenuViewProd: MenuItemConstructorOptions = {
-      label: 'View',
-      submenu: [
-        {
-          label: 'Toggle Full Screen',
-          accelerator: 'Ctrl+Command+F',
-          click: () => {
-            this.mainWindow.setFullScreen(!this.mainWindow.isFullScreen());
-          },
+      },
+      {type: "separator"},
+      {
+        label: "Actual Size",
+        accelerator: "CmdOrCtrl+0",
+        click: () => {
+          this.mainWindow.webContents.setZoomLevel(0);
+        }
+      },
+      {
+        label: "Zoom In",
+        accelerator: "CmdOrCtrl+=",
+        click: () => {
+          this.mainWindow.webContents.setZoomLevel(this.mainWindow.webContents.getZoomLevel() + 0.1);
+        }
+      },
+      {
+        label: "Zoom Out",
+        accelerator: "CmdOrCtrl+-",
+        click: () => {
+          this.mainWindow.webContents.setZoomLevel(this.mainWindow.webContents.getZoomLevel() - 0.1);
+        }
+      },
+      {type: "separator"},
+      {
+        label: "Toggle Full Screen",
+        accelerator: "Ctrl+Command+F",
+        click: () => {
+          this.mainWindow.setFullScreen(!this.mainWindow.isFullScreen());
+        }
+      }
+    ];
+
+    const subMenuViewProd : MenuItemConstructorOptions[] = [
+      {type: "separator"},
+      {
+        label: 'Toggle Full Screen',
+        accelerator: 'Ctrl+Command+F',
+        click: () => {
+          this.mainWindow.setFullScreen(!this.mainWindow.isFullScreen());
         },
-      ],
-    };
+      }
+    ]
+
     const subMenuWindow: DarwinMenuItemConstructorOptions = {
       label: 'Window',
       submenu: [
@@ -151,43 +165,16 @@ export default class MenuBuilder {
         { label: 'Bring All to Front', selector: 'arrangeInFront:' },
       ],
     };
+
     const subMenuHelp: MenuItemConstructorOptions = {
       label: 'Help',
-      submenu: [
-        {
-          label: 'Learn More',
-          click() {
-            shell.openExternal('https://electronjs.org');
-          },
-        },
-        {
-          label: 'Documentation',
-          click() {
-            shell.openExternal(
-              'https://github.com/electron/electron/tree/main/docs#readme'
-            );
-          },
-        },
-        {
-          label: 'Community Discussions',
-          click() {
-            shell.openExternal('https://www.electronjs.org/community');
-          },
-        },
-        {
-          label: 'Search Issues',
-          click() {
-            shell.openExternal('https://github.com/electron/electron/issues');
-          },
-        },
-      ],
+      submenu: [],
     };
 
-    const subMenuView =
-      process.env.NODE_ENV === 'development' ||
-      process.env.DEBUG_PROD === 'true'
-        ? subMenuViewDev
-        : subMenuViewProd;
+    if (process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true')
+      (subMenuView.submenu! as Electron.MenuItemConstructorOptions[]).push(...subMenuViewDev); 
+    else 
+      (subMenuView.submenu! as Electron.MenuItemConstructorOptions[]).push(...subMenuViewProd);
 
     return [subMenuAbout, subMenuEdit, subMenuView, subMenuWindow, subMenuHelp];
   }

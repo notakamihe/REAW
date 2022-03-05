@@ -1,11 +1,6 @@
 import { ArrowDropDown, ArrowDropUp } from "@mui/icons-material";
-import { List, ListItem, ListItemButton, ListItemText, Popover, Typography } from "@mui/material";
 import React from "react";
-
-export interface SelectSpinBoxOption {
-  value : string | number
-  label : string
-}
+import styled from "styled-components";
 
 interface SelectSpinBoxClasses {
   actionIcon? : string
@@ -17,7 +12,7 @@ interface SelectSpinBoxClasses {
   nextIcon? : string
   prev? : string
   prevIcon? : string
-  text? : string
+  select? : string
 }
 
 interface SelectSpinBoxStyles {
@@ -30,43 +25,54 @@ interface SelectSpinBoxStyles {
   nextIcon? : React.CSSProperties
   prev? : React.CSSProperties
   prevIcon? : React.CSSProperties
-  text? : React.CSSProperties
+  select? : React.CSSProperties
 }
+
+
+const Select = styled.select`
+  ${
+    (props : {$showarrrow? : boolean}) => 
+    !props.$showarrrow ? "-webkit-appearance: none; -moz-appearance: none; text-indent: 1px; text-overflow: '';" : ""
+  }
+`
 
 interface IProps {
   actionIcon? : JSX.Element
+  children : JSX.Element[]
   classes? : SelectSpinBoxClasses
   defaultText? : string
-  enableMenu : boolean
+  enableOptions : boolean
   hoverStyle? : SelectSpinBoxStyles
   icon? : JSX.Element
-  label? : string
-  leftClickOpen? : boolean
-  onChange : (option : SelectSpinBoxOption) => void
-  onClick? : () => void
-  options : SelectSpinBoxOption[]
+  onChange : (value : string | number) => void
+  showArrow : boolean
+  showButtons : boolean
   style? : SelectSpinBoxStyles
-  value: any
+  value: string | number
 }
 
 interface IState {
-  anchorEl : HTMLElement | null
   hovering : boolean
   isHoveringOverIcon : boolean
 }
 
 export default class SelectSpinBox extends React.Component<IProps, IState> {
   static defaultProps = {
-    enableMenu: true
+    enableOptions: true,
+    showArrow: false,
+    showButtons: true
   }
+
+  private ref : React.RefObject<HTMLDivElement>
 
   constructor(props : IProps) {
     super(props);
 
+    this.ref = React.createRef()
+
     this.state = {
-      anchorEl: null,
       hovering: false,
-      isHoveringOverIcon: false
+      isHoveringOverIcon: false,
     };
 
     this.handleNext = this.handleNext.bind(this)
@@ -86,165 +92,124 @@ export default class SelectSpinBox extends React.Component<IProps, IState> {
       style.nextIcon = {...style.nextIcon, ...this.props.hoverStyle.nextIcon}
       style.prev = {...style.prev, ...this.props.hoverStyle.prev}
       style.prevIcon = {...style.prevIcon, ...this.props.hoverStyle.prevIcon}
-      style.text = {...style.text, ...this.props.hoverStyle.text}
+      style.select = {...style.select, ...this.props.hoverStyle.select}
     }
 
     return style
   }
 
   handleNext() {
-    const idx = this.props.options.findIndex(o => o.value === this.props.value)
-
-    if (idx < this.props.options.length - 1) {
-      this.props.onChange(this.props.options[idx + 1])
+    if (this.props.children) {
+      const idx = this.props.children.findIndex(o => o.props.value === this.props.value)
+  
+      if (idx < this.props.children.length - 1) {
+        this.props.onChange(this.props.children[idx + 1].props.value)
+      }
     }
   }
 
   handlePrev() {
-    const idx = this.props.options.findIndex(o => o.value === this.props.value)
-
-    if (idx > 0) {
-      this.props.onChange(this.props.options[idx - 1])
+    if (this.props.children) {
+      const idx = this.props.children.findIndex(o => o.props.value === this.props.value)
+  
+      if (idx > 0) {
+        this.props.onChange(this.props.children[idx - 1].props.value)
+      }
     }
-  }
-
-  onClick = (e : React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    if (!this.props.leftClickOpen && this.props.onClick) {
-      this.props.onClick();
-    }
-  }
-
-  onOptionClick = (e : React.MouseEvent<HTMLDivElement, MouseEvent>, option : SelectSpinBoxOption) => {
-    e.stopPropagation()
-    this.props.onChange(option)
-    this.setState({anchorEl: null})
-  }
-
-  openPopover = (e : React.MouseEvent<HTMLDivElement, MouseEvent>, open : boolean) => {
-    if (open && this.props.options.length)
-      this.setState({anchorEl: e.currentTarget});
   }
 
   render() {
-    const isFirst = this.props.options[0]?.value === this.props.value
-    const isLast = this.props.options[this.props.options.length - 1]?.value === this.props.value
+    const isFirst = this.props.children && this.props.children[0]?.props.value === this.props.value
+    const isLast = this.props.children && this.props.children[this.props.children.length - 1]?.props.value === this.props.value
     const style = this.getStyle()
 
     return (
-      <div 
-        className={`d-flex align-items-center ${this.props.classes?.container}`}
-        onMouseOver={() => this.setState({hovering: true})}
-        onMouseLeave={() => this.setState({hovering: false})}
-        style={style.container}
-      >
-        {
-          (this.props.icon || this.props.actionIcon) &&
-          <div 
-            className={`p-1 d-flex justify-content-center align-items-center ${this.props.classes?.iconContainer}`}
-            style={{height: "100%", ...style.iconContainer}}
-            onMouseOver={() => this.setState({isHoveringOverIcon: true})}
-            onMouseOut={() => this.setState({isHoveringOverIcon: false})}
-          >
-            {
-              this.props.icon && (!this.state.isHoveringOverIcon || !this.props.actionIcon) && 
-              React.cloneElement(this.props.icon, {
-                className: `${this.props.icon.props.className} ${this.props.classes?.icon}`,
-                style: {...this.props.icon.props.style, ...style.icon}
-              })
-            }
-            {
-              (this.props.actionIcon && (this.state.isHoveringOverIcon || !this.props.icon)) && 
-              React.cloneElement(
-                this.props.actionIcon, 
-                {
-                  className: `${this.props.actionIcon.props.className} ${this.props.classes?.actionIcon}`,
-                  style: {...this.props.actionIcon.props.style, ...style.actionIcon}
-                }
-              )
-            }
-          </div>
-        }
-        {
-          this.props.label &&
-          <div className="p-1">
-            {this.props.label}
-          </div>
-        }
+      <React.Fragment>
         <div 
-          onContextMenu={e => {e.stopPropagation(); this.openPopover(e, true)}} 
-          onMouseDown={e => {if (this.props.leftClickOpen) this.openPopover(e, Boolean(this.props.leftClickOpen))}} 
-          onClick={this.onClick}
-          style={{
-            flex: 1, 
-            height: "100%",
-            cursor: (this.props.leftClickOpen || this.props.onClick) ? "pointer" : "default",
-            overflow: "hidden",
-            display: "flex",
-            alignItems: "center"
-          }}
+          className={`d-flex align-items-center ${this.props.classes?.container}`}
+          onMouseOver={() => this.setState({hovering: true})}
+          onMouseLeave={() => this.setState({hovering: false})}
+          style={style.container}
         >
-          <Typography
-            className={`col-12 ${this.props.classes?.text}`}
-            style={{fontSize:14, overflow:"hidden", height:18, ...style.text}}
-          >
-            {
-              this.props.options.find(o => o.value === this.props.value)?.label || 
-              <span style={{opacity: 0.7}}>{this.props.defaultText}</span>
-            }
-          </Typography>
-          <Popover
-            anchorEl={this.state.anchorEl}
-            anchorOrigin={{
-              vertical: 'bottom',
-              horizontal: 'left',
-            }}
-            onClose={e => this.setState({anchorEl: null})}
-            open={this.props.enableMenu && Boolean(this.state.anchorEl)}
-            style={{width: "100%"}}
-            transitionDuration={150}
-          >
-            <List dense style={{width: "100%"}}>
+          {
+            (this.props.icon || this.props.actionIcon) &&
+            <div 
+              className={`p-1 d-flex justify-content-center align-items-center ${this.props.classes?.iconContainer}`}
+              style={{height: "100%", ...style.iconContainer}}
+              onMouseOver={() => this.setState({isHoveringOverIcon: true})}
+              onMouseOut={() => this.setState({isHoveringOverIcon: false})}
+            >
               {
-                this.props.options.map((option, i) => (
-                  <ListItemButton key={i} className="p-0 px-2 col-12" onClick={e => this.onOptionClick(e, option)}>
-                    <ListItemText>{option.label}</ListItemText>
-                  </ListItemButton>
-                ))
+                this.props.icon && (!this.state.isHoveringOverIcon || !this.props.actionIcon) && 
+                React.cloneElement(this.props.icon, {
+                  className: `${this.props.icon.props.className} ${this.props.classes?.icon}`,
+                  style: {...this.props.icon.props.style, ...style.icon}
+                })
               }
-            </List>
-          </Popover>
-        </div>
-        {
-          this.props.options.length > 1 &&
-          <div 
-            className={`d-flex p-0 ${this.props.classes?.buttonsContainer}`}
-            style={{flexDirection: "column", height: "100%", width: 12, ...style.buttonsContainer}}
+              {
+                (this.props.actionIcon && (this.state.isHoveringOverIcon || !this.props.icon)) && 
+                React.cloneElement(
+                  this.props.actionIcon, 
+                  {
+                    className: `${this.props.actionIcon.props.className} ${this.props.classes?.actionIcon}`,
+                    style: {...this.props.actionIcon.props.style, ...style.actionIcon}
+                  }
+                )
+              }
+            </div>
+          }
+          <Select
+            className="overflow-hidden no-disabled"
+            disabled={!this.props.enableOptions}
+            onChange={e => {e.stopPropagation(); this.props.onChange(e.target.value)}}
+            $showarrrow={this.props.showArrow}
+            style={{
+              flex: 1, 
+              height: "100%", 
+              backgroundColor: "#0000", 
+              border: "none", 
+              outline: "none", 
+              cursor: this.props.enableOptions ? "pointer" : "default", 
+              fontSize: 14,
+              opacity: 1,
+              ...style.select
+            }}
+            value={this.props.value}
           >
-            <button
-              className={`p-0 center-by-flex overflow-hidden ${this.props.classes?.prev}`}
-              disabled={isFirst}
-              onClick={this.handlePrev}
-              style={{height:"50%",width:"100%",backgroundColor:"#333",...style?.prev, opacity: isFirst ? 0.2 : 1}} 
+            {this.props.children}
+          </Select>
+          {
+            this.props.children?.length > 1 && this.props.showButtons &&
+            <div 
+              className={`d-flex p-0 ${this.props.classes?.buttonsContainer}`}
+              style={{flexDirection: "column", height: "100%", width: 12, ...style.buttonsContainer}}
             >
-              <ArrowDropUp
-                className={this.props.classes?.prevIcon} 
-                style={{fontSize: 18, color: "#fff", ...style?.prevIcon}} 
-              />
-            </button>
-            <button
-              className={`p-0 center-by-flex overflow-hidden ${this.props.classes?.next}`}
-              disabled={isLast}
-              onClick={this.handleNext}
-              style={{height:"50%",width:"100%",backgroundColor:"#333",...style?.next, opacity: isLast ? 0.2 : 1}} 
-            >
-              <ArrowDropDown 
-                className={this.props.classes?.nextIcon} 
-                style={{fontSize: 18, color: "#fff", ...style?.nextIcon}} 
-              />
-            </button>
-          </div>
-        }
-      </div>
+              <button
+                className={`p-0 center-by-flex overflow-hidden ${this.props.classes?.prev}`}
+                disabled={isFirst}
+                onClick={this.handlePrev}
+                style={{height:"50%",width:"100%",backgroundColor:"#333",...style?.prev, opacity: isFirst ? 0.2 : 1}} 
+              >
+                <ArrowDropUp
+                  className={this.props.classes?.prevIcon} 
+                  style={{fontSize: 18, color: "#fff", ...style?.prevIcon}} 
+                />
+              </button>
+              <button
+                className={`p-0 center-by-flex overflow-hidden ${this.props.classes?.next}`}
+                disabled={isLast}
+                onClick={this.handleNext}
+                style={{height:"50%",width:"100%",backgroundColor:"#333",...style?.next, opacity: isLast ? 0.2 : 1}} 
+              >
+                <ArrowDropDown 
+                  className={this.props.classes?.nextIcon} 
+                  style={{fontSize: 18, color: "#fff", ...style?.nextIcon}} 
+                />
+              </button>
+            </div>
+          }
+        </div>
+      </React.Fragment>
     )
   }
 }

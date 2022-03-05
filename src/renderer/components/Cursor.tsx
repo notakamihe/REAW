@@ -17,8 +17,8 @@ const Cursor = React.forwardRef<HTMLDivElement, IProps>((props, ref) => {
       ref={ref}
       style={{
         position: "absolute", 
-        top: 12,
-        left: -4 + props.pos.toMargin(timelinePosOptions), 
+        top: 14,
+        left: -5 + props.pos.toMargin(timelinePosOptions), 
         zIndex: 24,
         pointerEvents: "none"
       }}

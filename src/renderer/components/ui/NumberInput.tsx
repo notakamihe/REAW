@@ -117,7 +117,7 @@ export default function NumberInput(props : IProps) {
         {
           props.typing ?
           <input 
-            className={`col-12 outline-none ${props.classes?.input}`}
+            className={`col-12 no-outline ${props.classes?.input}`}
             onBlur={handleBlur}
             onChange={e => setInputText(e.target.value)}
             style={{fontSize: 14, textAlign: "center", border: "none", backgroundColor: "#0000", ...style?.input}} 

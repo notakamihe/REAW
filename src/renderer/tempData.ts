@@ -27,16 +27,20 @@ const data : Track[] = [
         muted: false
       }
     ],
-    effects: [
-      {
-        id: uuidv4(),
-        name: "Effect 1"
-      },
-      {
-        id: uuidv4(),
-        name: "Effect 2"
-      }
-    ],
+    fx: {
+      effects: [
+        {
+          id: uuidv4(),
+          name: "Effect 1",
+          enabled: true
+        },
+        {
+          id: uuidv4(),
+          name: "Effect 2",
+          enabled: true
+        }
+      ],
+    },
     mute: false,
     solo: false,
     armed: false,

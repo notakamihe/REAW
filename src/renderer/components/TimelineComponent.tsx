@@ -49,8 +49,8 @@ export default class TimelineComponent extends React.Component<IProps> {
 
         const beats = options.timeSignature.beats
         const scale = options.horizontalScale
-        const subdivisions = 1 / Math.max(SnapGridSize.OneTwentyEighth, options.snapSize)
-        const beatWidth = options.beatWidth * scale
+        const subdivisions = 1 / Math.max(SnapGridSize.ThirtySecondBeat, options.snapSize)
+        const beatWidth = options.beatWidth * scale * (4 / options.timeSignature.noteValue)
         const subdivisionWidth = beatWidth / subdivisions
         const measureWidth = beatWidth * beats
 
@@ -58,14 +58,14 @@ export default class TimelineComponent extends React.Component<IProps> {
         const offset = this.props.window.scrollLeft - measures * measureWidth
 
         const numMeasures = Math.ceil(this.props.width / measureWidth) + 1
-        const numMeasuresToSkip = Math.max(0, Math.floor((-0.866 * measureWidth + 98.8582) / (measureWidth + 1.2335)))
+        const numMeasuresToSkip = Math.floor(45 / measureWidth) 
         const power = Math.ceil(Math.sqrt(beatWidth - 130) * 0.091)
 
         for (let i = 0; i < numMeasures; i++) {
           const x = i * measureWidth - offset
           const measure = i + measures + 1
 
-          if (i % (numMeasuresToSkip + 1) === 0) {
+          if ((measure - 1) % (numMeasuresToSkip + 1) === 0) {
             ctx.beginPath()
             ctx.moveTo(x, 1)
             ctx.lineTo(x, canvas.height)
@@ -80,13 +80,13 @@ export default class TimelineComponent extends React.Component<IProps> {
     
                 if (j > 0) {
                   ctx.beginPath()
-                  ctx.moveTo(beatX, 20)
+                  ctx.moveTo(beatX, 26)
                   ctx.lineTo(beatX, canvas.height)
                   ctx.stroke()
     
-                  if (beatWidth > 50) {
-                    ctx.textAlign = "left"
-                    ctx.fillText(`${measure}.${j + 1}.0`, beatX + 4, 27)
+                  if (beatWidth > 60) {
+                    ctx.textAlign = "center"
+                    ctx.fillText(`${measure}.${j + 1}.0`, beatX, 24)
                   }
                 }
     

@@ -1,8 +1,8 @@
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
-import { marginToPos } from "renderer/utils/utils";
-import { AnywhereClickAnchorEl, DNR } from ".";
+import { BASE_MAX_MEASURES, marginToPos } from "renderer/utils/utils";
+import { DNR } from ".";
 import { DNRData, ResizeDirection } from "./DNR";
 
 export interface Region {
@@ -11,11 +11,14 @@ export interface Region {
 }
 
 interface IProps {
+  children? : JSX.Element
   containerStyle? : React.CSSProperties
+  highlight? : boolean
+  highlightStyle? : React.CSSProperties
   onClickAway? : () => void
   onContainerMouseDown? : (e : React.MouseEvent<HTMLDivElement>) => void
+  onContextMenu? : (e : React.MouseEvent) => void
   onDelete? : () => void
-  onRightClickAnywhere? : (e : HTMLElement | null) => void
   onSetRegion : (region : Region | null) => void
   region : Region | null
   regionStyle? : React.CSSProperties
@@ -83,20 +86,29 @@ export default class RegionComponent extends React.Component<IProps, IState> {
   onMouseDown(e : React.MouseEvent<HTMLDivElement>) {
     this.props.onContainerMouseDown?.(e)
 
-    const x = e.clientX - e.currentTarget.getBoundingClientRect().left
-    const newRegionStartPos = marginToPos(x, this.context!.timelinePosOptions)
-
-    newRegionStartPos.snap(this.context!.timelinePosOptions)
-    
-    this.setState({newRegionStartPos, newRegionEndPos: null, isCreatingNewRegion: true});
-
-    document.addEventListener("mousemove", this.onMouseMove)
-    document.addEventListener("mouseup", this.onMouseUp)
+    if (e.button === 0) {
+      const x = e.clientX - e.currentTarget.getBoundingClientRect().left
+      const newRegionStartPos = marginToPos(x, this.context!.timelinePosOptions)
+  
+      newRegionStartPos.snap(this.context!.timelinePosOptions)
+      
+      this.setState({newRegionStartPos, newRegionEndPos: null, isCreatingNewRegion: true});
+  
+      document.addEventListener("mousemove", this.onMouseMove)
+      document.addEventListener("mouseup", this.onMouseUp)
+    }
   }
 
   onMouseMove(e : MouseEvent) {
     e.preventDefault()
 
+    const options = this.context!.timelinePosOptions
+    const timeSignature = this.context!.timeSignature
+    const maxMeasures = Math.floor(BASE_MAX_MEASURES / (4 / timeSignature.noteValue) * (4 / timeSignature.beats));
+    const beatWidth = options.beatWidth * this.context!.horizontalScale * (4 / timeSignature.noteValue)
+    const measureWidth = beatWidth * timeSignature.beats
+    const maxMeasuresMargin = measureWidth * maxMeasures
+    
     let margin = 0
 
     if (this.state.newRegionEndPos) {
@@ -105,7 +117,7 @@ export default class RegionComponent extends React.Component<IProps, IState> {
       margin = this.state.newRegionStartPos.toMargin(this.context!.timelinePosOptions)
     }
 
-    margin = Math.max(0, margin + e.movementX)
+    margin = Math.min(Math.max(0, margin + e.movementX), maxMeasuresMargin)
 
     const newRegionEndPos = marginToPos(margin, this.context!.timelinePosOptions)
     
@@ -181,27 +193,42 @@ export default class RegionComponent extends React.Component<IProps, IState> {
               width,
               height: "100%",
             }}
-          ></div>
+          >
+            {
+              this.props.highlight &&
+              <div
+                className="position-absolute pe-none"
+                style={{...this.props.highlightStyle, top: this.state.height, left: 0, width: "100%"}}
+              ></div>
+            }
+          </div>
         }
         {
           this.props.region &&
-          <AnywhereClickAnchorEl onRightClickAnywhere={e => this.props.onRightClickAnywhere?.(e)}>
-            <DNR
-              coords={{
-                startX: this.props.region.start.toMargin(timelinePosOptions), 
-                startY: 0, 
-                endX: this.props.region.end.toMargin(timelinePosOptions), 
-                endY: this.state.height
-              }}
-              disableDragging
-              enableResizing={{left: true, right: true}}
-              onClickAway={this.onRegionClickAway}
-              onDoubleClick={this.props.onDelete}
-              onMouseDown={e => e.stopPropagation()}
-              onResizeStop={this.onResizeStop}
-              style={this.props.regionStyle}
-            />
-          </AnywhereClickAnchorEl>
+          <DNR
+            coords={{
+              startX: this.props.region.start.toMargin(timelinePosOptions), 
+              startY: 0, 
+              endX: this.props.region.end.toMargin(timelinePosOptions), 
+              endY: this.state.height
+            }}
+            disableDragging
+            enableResizing={{left: true, right: true}}
+            onClickAway={this.onRegionClickAway}
+            onContextMenu={this.props.onContextMenu}
+            onDoubleClick={this.props.onDelete}
+            onMouseDown={e => e.stopPropagation()}
+            onResizeStop={this.onResizeStop}
+            style={this.props.regionStyle}
+          >
+            {
+              this.props.highlight &&
+              <div
+                className="position-absolute pe-none"
+                style={{...this.props.highlightStyle, top: this.state.height, left: 0, width: "100%"}}
+              ></div>
+            }
+          </DNR>
         }
       </div>
     )

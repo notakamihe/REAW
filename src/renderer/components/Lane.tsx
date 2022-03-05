@@ -1,15 +1,12 @@
-import { ContentPaste } from "@mui/icons-material";
-import { ListItemText, Menu, MenuItem, MenuList } from "@mui/material";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
+import channels from "renderer/utils/channels";
 import { getLaneColor } from "renderer/utils/helpers";
-import { getPosFromAnchorEl } from "renderer/utils/utils";
-import { AnywhereClickAnchorEl, ClipComponent, RegionComponent } from ".";
+import { ipcRenderer, marginToPos } from "renderer/utils/utils";
+import { ClipComponent, RegionComponent } from ".";
 import AutomationLaneComponent from "./AutomationLaneComponent";
 import { Clip } from "./ClipComponent";
-import { MenuIcon } from "./icons";
 import { Track } from "./TrackComponent";
-import region from "../../../assets/svg/region.svg"
  
 interface IProps {
   track : Track
@@ -17,7 +14,6 @@ interface IProps {
 }
  
 interface IState {
-  anchorEl : HTMLElement | null
   regionAnchorEl : HTMLElement | null
 }
  
@@ -29,11 +25,12 @@ class Lane extends React.Component<IProps, IState> {
     super(props)
  
     this.state = {
-      anchorEl: null,
       regionAnchorEl: null
     }
  
     this.changeLane = this.changeLane.bind(this)
+    this.onLaneContextMenu = this.onLaneContextMenu.bind(this)
+    this.onTrackRegionContextMenu = this.onTrackRegionContextMenu.bind(this)
     this.setClip = this.setClip.bind(this)
   }
  
@@ -64,6 +61,45 @@ class Lane extends React.Component<IProps, IState> {
       }
     }
   }
+
+  onLaneContextMenu(e : React.MouseEvent) {
+    e.stopPropagation()
+
+    ipcRenderer.send(channels.OPEN_LANE_CONTEXT_MENU)
+
+    ipcRenderer.on(channels.PASTE_AT_CURSOR_ON_LANE, () => {
+      this.context!.pasteClip(true, this.props.track)
+    })
+
+    ipcRenderer.on(channels.PASTE_ON_LANE, () => {
+      const targetEl = e.target as HTMLElement
+      const rect = targetEl.getBoundingClientRect()
+      const margin = e.clientX + targetEl.scrollLeft - rect.left
+
+      this.context!.pasteClip(false, this.props.track, marginToPos(margin, this.context!.timelinePosOptions))
+    })
+
+    ipcRenderer.on(channels.CLOSE_LANE_CONTEXT_MENU, () => {
+      ipcRenderer.removeAllListeners(channels.PASTE_AT_CURSOR_ON_LANE)
+      ipcRenderer.removeAllListeners(channels.PASTE_ON_LANE)
+      ipcRenderer.removeAllListeners(channels.CLOSE_LANE_CONTEXT_MENU)
+    })
+  }
+
+  onTrackRegionContextMenu(e : React.MouseEvent) {
+    e.stopPropagation()
+
+    ipcRenderer.send(channels.OPEN_TRACK_REGION_CONTEXT_MENU)
+
+    ipcRenderer.on(channels.CREATE_CLIP_FROM_TRACK_REGION, () => {
+      this.context!.createClipFromTrackRegion();
+    })
+
+    ipcRenderer.on(channels.CLOSE_TRACK_REGION_CONTEXT_MENU, () => {
+      ipcRenderer.removeAllListeners(channels.CREATE_CLIP_FROM_TRACK_REGION)
+      ipcRenderer.removeAllListeners(channels.CLOSE_TRACK_REGION_CONTEXT_MENU)
+    })
+  }
  
   setClip(clip : Clip) {
     const clips = this.props.track.clips.slice()
@@ -80,27 +116,19 @@ class Lane extends React.Component<IProps, IState> {
   }
  
   render() {
-    const {
-      createClipFromTrackRegion,
-      onClipClickAway, 
-      pasteClip,
-      selectedClip, 
-      setSelectedClip, 
-      setTrackRegion,
-      timelinePosOptions, 
-      trackRegion,
-      verticalScale, 
-    } = this.context!
+    const {onClipClickAway, selectedClip, setSelectedClip, setTrackRegion, showMaster, trackRegion, verticalScale} = this.context!
  
-    return (
-      <React.Fragment>
-        <AnywhereClickAnchorEl onRightClickAnywhere={e => this.setState({anchorEl: e})}>
+    if (showMaster || !this.props.track.isMaster) {
+      return (
+        <React.Fragment>
           <div
+            onContextMenu={this.onLaneContextMenu}
             style={{
               width: "100%",
               height: 100 * verticalScale,
               position: "relative",
               cursor: "text",
+              pointerEvents: this.props.track.isMaster ? "none" : "auto",
               ...this.props.style
             }}
           >
@@ -108,8 +136,8 @@ class Lane extends React.Component<IProps, IState> {
               containerStyle={{position: "absolute", inset: 0}}
               onClickAway={() => setTrackRegion(null)}
               onContainerMouseDown={() => {if (!trackRegion || trackRegion.track.id !== this.props.track.id) setTrackRegion(null)}}
+              onContextMenu={this.onTrackRegionContextMenu}
               onDelete={() => setTrackRegion(null)}
-              onRightClickAnywhere={e => this.setState({regionAnchorEl: e})}
               onSetRegion={region => setTrackRegion(region ? {region, track: this.props.track} : null)}
               region={!trackRegion || trackRegion.track.id !== this.props.track.id ? null : trackRegion.region}
               regionStyle={{backgroundColor: "#fff6"}}
@@ -129,51 +157,23 @@ class Lane extends React.Component<IProps, IState> {
               ))
             }
           </div>
-        </AnywhereClickAnchorEl>  
-        <Menu
-          open={Boolean(this.state.anchorEl)}
-          anchorEl={this.state.anchorEl}
-          onClose={() => this.setState({anchorEl: null})}
-          onClick={e => this.setState({anchorEl: null})}
-        >
-          <MenuList className="p-0" dense style={{outline: "none"}}>
-            <MenuItem onClick={() => pasteClip(true, this.props.track)}>
-              <MenuIcon icon={<ContentPaste />} />
-              <ListItemText>Paste at Cursor</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={() => pasteClip(false, this.props.track, getPosFromAnchorEl(this.state.anchorEl!, timelinePosOptions))}>
-              <MenuIcon icon={<ContentPaste />} />
-              <ListItemText>Paste</ListItemText>
-            </MenuItem>
-          </MenuList>
-        </Menu>
-        <Menu
-          open={Boolean(this.state.regionAnchorEl)}
-          anchorEl={this.state.regionAnchorEl}
-          onClose={() => this.setState({regionAnchorEl: null})}
-          onClick={e => this.setState({regionAnchorEl: null})}
-        >
-          <MenuList className="p-0" dense style={{outline: "none"}}>
-            <MenuItem onClick={createClipFromTrackRegion}>
-              <MenuIcon icon={<img src={region} style={{height: 14}} />} />
-              <ListItemText>Create Clip From Region</ListItemText>
-            </MenuItem>
-          </MenuList>
-        </Menu>
-        {
-          this.props.track.automationEnabled &&
-          this.props.track.automationLanes.map((lane, idx) => (
-            <AutomationLaneComponent
-              key={lane.id}
-              lane={lane}
-              style={{backgroundColor: "#aaa"}}
-              track={this.props.track}
-              color={getLaneColor(this.props.track.automationLanes, idx, this.props.track.color)}
-            />
-          ))
-        }
-      </React.Fragment>
-    )
+          {
+            this.props.track.automationEnabled &&
+            this.props.track.automationLanes.map((lane, idx) => (
+              <AutomationLaneComponent
+                color={getLaneColor(this.props.track.automationLanes, idx, this.props.track.color)}
+                key={lane.id}
+                lane={lane}
+                style={{backgroundColor: "#aaa"}}
+                track={this.props.track}
+              />
+            ))
+          }
+        </React.Fragment>
+      )
+    }
+
+    return null
   }
 }
  

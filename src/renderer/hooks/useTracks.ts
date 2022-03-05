@@ -1,15 +1,15 @@
-import React from "react";
-import { useStateWCallback } from ".";
+import React, { SetStateAction } from "react";
 import {Track} from "./../components/TrackComponent"
 
 export default function useTracks(initialState: Track[] | (() => Track[])) : 
-[Track[], (tracks : Track[], callback? : () => void) => void, (track : Track, callback? : () => void) => void] {
-  const [tracks, setTracks] = useStateWCallback<Track[]>(initialState);
+  [Track[], React.Dispatch<SetStateAction<Track[]>>, (track : Track) => void] 
+{
+  const [tracks, setTracks] = React.useState(initialState);
 
-  const setTrack = (track : Track, callback? : () => void) => {
+  const setTrack = (track : Track) => {
     const newTracks = tracks.slice()
     newTracks[newTracks.findIndex(t => t.id === track.id)] = track
-    setTracks(newTracks, callback)
+    setTracks(newTracks)
   }
 
   return [tracks, setTracks, setTrack]

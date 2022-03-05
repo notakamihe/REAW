@@ -17,6 +17,7 @@ export interface AutomationLane {
   expanded : boolean
   id : ID
   isPan? : boolean
+  isTempo? : boolean
   isVolume? : boolean
   label : string
   maxValue : number
@@ -35,9 +36,9 @@ const styles = () => ({
 
 interface IProps {
   automationLane : AutomationLane
-  track : Track
   classes? : any
   color : string
+  track : Track
 }
 
 interface IState {
@@ -167,6 +168,7 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
       if (nodeIndex !== -1) {
         let volume = this.props.track.volume
         let pan = this.props.track.pan
+        let tempo = this.context!.tempo
 
         automationLanes[laneIndex].nodes[nodeIndex].value = value
 
@@ -175,11 +177,14 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
             volume = value
           } else if (automationLanes[laneIndex].isPan) {
             pan = value
+          } else if (automationLanes[laneIndex].isTempo) {
+            tempo = Math.round(value)
           }
         }
 
         this.context!.setTrack({...this.props.track, automationLanes, volume, pan})
         this.context!.setSelectedNode(automationLanes[laneIndex].nodes[nodeIndex])
+        this.context!.setTempo(tempo)
       }
     }
   }

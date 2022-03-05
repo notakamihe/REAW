@@ -1,14 +1,13 @@
-import { Check, ContentCopy, ContentCut, Delete, Keyboard } from "@mui/icons-material";
-import { ClickAwayListener, ListItemText, Menu, MenuItem, MenuList } from "@mui/material";
+import { Popover } from "@mui/material";
 import React from "react";
-import { ClipboardContext, ClipboardItemType } from "renderer/context/ClipboardContext";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
+import channels from "renderer/utils/channels";
 import { clamp, inverseLerp, lerp } from "renderer/utils/helpers";
+import { ipcRenderer } from "renderer/utils/utils";
 import { DNR, GuideLine } from ".";
 import { AutomationLane } from "./AutomationLaneTrack";
 import { DNRData } from "./DNR";
-import { MenuIcon } from "./icons";
 import { ConfirmationInput, Tooltip } from "./ui";
 
 export interface AutomationNode {
@@ -36,7 +35,6 @@ interface IState {
   inputValue : string
   isDragging : boolean
   isHovering : boolean
-  showInput : boolean
   tempNode : AutomationNode | null
 }
 
@@ -58,10 +56,10 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
       inputValue: this.props.node.value.toString(),
       isDragging: false,
       isHovering: false,
-      showInput: false,
       tempNode: null
     }
 
+    this.onContextMenu = this.onContextMenu.bind(this)
     this.onDrag = this.onDrag.bind(this)
     this.onDragStart = this.onDragStart.bind(this)
     this.onDragStop = this.onDragStop.bind(this)
@@ -97,6 +95,27 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
       return `Pos: ${this.state.tempNode?.pos.toString()}, Value: ${this.state.tempNode?.value.toFixed(2)}`
 
     return `Pos: ${this.props.node.pos.toString()}, Value: ${this.props.node.value.toFixed(2)}`
+  }
+
+  onContextMenu(e : React.MouseEvent) {
+    e.stopPropagation();
+    this.props.onSelect(this.props.node)
+
+    ipcRenderer.send(channels.OPEN_NODE_CONTEXT_MENU);
+
+    ipcRenderer.on(channels.DELETE_NODE, () => {
+      this.context!.deleteNode(this.props.node)
+    })
+
+    ipcRenderer.on(channels.TYPE_NODE_VALUE, () => {
+      this.setState({anchorEl: this.ref.current?.ref.current || null})
+    })
+
+    ipcRenderer.on(channels.CLOSE_NODE_CONTEXT_MENU, () => {
+      ipcRenderer.removeAllListeners(channels.DELETE_NODE)
+      ipcRenderer.removeAllListeners(channels.TYPE_NODE_VALUE)
+      ipcRenderer.removeAllListeners(channels.CLOSE_NODE_CONTEXT_MENU)
+    })
   }
 
   onDrag(e : MouseEvent, data : DNRData) {
@@ -141,7 +160,7 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
       this.props.onMove && this.props.onMove(newTempNode)
     }
 
-    this.setState({showInput: false})
+    this.setState({anchorEl: null})
   }
 
   valueToY() {
@@ -150,89 +169,57 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
   }
 
   render() {
-    const {timelinePosOptions, deleteNode} = this.context!
+    const {timelinePosOptions} = this.context!
     const posMargin = this.props.node.pos.toMargin(timelinePosOptions)
     const title = this.getTitle()
     const y = this.valueToY()
 
     return (
-      <ClipboardContext.Consumer>
-        {clipboard => (
-          <React.Fragment>
-            <DNR
-              coords={{startX: posMargin, startY: y, endX: posMargin + 6, endY: y + 6}}
-              disableResizing
-              onClickAway={() => this.props.onClickAway(this.props.node)}
-              onContextMenu={e => {e?.stopPropagation();this.setState({anchorEl: e!.currentTarget as HTMLElement})}}
-              onDrag={this.onDrag}
-              onDragStart={this.onDragStart}
-              onDragStop={this.onDragStop}
-              ref={this.ref}
-              style={{
-                backgroundColor: this.props.isSelected ? "#fff" : this.props.color, 
-                borderRadius: "50%", 
-                border: "1px solid #0008", 
-                zIndex: this.props.isSelected ? 12 : 11,
-              }}
-            >
-              <Tooltip 
-                open={this.state.isDragging || this.state.isHovering} 
-                placement={{horizontal: "center", vertical: "top"}} 
-                title={title}
-              >
-                <div 
-                  onMouseOver={() => this.setState({isHovering: true})}
-                  onMouseOut={() => this.setState({isHovering: false})}
-                  style={{width: "100%", height: "100%"}}
-                ></div>
-              </Tooltip>
-              <Menu
-                className="p-0"
-                anchorEl={this.state.anchorEl}
-                open={Boolean(this.state.anchorEl)}
-                onClose={() => this.setState({anchorEl: null})}
-                onMouseDown={e => e.stopPropagation()}
-                onClick={e => this.setState({anchorEl: null})}
-              >
-                <MenuList className="p-0" dense style={{outline: "none"}}>
-                  <MenuItem onClick={e => {
-                    clipboard?.copy({item: this.props.node, type: ClipboardItemType.Node, container: this.props.lane.id})
-                    deleteNode(this.props.node)
-                  }}>
-                    <MenuIcon icon={<ContentCut />} />
-                    <ListItemText>Cut</ListItemText>
-                  </MenuItem>
-                  <MenuItem onClick={e => clipboard?.copy({item: this.props.node, type: ClipboardItemType.Node, container: this.props.lane.id})}>
-                    <MenuIcon icon={<ContentCopy />} />
-                    <ListItemText>Copy</ListItemText>
-                  </MenuItem>
-                  <MenuItem onClick={(e) => this.setState({showInput: true, inputValue: this.props.node.value.toFixed(2)})}>
-                    <MenuIcon icon={<Keyboard />} />
-                    <ListItemText>Type Value</ListItemText>
-                  </MenuItem>
-                  <MenuItem onClick={(e) => deleteNode(this.props.node)}>
-                    <MenuIcon icon={<Delete />} />
-                    <ListItemText>Delete</ListItemText>
-                  </MenuItem>
-                </MenuList>
-              </Menu>
-              {
-                this.state.showInput &&
-                <ClickAwayListener onClickAway={e => this.setState({showInput: false})}>
-                  <div style={{position: "absolute", top: 0, right: -8, transform: "translate(100%, -50%)"}}>
-                    <ConfirmationInput
-                      onChange={e => this.setState({inputValue: e.target.value})} 
-                      onConfirm={this.onSubmit}
-                      value={this.state.inputValue} 
-                    />
-                  </div>
-                </ClickAwayListener>
-              }
-            </DNR>
-            {this.state.isDragging && <GuideLine margin={this.state.guideLineMargin} />}
-          </React.Fragment>
-        )}
-      </ClipboardContext.Consumer>
+      <React.Fragment>
+        <DNR
+          coords={{startX: posMargin, startY: y, endX: posMargin + 6, endY: y + 6}}
+          disableResizing
+          onClickAway={() => this.props.onClickAway(this.props.node)}
+          onContextMenu={this.onContextMenu}
+          onDrag={this.onDrag}
+          onDragStart={this.onDragStart}
+          onDragStop={this.onDragStop}
+          ref={this.ref}
+          style={{
+            backgroundColor: this.props.isSelected ? "#fff" : this.props.color, 
+            borderRadius: "50%", 
+            border: "1px solid #0008", 
+            zIndex: this.props.isSelected ? 12 : 11,
+          }}
+        >
+          <Tooltip 
+            open={this.state.isDragging || this.state.isHovering} 
+            placement={{horizontal: "center", vertical: "top"}} 
+            title={title}
+          >
+            <div 
+              onMouseOver={() => this.setState({isHovering: true})}
+              onMouseOut={() => this.setState({isHovering: false})}
+              style={{width: "100%", height: "100%"}}
+            ></div>
+          </Tooltip>
+          <Popover 
+            anchorEl={this.state.anchorEl} 
+            onClose={() => this.setState({anchorEl: null})} 
+            open={Boolean(this.state.anchorEl)}
+            transformOrigin={{horizontal: "left", vertical: "top"}}
+          >
+            <div>
+              <ConfirmationInput
+                onChange={e => this.setState({inputValue: e.target.value})} 
+                onConfirm={this.onSubmit}
+                value={this.state.inputValue} 
+              />
+            </div>
+          </Popover>
+        </DNR>
+        {this.state.isDragging && <GuideLine margin={this.state.guideLineMargin} />}
+      </React.Fragment>
     )
   }
 }

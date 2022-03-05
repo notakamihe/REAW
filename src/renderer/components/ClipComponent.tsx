@@ -3,21 +3,17 @@ import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
 import { ID } from "renderer/types/types";
 import { shadeColor } from "renderer/utils/helpers";
-import { copyClip, marginToPos, clipAtPos } from "renderer/utils/utils";
+import { copyClip, marginToPos, clipAtPos, ipcRenderer } from "renderer/utils/utils";
 import { Track } from "./TrackComponent";
 import trimToLeft from "../../../assets/svg/trim-to-left.svg";
 import trimToRight from "../../../assets/svg/trim-to-right.svg";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClone, faRedo } from "@fortawesome/free-solid-svg-icons";
+import { faRedo } from "@fortawesome/free-solid-svg-icons";
 import DNR, { DragAxis, DNRData, ResizeDirection } from "./DNR";
-import { AnywhereClickAnchorEl, GuideLine } from ".";
-import { Divider, ListItemText, Menu, MenuItem, MenuList } from "@mui/material";
-import { MenuIcon } from "./icons";
-import { ContentCopy, ContentCut, Delete, HorizontalRule, VolumeMute } from "@mui/icons-material";
-import { ClipboardContext, ClipboardItemType } from "renderer/context/ClipboardContext";
-import split from "../../../assets/svg/split.svg"
-import region from "../../../assets/svg/region.svg"
+import { GuideLine } from ".";
+import { ClipboardContext } from "renderer/context/ClipboardContext";
 import { Region } from "./RegionComponent";
+import channels from "renderer/utils/channels";
 
 export interface Clip extends Region {
   end : TimelinePosition
@@ -94,7 +90,6 @@ interface IProps {
 }
 
 interface IState {
-  anchorEl : HTMLElement | null
   guideLineMargins : number[]
   isDragging : boolean
   isLooping : boolean
@@ -115,7 +110,6 @@ export default class ClipComponent extends React.Component<IProps, IState> {
     this.ref = React.createRef();
 
     this.state = {
-      anchorEl: null,
       guideLineMargins : [],
       isDragging: false,
       isLooping: false,
@@ -124,6 +118,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
       tempWidth: 0
     }
 
+    this.onContextMenu = this.onContextMenu.bind(this);
     this.onDrag = this.onDrag.bind(this);
     this.onDragStart = this.onDragStart.bind(this);
     this.onDragStop = this.onDragStop.bind(this);
@@ -163,6 +158,42 @@ export default class ClipComponent extends React.Component<IProps, IState> {
     this.props.setClip(newClip)
   }
 
+  onContextMenu(e : React.MouseEvent) {
+    e.stopPropagation();
+    this.props.onSelect(this.props.clip);
+
+    ipcRenderer.send(channels.OPEN_CLIP_CONTEXT_MENU, this.props.clip)
+
+    ipcRenderer.on(channels.DELETE_CLIP, () => {
+      this.context!.deleteClip(this.props.clip)
+    })
+
+    ipcRenderer.on(channels.DUPLICATE_CLIP, () => {
+      this.context!.duplicateClip(this.props.clip)
+    })
+
+    ipcRenderer.on(channels.SPLIT_CLIP, () => {
+      this.context!.splitClip(this.props.clip, this.context!.cursorPos)
+    })
+
+    ipcRenderer.on(channels.SET_SONG_REGION_TO_CLIP, () => {
+      this.context!.setSongRegion({start: this.props.clip.start, end: this.props.clip.end})
+    })
+
+    ipcRenderer.on(channels.MUTE_CLIP, () => {
+      this.context!.toggleMuteClip(this.props.clip)
+    })
+
+    ipcRenderer.on(channels.CLOSE_CLIP_CONTEXT_MENU, () => {
+      ipcRenderer.removeAllListeners(channels.DELETE_CLIP)
+      ipcRenderer.removeAllListeners(channels.DUPLICATE_CLIP)
+      ipcRenderer.removeAllListeners(channels.SPLIT_CLIP)
+      ipcRenderer.removeAllListeners(channels.SET_SONG_REGION_TO_CLIP)
+      ipcRenderer.removeAllListeners(channels.MUTE_CLIP)
+      ipcRenderer.removeAllListeners(channels.CLOSE_CLIP_CONTEXT_MENU)
+    })
+  }
+
   onDrag(e : MouseEvent, data : DNRData) {
     this.setGuideLineMargins(data.coords.startX, data.coords.endX, null)
   }
@@ -170,6 +201,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
   onDragStart(e : React.MouseEvent, data : DNRData) {
     this.props.onSelect(this.props.clip);
     this.setState({isDragging: true}, () => this.setGuideLineMargins(data.coords.startX, data.coords.endX, null))
+    this.context!.setTrackRegion(null)
   }
 
   onDragStop(e : MouseEvent, data : DNRData) {
@@ -230,16 +262,17 @@ export default class ClipComponent extends React.Component<IProps, IState> {
     const loopWidth = this.getLoopWidth()
     const tempLoopWidth = dir === ResizeDirection.Right ? Math.max(0,totalWidth - ref.offsetWidth) : loopWidth      
     
-    if (dir === ResizeDirection.Right)
+    if (dir === ResizeDirection.Right) {
       this.setGuideLineMargins(null, data.coords.endX, null)
-    else
+
+      if (ref.offsetWidth > totalWidth && this.props.clip.loopEnd) {
+        const clip = copyClip(this.props.clip)
+        
+        clip.loopEnd = null
+        this.props.setClip(clip)
+      }
+    } else {
       this.setGuideLineMargins(data.coords.startX, null, null)
-    
-    if (ref.offsetWidth > totalWidth && this.props.clip.loopEnd) {
-      const clip = copyClip(this.props.clip)
-      
-      clip.loopEnd = null
-      this.props.setClip(clip)
     }
 
     this.setState({tempWidth: data.width, tempLoopWidth})
@@ -247,7 +280,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
 
   onResizeStart (e : React.MouseEvent, dir : ResizeDirection, ref : HTMLElement) {
     this.props.onSelect(this.props.clip)
-    this.setState({isResizing: true, tempWidth: ref.offsetWidth}, () => {
+    this.setState({isResizing: true, tempWidth: ref.offsetWidth, tempLoopWidth: this.getLoopWidth()}, () => {
       if (dir === ResizeDirection.Right)
         this.setGuideLineMargins(null, this.props.clip.end.toMargin(this.context!.timelinePosOptions), null)
       else
@@ -307,7 +340,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
   }
 
   render() {
-    const {timelinePosOptions, verticalScale, deleteClip, duplicateClip, toggleMuteClip} = this.context!
+    const {timelinePosOptions, verticalScale} = this.context!
     const bounds = this.getBounds()
     const width = this.state.isResizing ? this.state.tempWidth : 
       TimelinePosition.toWidth(this.props.clip.start, this.props.clip.end, timelinePosOptions)
@@ -320,148 +353,97 @@ export default class ClipComponent extends React.Component<IProps, IState> {
 
           return (
             <React.Fragment>
-              <AnywhereClickAnchorEl onRightClickAnywhere={e => this.setState({anchorEl: e})}>
-                <DNR
-                  bounds={bounds}
-                  className="clip"
+              <DNR
+                bounds={bounds}
+                className="clip"
+                coords={{
+                  startX: this.props.clip.start.toMargin(timelinePosOptions), 
+                  startY: 0, 
+                  endX: this.props.clip.end.toMargin(timelinePosOptions), 
+                  endY: 100 * verticalScale
+                }}
+                dragAxis={DragAxis.X}
+                enableResizing={{left: true, right: true}}
+                onClickAway={() => this.props.onClickAway(this.props.clip)}
+                onContextMenu={this.onContextMenu}
+                onDrag={this.onDrag}
+                onDragStart={this.onDragStart}
+                onDragStop={this.onDragStop}
+                onResize={this.onResize}
+                onResizeStart={this.onResizeStart}
+                onResizeStop={this.onResizeStop}
+                ref={this.ref}
+                resizeHandles={{
+                  left: <ResizeHandle type={ResizeHandleType.ResizeLeft} show={this.props.isSelected && width >= 20}/>,
+                  right: <ResizeHandle type={ResizeHandleType.ResizeRight} show={this.props.isSelected && width >= 20} />,
+                }}
+                resizeHandleStyles={{left: {zIndex: 11}, right: {zIndex: 11}}}
+                style={{
+                  backgroundColor: this.props.isSelected ? "#fff" : shadeColor(this.props.track.color, 15),
+                  zIndex: this.props.isSelected ? 10 : 9,
+                  opacity: this.props.clip.muted ? 0.5 : 1
+                }}
+              >
+                {
+                  this.props.clip.muted && (width > 25 || loopWidth > 5) &&
+                  <p style={{position: "absolute", top: 0, left: 2, fontSize: 12, color: "#0008", fontWeight: "bold"}}>M</p>
+                }
+                <DNR 
+                  className="clip-loop-container"
+                  constrainToParent={{vertical: false, horizontal: false}}
                   coords={{
-                    startX: this.props.clip.start.toMargin(timelinePosOptions), 
-                    startY: 0, 
-                    endX: this.props.clip.end.toMargin(timelinePosOptions), 
-                    endY: 100 * verticalScale
+                    startX: 0,
+                    startY: 0,
+                    endX: loopWidth,
+                    endY: 10
                   }}
-                  dragAxis={DragAxis.X}
-                  enableResizing={{left: true, right: true}}
-                  onClickAway={() => this.props.onClickAway(this.props.clip)}
-                  onDrag={this.onDrag}
-                  onDragStart={this.onDragStart}
-                  onDragStop={this.onDragStop}
-                  onResize={this.onResize}
-                  onResizeStart={this.onResizeStart}
-                  onResizeStop={this.onResizeStop}
-                  ref={this.ref}
+                  disableDragging
+                  enableResizing={{right: true}}
+                  minWidth={0}
+                  onResizeStart={this.onLoopStart}
+                  onResize={this.onLoop}
+                  onResizeStop={this.onLoopStop}
+                  resizeHandleClasses={{right: "center-by-flex"}}
                   resizeHandles={{
-                    left: <ResizeHandle type={ResizeHandleType.ResizeLeft} show={this.props.isSelected && width >= 20}/>,
-                    right: <ResizeHandle type={ResizeHandleType.ResizeRight} show={this.props.isSelected && width >= 20} />,
+                    right: <ResizeHandle type={ResizeHandleType.Loop} show={this.props.isSelected && (width > 25 || loopWidth > 5)} /> 
                   }}
-                  resizeHandleStyles={{left: {zIndex: 11}, right: {zIndex: 11}}}
-                  style={{
-                    backgroundColor: this.props.isSelected ? "#fff" : shadeColor(this.props.track.color, 15),
-                    zIndex: this.props.isSelected ? 10 : 9,
-                    opacity: this.props.clip.muted ? 0.5 : 1
-                  }}
+                  resizeHandleStyles={{right: {zIndex: 14}}}
+                  style={{zIndex: 12}}
+                >
+                  <Loop
+                    clipWidth={width}   
+                    color={this.props.isSelected ? "#eee" : shadeColor(this.props.track.color, 30) } 
+                    style={{height: 100 * verticalScale}}
+                    width={loopWidth}   
+                  />
+                </DNR>
+                <div 
+                  className="position-absolute pe-none"
+                  style={{bottom: 0, left: -1, transform: "translate(0, 100%)", opacity: 0.3}}
                 >
                   {
-                    this.props.clip.muted && (width > 25 || loopWidth > 5) &&
-                    <p style={{position: "absolute", top: 0, left: 2, fontSize: 12, color: "#0008", fontWeight: "bold"}}>M</p>
-                  }
-                  <Menu
-                    className="p-0"
-                    anchorEl={this.state.anchorEl}
-                    open={Boolean(this.state.anchorEl)}
-                    onClose={() => this.setState({anchorEl: null})}
-                    onMouseDown={e => e.stopPropagation()}
-                    onClick={e => this.setState({anchorEl: null})}
-                  >
-                    <MenuList className="p-0" dense style={{outline: "none"}}>
-                      <MenuItem 
-                        onClick={e => {
-                          copy({item: this.props.clip, type: ClipboardItemType.Clip, container:this.props.track.id})
-                          deleteClip(this.props.clip)
+                    this.props.track.automationEnabled &&
+                    this.props.track.automationLanes.filter(l => l.show).map((l, idx) => (
+                      <div 
+                        key={idx} 
+                        className="clip"
+                        style={{
+                          width: width, 
+                          height: l.expanded ? 100 * verticalScale : 30, 
+                          backgroundColor: shadeColor(this.props.track.color, 30)
                         }}
                       >
-                        <MenuIcon icon={<ContentCut />} />
-                        <ListItemText>Cut</ListItemText>
-                      </MenuItem>
-                      <MenuItem onClick={e => copy({item: this.props.clip, type: ClipboardItemType.Clip, container: this.props.track.id})}>
-                        <MenuIcon icon={<ContentCopy />} />
-                        <ListItemText>Copy</ListItemText>
-                      </MenuItem>
-                      <MenuItem onClick={e => deleteClip(this.props.clip)}>
-                        <MenuIcon icon={<Delete />} />
-                        <ListItemText>Delete</ListItemText>
-                      </MenuItem>
-                      <Divider />
-                      <MenuItem onClick={() => duplicateClip(this.props.clip)}>
-                        <MenuIcon icon={<FontAwesomeIcon icon={faClone} />} />
-                        <ListItemText>Duplicate</ListItemText>
-                      </MenuItem>
-                      <MenuItem>
-                        <MenuIcon icon={<img src={split} style={{height: 14}} />} />
-                        <ListItemText>Split</ListItemText>
-                      </MenuItem>
-                      <MenuItem>
-                        <MenuIcon icon={<img src={split} style={{height: 14}} />} />
-                        <ListItemText>Split At Cursor</ListItemText>
-                      </MenuItem>
-                      <MenuItem>
-                        <MenuIcon icon={<img src={region} style={{height:14}} />} />
-                        <ListItemText>Set Region To Clip</ListItemText>
-                      </MenuItem>
-                      <Divider />
-                      <MenuItem onClick={() => toggleMuteClip(this.props.clip)}>
-                        <MenuIcon icon={<VolumeMute />} />
-                        <ListItemText>{this.props.clip.muted ? "Unmute" : "Mute"}</ListItemText>
-                      </MenuItem>
-                    </MenuList>
-                  </Menu>
-                  <DNR 
-                    className="clip-loop-container"
-                    constrainToParent={{vertical: false, horizontal: false}}
-                    coords={{
-                      startX: 0,
-                      startY: 0,
-                      endX: loopWidth,
-                      endY: 10
-                    }}
-                    disableDragging
-                    enableResizing={{right: true}}
-                    minWidth={0}
-                    onResizeStart={this.onLoopStart}
-                    onResize={this.onLoop}
-                    onResizeStop={this.onLoopStop}
-                    resizeHandleClasses={{right: "center-by-flex"}}
-                    resizeHandles={{
-                      right: <ResizeHandle type={ResizeHandleType.Loop} show={this.props.isSelected && (width > 25 || loopWidth > 5)} /> 
-                    }}
-                    resizeHandleStyles={{right: {zIndex: 14}}}
-                    style={{zIndex: 12}}
-                  >
-                    <Loop
-                      clipWidth={width}   
-                      color={this.props.isSelected ? "#eee" : shadeColor(this.props.track.color, 30) } 
-                      style={{height: 100 * verticalScale}}
-                      width={loopWidth}   
-                    />
-                  </DNR>
-                  <div 
-                    className="position-absolute pe-none"
-                    style={{bottom: 0, left: -1, transform: "translate(0, 100%)", opacity: 0.3}}
-                  >
-                    {
-                      this.props.track.automationEnabled &&
-                      this.props.track.automationLanes.filter(l => l.show).map((l, idx) => (
-                        <div 
-                          key={idx} 
-                          className="clip"
-                          style={{
-                            width: width, 
-                            height: l.expanded ? 100 * verticalScale : 30, 
-                            backgroundColor: shadeColor(this.props.track.color, 30)
-                          }}
-                        >
-                          <Loop
-                            clipWidth={width}   
-                            color={shadeColor(this.props.track.color, 45)} 
-                            style={{right: 0, transform: "translate(100%, 0)", height: l.expanded ? 100 * verticalScale : 30}}
-                            width={loopWidth}   
-                          />
-                        </div>
-                      ))
-                    }
-                  </div>
-                </DNR>
-              </AnywhereClickAnchorEl>
+                        <Loop
+                          clipWidth={width}   
+                          color={shadeColor(this.props.track.color, 45)} 
+                          style={{right: 0, transform: "translate(100%, 0)", height: l.expanded ? 100 * verticalScale : 30}}
+                          width={loopWidth}   
+                        />
+                      </div>
+                    ))
+                  }
+                </div>
+              </DNR>
               {
                 (this.state.isDragging || this.state.isResizing || this.state.isLooping) &&
                 this.state.guideLineMargins.map((m, idx) => <GuideLine key={idx} margin={m} />)

@@ -16,6 +16,7 @@ import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
+import ContextMenuBuilder from './contextMenu';
 
 export default class AppUpdater {
   constructor() {
@@ -78,6 +79,7 @@ const createWindow = async () => {
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: true
     },
   });
 
@@ -90,6 +92,7 @@ const createWindow = async () => {
     if (process.env.START_MINIMIZED) {
       mainWindow.minimize();
     } else {
+      mainWindow.setFullScreen(true);
       mainWindow.show();
     }
   });
@@ -99,7 +102,10 @@ const createWindow = async () => {
   });
 
   const menuBuilder = new MenuBuilder(mainWindow);
-  // menuBuilder.buildMenu();
+  menuBuilder.buildMenu();
+
+  const contextMenuBuilder = new ContextMenuBuilder(mainWindow);
+  contextMenuBuilder.buildContextMenus();
 
   // Open urls in the user's browser
   mainWindow.webContents.on('new-window', (event, url) => {

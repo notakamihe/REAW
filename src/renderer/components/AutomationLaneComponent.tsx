@@ -2,26 +2,23 @@ import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
 import { inverseLerp, lerp } from "renderer/utils/helpers";
-import { AnywhereClickAnchorEl, AutomationNodeComponent } from ".";
+import { AutomationNodeComponent } from ".";
 import { AutomationLane } from "./AutomationLaneTrack";
 import { AutomationNode } from "./AutomationNodeComponent";
 import { Track } from "./TrackComponent";
 import {v4 as uuidv4} from "uuid";
-import { ListItemText, Menu, MenuItem, MenuList } from "@mui/material";
-import { MenuIcon } from "./icons";
-import { ContentPaste } from "@mui/icons-material";
 import ResizeDetector from "react-resize-detector";
-import { getPosFromAnchorEl } from "renderer/utils/utils";
+import { ipcRenderer, marginToPos } from "renderer/utils/utils";
+import channels from "renderer/utils/channels";
 
 interface IProps {
-  lane : AutomationLane
   color : string
+  lane : AutomationLane
   style? : React.CSSProperties
   track : Track
 }
 
 interface IState {
-  anchorEl : HTMLElement | null
   height : number
   width : number
   movingNode : AutomationNode | null
@@ -40,7 +37,6 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
     this.ref = React.createRef()
 
     this.state = {
-      anchorEl: null,
       height: 0,
       width: 0,
       movingNode: null,
@@ -48,6 +44,7 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
     }
 
     this.onClick = this.onClick.bind(this)
+    this.onContextMenu = this.onContextMenu.bind(this)
     this.onNodeMove = this.onNodeMove.bind(this)
     this.setNode = this.setNode.bind(this)
   }
@@ -61,6 +58,8 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
           this.context!.setTrack({...this.props.track, volume: this.props.lane.nodes[0].value})
         } else if (this.props.lane.isPan) {
           this.context!.setTrack({...this.props.track, pan: this.props.lane.nodes[0].value})
+        } else if (this.props.lane.isTempo) {
+          this.context!.setTempo(Math.round(this.props.lane.nodes[0].value))
         }
       }
     }
@@ -102,6 +101,9 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
       } else if (this.props.lane.isPan) {
         const y = this.getY(this.props.track.pan)
         points = [`0,${y + 3}`, `${this.state.width},${y + 3}`]
+      } else if (this.props.lane.isTempo) {
+        const y = this.getY(this.context!.tempo)
+        points = [`0,${y + 3}`, `${this.state.width},${y + 3}`]
       }
     }
 
@@ -125,6 +127,30 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
       pos.snap(this.context!.timelinePosOptions)
       this.context!.addNodeToLane(this.props.track, this.props.lane, {id: uuidv4(), pos, value})
     }
+  }
+
+  onContextMenu(e : React.MouseEvent) {
+    e.preventDefault();
+
+    ipcRenderer.send(channels.OPEN_LANE_CONTEXT_MENU)
+
+    ipcRenderer.on(channels.PASTE_AT_CURSOR_ON_LANE, () => {
+      this.context!.pasteNode(true, this.props.lane)
+    })
+
+    ipcRenderer.on(channels.PASTE_ON_LANE, () => {
+      const targetEl = e.target as HTMLElement
+      const rect = targetEl.getBoundingClientRect()
+      const margin = e.clientX + targetEl.scrollLeft - rect.left
+
+      this.context!.pasteNode(false, this.props.lane, marginToPos(margin, this.context!.timelinePosOptions))
+    })
+
+    ipcRenderer.on(channels.CLOSE_LANE_CONTEXT_MENU, () => {
+      ipcRenderer.removeAllListeners(channels.PASTE_AT_CURSOR_ON_LANE)
+      ipcRenderer.removeAllListeners(channels.PASTE_ON_LANE)
+      ipcRenderer.removeAllListeners(channels.CLOSE_LANE_CONTEXT_MENU)
+    })
   }
 
   onNodeMove = (node : AutomationNode) => {
@@ -154,75 +180,58 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
   render() {
     const {verticalScale, selectedNode, setSelectedNode, onNodeClickAway, pasteNode, timelinePosOptions} = this.context!
     const polylinePoints = this.getPolylinePoints()
-    const strokeWidth = this.props.lane.nodes.length === 0 && (this.props.lane.isVolume || this.props.lane.isPan) ? 1 : 2
+    const lane = this.props.lane
+    const strokeWidth = lane.nodes.length === 0 && (lane.isVolume || lane.isPan || lane.isTempo) ? 1 : 2
 
     if (this.props.lane.show) {
       return (
         <React.Fragment>
           <ResizeDetector handleWidth handleHeight onResize={(w, h) => this.setState({width: w||0,height: h||0})}>
-            <AnywhereClickAnchorEl onRightClickAnywhere={e => this.setState({anchorEl: e})}>
-              <div
-                style={{
-                  width: "100%",
-                  height: this.props.lane.expanded ? 100 * verticalScale : 30,
-                  backgroundColor: "#fff9",
-                  borderBottom: `1px solid #0002`,
-                  position: "relative",
-                  ...this.props.style
-                }}
+            <div
+              onContextMenu={this.onContextMenu}
+              style={{
+                width: "100%",
+                height: this.props.lane.expanded ? 100 * verticalScale : 30,
+                backgroundColor: "#fff9",
+                borderBottom: `1px solid #0002`,
+                position: "relative",
+                ...this.props.style
+              }}
+            >
+              <div 
+                ref={this.ref} 
+                onClick={this.onClick} 
+                style={{width: "100%", height: "100%", position: "relative", marginLeft: -2}}
               >
-                <div 
-                  ref={this.ref} 
-                  onClick={this.onClick} 
-                  style={{width: "100%", height: "100%", position: "relative", marginLeft: -2}}
-                >
-                  {
-                    this.props.lane.expanded &&
-                    this.props.lane.nodes.map(n => (
-                      <AutomationNodeComponent 
-                        key={n.id} 
-                        color={this.props.color}
-                        isSelected={selectedNode?.id === n.id}
-                        lane={this.props.lane} 
-                        node={n} 
-                        onClickAway={onNodeClickAway}
-                        onMove={this.onNodeMove}
-                        onSelect={setSelectedNode}
-                        setNode={this.setNode}
-                      />
-                    ))
-                  }
-                  <svg 
-                    width="100%" 
-                    height="100%"
-                    style={{position: "absolute", top: 0, left: 0, pointerEvents: "none", zIndex: 10}} 
-                  >
-                    <polyline
-                      points={polylinePoints.join(" ")} 
-                      style={{fill: "none", stroke: this.props.color, strokeWidth}}
+                {
+                  this.props.lane.expanded &&
+                  this.props.lane.nodes.map(n => (
+                    <AutomationNodeComponent 
+                      key={n.id} 
+                      color={this.props.color}
+                      isSelected={selectedNode?.id === n.id}
+                      lane={this.props.lane} 
+                      node={n} 
+                      onClickAway={onNodeClickAway}
+                      onMove={this.onNodeMove}
+                      onSelect={setSelectedNode}
+                      setNode={this.setNode}
                     />
-                  </svg>
-                </div>
+                  ))
+                }
+                <svg 
+                  width="100%" 
+                  height="100%"
+                  style={{position: "absolute", top: 0, left: 0, pointerEvents: "none", zIndex: 10}} 
+                >
+                  <polyline
+                    points={polylinePoints.join(" ")} 
+                    style={{fill: "none", stroke: this.props.color, strokeWidth}}
+                  />
+                </svg>
               </div>
-            </AnywhereClickAnchorEl>
+            </div>
           </ResizeDetector>
-          <Menu
-            open={Boolean(this.state.anchorEl)}
-            anchorEl={this.state.anchorEl}
-            onClose={() => this.setState({anchorEl: null})}
-            onClick={e => this.setState({anchorEl: null})}
-          >
-            <MenuList className="p-0" dense style={{outline: "none"}}>
-              <MenuItem onClick={e => pasteNode(true, this.props.lane)}>
-                <MenuIcon icon={<ContentPaste />} />
-                <ListItemText>Paste at Cursor</ListItemText>
-              </MenuItem>
-              <MenuItem onClick={e => pasteNode(false, this.props.lane, getPosFromAnchorEl(this.state.anchorEl!, timelinePosOptions))}>
-                <MenuIcon icon={<ContentPaste />} />
-                <ListItemText>Paste</ListItemText>
-              </MenuItem>
-            </MenuList>
-          </Menu>
         </React.Fragment>
       )
     }

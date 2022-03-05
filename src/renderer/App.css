@@ -1,3 +1,8 @@
+@font-face {
+  font-family: "Segoe UI";
+  src: local("Segoe UI"), url("./../../assets/fonts/Segoe\ UI/Segoe\ UI.ttf") format("truetype");
+}
+
 * {
   font-family: 'Roboto', sans-serif;
 }
@@ -34,6 +39,11 @@ object {
 .center-by-flex {
   display: flex;
   justify-content: center;
+  align-items: center;
+}
+
+.center-by-flex-v {
+  display: flex;
   align-items: center;
 }
 
@@ -78,7 +88,16 @@ object {
   width: 0 !important;
 }
 
-.outline-none {
+.no-borders {
+  border: none;
+}
+
+.no-disabled:disabled {
+  opacity: 1;
+  color: #000;
+}
+
+.no-outline {
   outline: none;
 }
 
@@ -120,6 +139,14 @@ object {
 .thin-thumb::-webkit-scrollbar-thumb {
   border-radius: 20px;
   border: 4px solid transparent;
+  background-clip: content-box;
+}
+
+.thin-thumb2::-webkit-scrollbar-thumb {
+  border-radius: 20px;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 2px 4px;
   background-clip: content-box;
 }
 

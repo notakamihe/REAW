@@ -23,6 +23,7 @@ export default class KeyListener extends React.Component<IProps> {
         {wc => {
           const {
             createClipFromTrackRegion,
+            cursorPos,
             deleteClip, 
             deleteNode, 
             duplicateClip,
@@ -35,6 +36,7 @@ export default class KeyListener extends React.Component<IProps> {
             setCursorPos,
             setIsPlaying,
             setIsRecording,
+            splitClip,
             toggleMuteClip,
             trackRegion,
             tracks
@@ -65,11 +67,13 @@ export default class KeyListener extends React.Component<IProps> {
           }
 
           const onKeyDown = (e : React.KeyboardEvent<HTMLDivElement>) => {
-            if (e.key === "Delete") {
-              if (selectedClip) {
-                deleteClip(selectedClip)
-              } else if (selectedNode) {
-                deleteNode(selectedNode)
+            if (e.key === "Delete" || e.key === "Backspace") {
+              if (document.activeElement?.nodeName.toLowerCase() !== "input") {
+                if (selectedClip) {
+                  deleteClip(selectedClip)
+                } else if (selectedNode) {
+                  deleteNode(selectedNode)
+                }
               }
             } else if (e.key === "Home") {
               setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))
@@ -82,21 +86,25 @@ export default class KeyListener extends React.Component<IProps> {
                   setIsPlaying(!isPlaying)
                 }
               }
-            } else if (e.ctrlKey && e.key === "d") {
+            } else if ((e.ctrlKey || e.metaKey) && e.key === "d") {
               if (selectedClip) {
                 duplicateClip(selectedClip)
               }
-            } else if (e.ctrlKey && e.key === "m") {
+            } else if ((e.ctrlKey || e.metaKey) && e.key === "m") {
               if (selectedClip) {
                 toggleMuteClip(selectedClip)
               }
-            } else if (e.ctrlKey && e.key === "n") {
+            } else if ((e.ctrlKey || e.metaKey) && e.key === "n") {
               if (trackRegion) {
                 createClipFromTrackRegion()
               }
             } else if (e.key === "r") {
               if (document.activeElement?.nodeName.toLowerCase() !== "input") {
                 setIsRecording(true)
+              }
+            } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "s") {
+              if (selectedClip) {
+                splitClip(selectedClip, cursorPos)
               }
             }
           }

@@ -7,6 +7,7 @@ import Tooltip from "./Tooltip";
 import ConfirmationInput from "./ConfirmationInput";
 import Slider from "./Slider";
 import NumberInput from "./NumberInput";
+import OSDialog from "./OSDialog";
 
 export {
   ButtonAndIcon, 
@@ -15,6 +16,7 @@ export {
   HueInput, 
   Knob, 
   NumberInput, 
+  OSDialog,
   SelectSpinBox, 
   Slider, 
   Tooltip

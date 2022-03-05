@@ -68,16 +68,16 @@ export default class TimelinePosition {
     }
 
     if (snap && options.snapSize !== SnapGridSize.None) {
-      if (options.snapSize <= SnapGridSize.Quarter) {
+      if (options.snapSize <= SnapGridSize.Beat) {
         const interval = 1000 * options.snapSize
         frac = Math.round(frac / interval) * interval
       } else {
         let step = 1
 
-        if (options.snapSize === SnapGridSize.Whole)
-          step = Math.min(1000 * options.timeSignature.beats, 4000)
-        else if (options.snapSize === SnapGridSize.Half)
-          step = Math.min(1000 * options.timeSignature.beats, 2000)
+        if (options.snapSize === SnapGridSize.Measure)
+          step = 1000 * options.timeSignature.beats
+        else if (options.snapSize === SnapGridSize.HalfMeasure)
+          step = 1000 * Math.ceil(options.timeSignature.beats / 2)
 
         const measureFraction = options.timeSignature.beats * 1000
         let fractionFromMeasure = Math.min((this.beat - 1) * 1000 + frac, measureFraction)
@@ -152,8 +152,8 @@ export default class TimelinePosition {
   }
 
   static fromWidth(width: number, options : TimelinePositionOptions) : TimelineSpan {
-    const measureWidth = options.timeSignature.beats * options.beatWidth * options.horizontalScale
-    const beatWidth = options.beatWidth * options.horizontalScale
+    const beatWidth = options.beatWidth * options.horizontalScale * (4 / options.timeSignature.noteValue)
+    const measureWidth = options.timeSignature.beats * beatWidth
 
     const measures = Math.floor(Math.abs(width) / measureWidth)
     const beats = Math.floor((Math.abs(width) - measures * measureWidth) / beatWidth)
@@ -263,16 +263,16 @@ export default class TimelinePosition {
     }
 
     if (snap && options.snapSize !== SnapGridSize.None) {
-      if (options.snapSize <= SnapGridSize.Quarter) {
+      if (options.snapSize <= SnapGridSize.Beat) {
         const interval = 1000 * options.snapSize
         frac = Math.round(frac / interval) * interval
       } else {
         let step = 1
 
-        if (options.snapSize === SnapGridSize.Whole)
-          step = Math.min(1000 * options.timeSignature.beats, 4000)
-        else if (options.snapSize === SnapGridSize.Half)
-          step = Math.min(1000 * options.timeSignature.beats, 2000)
+        if (options.snapSize === SnapGridSize.Measure)
+          step = 1000 * options.timeSignature.beats
+        else if (options.snapSize === SnapGridSize.HalfMeasure)
+          step = 1000 * Math.ceil(options.timeSignature.beats / 2)
 
         const measureFraction = options.timeSignature.beats * 1000
         let fractionFromMeasure = Math.min((this.beat - 1) * 1000 + frac, measureFraction)
@@ -315,8 +315,18 @@ export default class TimelinePosition {
   private subtractMeasures(numMeasures : number) {
     this.measure -= numMeasures
   }
+  
+  toMargin(options : TimelinePositionOptions) {
+    const beatWidth = options.beatWidth * options.horizontalScale * (4 / options.timeSignature.noteValue)
 
-  static spanBetween(pos1 : TimelinePosition | null, pos2 : TimelinePosition | null, options: TimelinePositionOptions) : TimelineSpan {
+    const measureMargin = (this.measure - 1) * options.timeSignature.beats * beatWidth
+    const beatMargin = (this.beat - 1) * beatWidth
+    const fractionMargin = beatWidth * (this.fraction / 1000)
+    
+    return measureMargin + beatMargin + fractionMargin
+  }
+  
+  static toSpan(pos1 : TimelinePosition | null, pos2 : TimelinePosition | null, options: TimelinePositionOptions) : TimelineSpan {
     if (!pos1 || !pos2) 
       return {measures: 0, beats: 0, fraction: 0}
 
@@ -324,21 +334,6 @@ export default class TimelinePosition {
     const {measures, beats, fraction} = TimelinePosition.fromWidth(width, options)
 
     return {measures, beats, fraction}
-  }
-
-  static toWidth(pos1 : TimelinePosition | null, pos2 : TimelinePosition | null, options: TimelinePositionOptions) {
-    if (!pos1 || !pos2)
-      return 0
-    
-    return pos2.toMargin(options) - pos1.toMargin(options)
-  }
-  
-  toMargin(options : TimelinePositionOptions) {
-    const measureMargin = (this.measure-1)* options.timeSignature.beats * options.beatWidth * options.horizontalScale
-    const beatMargin = (this.beat - 1) * options.beatWidth * options.horizontalScale
-    const fractionMargin = options.beatWidth * options.horizontalScale * (this.fraction / 1000)
-    
-    return measureMargin + beatMargin + fractionMargin
   }
 
   toString() {
@@ -351,18 +346,13 @@ export default class TimelinePosition {
     
     beats += this.fraction / 1000
 
-    const totalSeconds = beats / beatsPerSecond
+    const totalSeconds = (beats / beatsPerSecond) * (4 / options.timeSignature.noteValue)
     const hours = Math.floor(totalSeconds / 3600)
     const minutes = Math.floor((totalSeconds - hours * 3600) / 60)
     const seconds = Math.floor(totalSeconds - hours * 3600 - minutes * 60)
     const milliseconds = Math.floor((totalSeconds - Math.floor(totalSeconds)) * 1000)
 
-    return {
-      hours,
-      minutes,
-      seconds,
-      milliseconds
-    }
+    return {hours, minutes, seconds, milliseconds}
   }
   
   toTimeString(options : TimelinePositionOptions) {
@@ -374,5 +364,12 @@ export default class TimelinePosition {
     const milliseconds = time.milliseconds.toString().padStart(3, '0')
 
     return `${hours}:${minutes}:${seconds}.${milliseconds}`
+  }
+
+  static toWidth(pos1 : TimelinePosition | null, pos2 : TimelinePosition | null, options: TimelinePositionOptions) {
+    if (!pos1 || !pos2)
+      return 0
+    
+    return pos2.toMargin(options) - pos1.toMargin(options)
   }
 }
