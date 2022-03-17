@@ -25,7 +25,40 @@ export default class MenuBuilder {
     return menu;
   }
 
+  buildBaseTemplate() {
+    const subMenuTrack : MenuItemConstructorOptions = {
+      label: "Track",
+      submenu: [
+        {
+          label: "Toggle Master Track",
+          accelerator: "CmdOrCtrl+Alt+M",
+          click: () => {
+            this.mainWindow.webContents.send(channels.TOGGLE_MASTER_TRACK);
+          }
+        }
+      ]
+    }
+
+    const subMenuView : MenuItemConstructorOptions = {
+      label: "View",
+      submenu: [
+        {
+          label: "Toggle Mixer",
+          accelerator: "CmdOrCtrl+M",
+          click: () => {
+            this.mainWindow.webContents.send(channels.TOGGLE_MIXER)
+          }
+        },
+        {type: "separator"},
+      ]
+    }
+
+    return {track: subMenuTrack, view: subMenuView}
+  }
+
   buildDarwinTemplate(): MenuItemConstructorOptions[] {
+    const baseTemplate = this.buildBaseTemplate();
+
     const subMenuAbout: DarwinMenuItemConstructorOptions = {
       label: 'Electron',
       submenu: [
@@ -57,6 +90,7 @@ export default class MenuBuilder {
         },
       ],
     };
+
     const subMenuEdit: DarwinMenuItemConstructorOptions = {
       label: 'Edit',
       submenu: [
@@ -73,32 +107,6 @@ export default class MenuBuilder {
         },
       ],
     };
-
-    const subMenuTrack : MenuItemConstructorOptions = {
-      label: 'Track',
-      submenu: [
-        {
-          label: "Toggle Master Track",
-          accelerator: "CmdOrCtrl+Alt+M",
-          click: () => {
-            this.mainWindow.webContents.send(channels.TOGGLE_MASTER_TRACK);
-          }
-        }
-      ]
-    }
-
-    const subMenuView : MenuItemConstructorOptions = {
-      label: "View",
-      submenu: [
-        {
-          label: "Toggle Mixer",
-          accelerator: "CmdOrCtrl+M",
-          click: () => {
-            this.mainWindow.webContents.send(channels.TOGGLE_MIXER)
-          }
-        }
-      ]
-    }
 
     const subMenuViewDev: MenuItemConstructorOptions[] = [
       {type: "separator"},
@@ -184,16 +192,20 @@ export default class MenuBuilder {
       submenu: [],
     };
 
-    if (process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true')
-      (subMenuView.submenu! as Electron.MenuItemConstructorOptions[]).push(...subMenuViewDev); 
-    else 
-      (subMenuView.submenu! as Electron.MenuItemConstructorOptions[]).push(...subMenuViewProd);
+    const subMenuView = baseTemplate.view
 
-    return [subMenuAbout, subMenuEdit, subMenuTrack, subMenuView, subMenuWindow, subMenuHelp];
+    if (process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true')
+      (subMenuView.submenu as MenuItemConstructorOptions[])!.push(...subMenuViewDev);
+    else
+      (subMenuView.submenu as MenuItemConstructorOptions[])!.push(...subMenuViewProd);
+
+    return [subMenuAbout, subMenuEdit, baseTemplate.track, subMenuView, subMenuWindow, subMenuHelp];
   }
 
   buildDefaultTemplate() {
-    const templateDefault = [
+    const baseTemplate = this.buildBaseTemplate();
+
+    const templateDefault : MenuItemConstructorOptions[] = [
       {
         label: '&File',
         submenu: [
@@ -210,12 +222,14 @@ export default class MenuBuilder {
           },
         ],
       },
+      baseTemplate.track,
       {
         label: '&View',
         submenu:
           process.env.NODE_ENV === 'development' ||
           process.env.DEBUG_PROD === 'true'
             ? [
+                ...(baseTemplate.view.submenu as MenuItemConstructorOptions[]),
                 {
                   label: '&Reload',
                   accelerator: 'Ctrl+R',
@@ -241,6 +255,7 @@ export default class MenuBuilder {
                 },
               ]
             : [
+                ...(baseTemplate.view.submenu as MenuItemConstructorOptions[]),
                 {
                   label: 'Toggle &Full Screen',
                   accelerator: 'F11',
