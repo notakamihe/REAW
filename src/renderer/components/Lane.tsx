@@ -68,7 +68,7 @@ class Lane extends React.Component<IProps, IState> {
     ipcRenderer.send(channels.OPEN_LANE_CONTEXT_MENU)
 
     ipcRenderer.on(channels.PASTE_AT_CURSOR_ON_LANE, () => {
-      this.context!.pasteClip(true, this.props.track)
+      this.context!.pasteClip(this.context!.cursorPos, this.props.track)
     })
 
     ipcRenderer.on(channels.PASTE_ON_LANE, () => {
@@ -76,7 +76,7 @@ class Lane extends React.Component<IProps, IState> {
       const rect = targetEl.getBoundingClientRect()
       const margin = e.clientX + targetEl.scrollLeft - rect.left
 
-      this.context!.pasteClip(false, this.props.track, marginToPos(margin, this.context!.timelinePosOptions))
+      this.context!.pasteClip(marginToPos(margin, this.context!.timelinePosOptions), this.props.track)
     })
 
     ipcRenderer.on(channels.CLOSE_LANE_CONTEXT_MENU, () => {

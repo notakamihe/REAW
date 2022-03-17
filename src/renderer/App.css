@@ -13,6 +13,10 @@
   --color-primary-muted: #ffecf6;
 }
 
+body {
+  overflow: hidden;
+}
+
 button {
   border: none;
 }
@@ -99,6 +103,14 @@ object {
 
 .no-outline {
   outline: none;
+}
+
+.no-shadow {
+  box-shadow: none!important;
+}
+
+.no-shadow * {
+  box-shadow: none!important;
 }
 
 .rb-spin-buttons button:nth-child(1) {

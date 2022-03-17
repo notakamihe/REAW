@@ -15,15 +15,10 @@ export function clipAtPos(to : TimelinePosition, clip : Clip, options : Timeline
   const endLimit = clip.endLimit ? TimelinePosition.fromPos(clip.endLimit) : null
   const loopEnd = clip.loopEnd ? TimelinePosition.fromPos(clip.loopEnd) : null
 
-  let width = TimelinePosition.toWidth(start, end, options)
-  let loopWidth = loopEnd ? TimelinePosition.toWidth(end, loopEnd, options) : 0
-  let startLimitWidth = startLimit ? TimelinePosition.toWidth(startLimit, start, options) : 0
-  let endLimitWidth = endLimit ? TimelinePosition.toWidth(end, endLimit, options) : 0
-
-  const widthSpan = TimelinePosition.fromWidth(width, options)
-  const loopWidthSpan = TimelinePosition.fromWidth(loopWidth, options)
-  const startToLimitSpan = TimelinePosition.fromWidth(startLimitWidth, options)
-  const endToLimitSpan = TimelinePosition.fromWidth(endLimitWidth, options)
+  const widthSpan = TimelinePosition.toSpan(start, end, options)
+  const loopWidthSpan = TimelinePosition.toSpan(end, loopEnd, options)
+  const startToLimitSpan = TimelinePosition.toSpan(startLimit, start, options)
+  const endToLimitSpan = TimelinePosition.toSpan(end, endLimit, options)
 
   to.snap(options)
   end.setPos(to.add(widthSpan.measures, widthSpan.beats, widthSpan.fraction, false, options, false))
@@ -86,6 +81,24 @@ export function getPosFromAnchorEl(anchorEl: HTMLElement, options: TimelinePosit
   return marginToPos(anchorEl.offsetLeft, options);
 }
 
+export function getTrackPanTitle(track : Track) : string {
+  const panLane = track.automationLanes.find(lane => lane.isPan)
+
+  if (panLane && panLane.nodes.length > 1)
+    return "Pan: Automated"
+  else 
+    return `Pan: ${Math.abs(track.pan).toFixed(2)}% ${track.pan > 0 ? "R" : track.pan === 0 ? "Center" : "L"}`
+}
+
+export function getTrackVolumeTitle(track : Track) : string {
+  const volumeLane = track.automationLanes.find(lane => lane.isVolume)
+
+  if (volumeLane && volumeLane.nodes.length > 1)
+    return "Volume: Automated"
+  else
+    return `Volume: ${track.volume <= -80 ? '-Infinity dB' : track.volume.toFixed(2) + ' dB'}`
+}
+
 export function marginToPos(margin : number, options: TimelinePositionOptions) : TimelinePosition {
   const {measures, beats, fraction} = TimelinePosition.fromWidth(margin, options)
   return new TimelinePosition(measures + 1, beats + 1, fraction)
@@ -112,5 +125,13 @@ export function preserveClipMargins(clip : Clip, prevOptions : TimelinePositionO
 export function preservePosMargin(pos : TimelinePosition, prevOptions : TimelinePositionOptions, options : TimelinePositionOptions) {
   const margin = pos.toMargin(prevOptions)
   const {measures, beats, fraction} = TimelinePosition.fromWidth(margin, options)
-  return new TimelinePosition(measures + 1, beats + 1, fraction)
+  let newPos = new TimelinePosition(measures + 1, beats + 1, fraction)
+
+  const maxMeasures = BASE_MAX_MEASURES / (4 / options.timeSignature.noteValue) * (4 / options.timeSignature.beats)
+  const maxPos = new TimelinePosition(maxMeasures + 1, 1, 0)
+
+  if (newPos.compare(maxPos) > 0)
+    newPos = maxPos
+
+  return newPos 
 }

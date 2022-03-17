@@ -9,7 +9,7 @@ import data from "renderer/tempData";
 import { AutomationLane } from "renderer/components/AutomationLaneTrack";
 import { ClipboardContext, ClipboardItemType } from "./ClipboardContext";
 import { v4 } from "uuid";
-import { copyClip, clipAtPos, preserveClipMargins, preservePosMargin, getBaseMasterTrack } from "renderer/utils/utils";
+import { clipAtPos, preserveClipMargins, preservePosMargin, getBaseMasterTrack } from "renderer/utils/utils";
 import { Region } from "renderer/components/RegionComponent";
 import { FXChain } from "renderer/components/FXComponent";
 import { BASE_MAX_MEASURES } from "renderer/utils/utils";
@@ -22,9 +22,11 @@ interface WorkstationFile {
   isPlaying : boolean,
   isRecording : boolean,
   metronome : boolean,
+  mixerHeight : number,
   selectedClip : Clip | null,
   selectedNode : AutomationNode | null,
   showMaster : boolean,
+  showMixer : boolean,
   snapGridSize : SnapGridSize,
   songRegion : Region | null,
   trackRegion : {region: Region, track: Track} | null,
@@ -45,8 +47,8 @@ export interface WorkstationContextType extends WorkstationFile {
   numMeasures : number
   onClipClickAway : (clip : Clip | null) => void
   onNodeClickAway : (node : AutomationNode | null) => void
-  pasteClip : (atCursor : boolean, track? : Track, pos? : TimelinePosition) => void
-  pasteNode : (atCursor : boolean, lane? : AutomationLane, pos? : TimelinePosition) => void,
+  pasteClip : (pos : TimelinePosition, track? : Track) => void
+  pasteNode : (pos : TimelinePosition, lane? : AutomationLane) => void,
   setAutoSnap : React.Dispatch<React.SetStateAction<boolean>>
   setCancelClickAway : (cancel : boolean) => void
   setCursorPos : React.Dispatch<React.SetStateAction<TimelinePosition>>
@@ -56,10 +58,12 @@ export interface WorkstationContextType extends WorkstationFile {
   setIsPlaying : React.Dispatch<React.SetStateAction<boolean>>
   setIsRecording : React.Dispatch<React.SetStateAction<boolean>>
   setMetronome : React.Dispatch<React.SetStateAction<boolean>>
+  setMixerHeight : React.Dispatch<React.SetStateAction<number>>
   setNumMeasures : React.Dispatch<React.SetStateAction<number>>
   setSelectedClip : (clip : Clip | null) => void
   setSelectedNode : (newState: AutomationNode | null) => void
   setShowMaster : React.Dispatch<React.SetStateAction<boolean>>
+  setShowMixer : React.Dispatch<React.SetStateAction<boolean>>
   setSnapGridSize : React.Dispatch<React.SetStateAction<SnapGridSize>>
   setSongRegion : React.Dispatch<React.SetStateAction<Region | null>>
   setTempo : React.Dispatch<React.SetStateAction<number>>
@@ -87,8 +91,10 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [isRecording, setIsRecording] = React.useState(false);
   const [metronome, setMetronome] = React.useState(false);
+  const [mixerHeight, setMixerHeight] = React.useState(220);
   const [numMeasures, setNumMeasures] = React.useState(100);
   const [showMaster, setShowMaster] = React.useState(false);
+  const [showMixer, setShowMixer] = React.useState(false);
   const [songRegion, setSongRegion] = React.useState<Region | null>(null)
   const [selectedClip, setSelectedClip, onClipClickAway] = useClickAwayState<Clip>(null)
   const [selectedNode, setSelectedNode, onNodeClickAway, setCancelClickAway] = useClickAwayState<AutomationNode>(null)
@@ -161,10 +167,10 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   }, [timelinePosOptions])
 
   React.useEffect(() => {
-    const baseNumMeasures = Math.floor(100 / (4 / timeSignature.noteValue) * (4 / timeSignature.beats));
+    const baseNumMeasures = Math.ceil(100 / (4 / timeSignature.noteValue) * (4 / timeSignature.beats));
     const furthestPos = getFurthestPos();
     const measures = baseNumMeasures * Math.ceil((furthestPos.measure - 1) / (baseNumMeasures * 0.94));
-    const maxMeasures = Math.floor(BASE_MAX_MEASURES / (4 / timeSignature.noteValue) * (4 / timeSignature.beats));
+    const maxMeasures = Math.ceil(BASE_MAX_MEASURES / (4 / timeSignature.noteValue) * (4 / timeSignature.beats));
     
     setNumMeasures(Math.min(measures, maxMeasures));
   }, [tracks, cursorPos, songRegion, trackRegion, timeSignature])
@@ -194,6 +200,7 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         }
 
         setTrack({...trackRegion.track, clips: [...trackRegion.track.clips, clip]})
+        setTrackRegion(null)
       }
     }
   }
@@ -264,25 +271,18 @@ export const WorkstationProvider: React.FC = ({ children }) => {
     return furthestPos;
   }
 
-  const pasteClip = (atCursor : boolean, track? : Track, pos? : TimelinePosition) => {
+  const pasteClip = (pos : TimelinePosition, track? : Track) => {
     navigator.clipboard.readText().then(text => {
       if (!text) {
         if (clipboardItem?.item && clipboardItem?.type === ClipboardItemType.Clip) {
           const itemClip = clipboardItem?.item as Clip;
-          let newClip = copyClip(itemClip);
-          newClip.id = v4();
       
           if (track === undefined) {
             track = tracks.find(t => t.id === clipboardItem?.container);
           }
       
           if (track) {
-            if (atCursor) {
-              newClip = clipAtPos(cursorPos, newClip, timelinePosOptions);
-            } else if (pos) {
-              newClip = clipAtPos(pos, newClip, timelinePosOptions);
-            }
-      
+            const newClip = {...clipAtPos(pos, itemClip, timelinePosOptions), id: v4()};
             setTrack({...track, clips: [...track.clips, newClip]});
           }
         }
@@ -290,7 +290,7 @@ export const WorkstationProvider: React.FC = ({ children }) => {
     })
   }
 
-  const pasteNode = (atCursor : boolean, lane? : AutomationLane, pos? : TimelinePosition) => {
+  const pasteNode = (pos : TimelinePosition, lane? : AutomationLane) => {
     navigator.clipboard.readText().then(text => {
       if (!text) {
         if (clipboardItem?.item && clipboardItem?.type === ClipboardItemType.Node) {
@@ -306,14 +306,8 @@ export const WorkstationProvider: React.FC = ({ children }) => {
           }
       
           if (lane) {
-            if (atCursor) {
-              newNode.pos.setPos(cursorPos);
-            } else if (pos) {
-              newNode.pos.setPos(pos);
-            }
-      
+            newNode.pos.setPos(pos);
             newNode.pos.snap(timelinePosOptions);
-      
             addNodeToLane(track!, lane, newNode);
           }
         }
@@ -488,6 +482,7 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         isPlaying,
         isRecording,
         metronome,
+        mixerHeight,
         numMeasures,
         onClipClickAway,
         onNodeClickAway,
@@ -504,10 +499,12 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         setIsPlaying,
         setIsRecording,
         setMetronome,
+        setMixerHeight,
         setNumMeasures,
         setSelectedClip,
         setSelectedNode,
         setShowMaster,
+        setShowMixer,
         setSnapGridSize,
         setSongRegion,
         setTempo,
@@ -518,6 +515,7 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         setTracks,
         setVerticalScale,
         showMaster,
+        showMixer,
         snapGridSize,
         splitClip, 
         songRegion,

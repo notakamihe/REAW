@@ -135,7 +135,7 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
     ipcRenderer.send(channels.OPEN_LANE_CONTEXT_MENU)
 
     ipcRenderer.on(channels.PASTE_AT_CURSOR_ON_LANE, () => {
-      this.context!.pasteNode(true, this.props.lane)
+      this.context!.pasteNode(this.context!.cursorPos, this.props.lane)
     })
 
     ipcRenderer.on(channels.PASTE_ON_LANE, () => {
@@ -143,7 +143,7 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
       const rect = targetEl.getBoundingClientRect()
       const margin = e.clientX + targetEl.scrollLeft - rect.left
 
-      this.context!.pasteNode(false, this.props.lane, marginToPos(margin, this.context!.timelinePosOptions))
+      this.context!.pasteNode(marginToPos(margin, this.context!.timelinePosOptions), this.props.lane)
     })
 
     ipcRenderer.on(channels.CLOSE_LANE_CONTEXT_MENU, () => {

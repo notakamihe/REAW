@@ -8,6 +8,7 @@ import ConfirmationInput from "./ConfirmationInput";
 import Slider from "./Slider";
 import NumberInput from "./NumberInput";
 import OSDialog from "./OSDialog";
+import VolumeMeter from "./VolumeMeter";
 
 export {
   ButtonAndIcon, 
@@ -19,5 +20,6 @@ export {
   OSDialog,
   SelectSpinBox, 
   Slider, 
-  Tooltip
+  Tooltip,
+  VolumeMeter
 };

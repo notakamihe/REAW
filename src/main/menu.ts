@@ -1,4 +1,5 @@
 import {app, Menu, shell, BrowserWindow, MenuItemConstructorOptions} from 'electron';
+import channels from "./../renderer/utils/channels";
 
 interface DarwinMenuItemConstructorOptions extends MenuItemConstructorOptions {
   selector?: string;
@@ -73,14 +74,27 @@ export default class MenuBuilder {
       ],
     };
 
-    const subMenuView : MenuItemConstructorOptions = {
-      label: "View",
+    const subMenuTrack : MenuItemConstructorOptions = {
+      label: 'Track',
       submenu: [
         {
           label: "Toggle Master Track",
           accelerator: "CmdOrCtrl+Alt+M",
           click: () => {
-            this.mainWindow.webContents.send("toggle-master-track");
+            this.mainWindow.webContents.send(channels.TOGGLE_MASTER_TRACK);
+          }
+        }
+      ]
+    }
+
+    const subMenuView : MenuItemConstructorOptions = {
+      label: "View",
+      submenu: [
+        {
+          label: "Toggle Mixer",
+          accelerator: "CmdOrCtrl+M",
+          click: () => {
+            this.mainWindow.webContents.send(channels.TOGGLE_MIXER)
           }
         }
       ]
@@ -157,7 +171,6 @@ export default class MenuBuilder {
       submenu: [
         {
           label: 'Minimize',
-          accelerator: 'Command+M',
           selector: 'performMiniaturize:',
         },
         { label: 'Close', accelerator: 'Command+W', selector: 'performClose:' },
@@ -176,7 +189,7 @@ export default class MenuBuilder {
     else 
       (subMenuView.submenu! as Electron.MenuItemConstructorOptions[]).push(...subMenuViewProd);
 
-    return [subMenuAbout, subMenuEdit, subMenuView, subMenuWindow, subMenuHelp];
+    return [subMenuAbout, subMenuEdit, subMenuTrack, subMenuView, subMenuWindow, subMenuHelp];
   }
 
   buildDefaultTemplate() {

@@ -1,5 +1,5 @@
 import React from "react"
-import {Cursor, Header, Holdable, KeyListener, Lane, RegionComponent, TimelineComponent, TrackComponent} from "renderer/components"
+import {Cursor, Header, Holdable, KeyListener, Lane, Mixer, RegionComponent, ResizablePane, TimelineComponent, TrackComponent} from "renderer/components"
 import { Track } from "renderer/components/TrackComponent"
 import {ScrollSync, ScrollSyncPane} from "react-scroll-sync"
 import IconButton from "@mui/material/IconButton"
@@ -13,6 +13,7 @@ import vExpand from "../../../assets/svg/v-expand.svg"
 import vShrink from "../../../assets/svg/v-shrink.svg"
 import cursor from "../../../assets/svg/cursor.svg"
 import { TimeSignature } from "renderer/types/types"
+import channels from "renderer/utils/channels"
 
 function ZoomButton(props : {vertical: boolean, decrease: boolean, onZoom: () => void}) {
   const getIcon = () => {
@@ -87,7 +88,10 @@ export default class Workstation extends React.Component<IProps, IState> {
   }
 
   componentDidMount() {
-    ipcRenderer.on("toggle-master-track", () => this.context!.setShowMaster(prev => !prev))
+    ipcRenderer.removeAllListeners()
+    
+    ipcRenderer.on(channels.TOGGLE_MASTER_TRACK, () => this.context!.setShowMaster(prev => !prev))
+    ipcRenderer.on(channels.TOGGLE_MIXER, () => this.context!.setShowMixer(prev => !prev))
 
     let ticking = false
     let lastScrollLeft = 0
@@ -175,7 +179,7 @@ export default class Workstation extends React.Component<IProps, IState> {
       if (e.shiftKey) {
         this.zoom(false, e.deltaY < 0 ? 0.2406 * hScale : -0.2406 * hScale)
       } else {
-        this.zoom(true, e.deltaY < 0 ? -0.1 : 0.1)
+        this.zoom(true, e.deltaY > 0 ? -0.1 : 0.1)
       }
     }
   }
@@ -206,11 +210,13 @@ export default class Workstation extends React.Component<IProps, IState> {
     const {
       cursorPos, 
       horizontalScale, 
+      mixerHeight,
       numMeasures,
-      setSongRegion, 
+      setMixerHeight,
+      setSongRegion,
+      showMixer, 
       songRegion, 
       isLooping,
-      setTrack, 
       timelinePosOptions,
       timeSignature,
       trackLanesWindowHeight, 
@@ -228,7 +234,7 @@ export default class Workstation extends React.Component<IProps, IState> {
       <KeyListener>
         <div className="m-0 p-0" style={{width: "100vw", height: "100vh", position: "relative", outline: "none"}}>
           <Header />
-          <div style={{flex: 1, height: "calc(100vh - 70px)", display: "flex"}}>
+          <div style={{flex: 1, height: "calc(100vh - 70px)", display: "flex", flexDirection: "column"}}>
             <ScrollSync>
               <div onWheel={this.onWheel} style={{flex:1,backgroundColor:"#333",display:"flex",overflow:"hidden"}}>
                 <ScrollSyncPane>
@@ -314,6 +320,18 @@ export default class Workstation extends React.Component<IProps, IState> {
                 </ScrollSyncPane>
               </div>
             </ScrollSync>
+            {
+              showMixer &&
+              <ResizablePane 
+                maxHeight={450} 
+                minHeight={220} 
+                onResizeStop={(e, data) => setMixerHeight(data.height!)}
+                resizeDirection="top"
+                size={{height: mixerHeight}}
+              >
+                <Mixer />
+              </ResizablePane>
+            }
           </div>
         </div>
       </KeyListener>

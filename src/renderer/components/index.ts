@@ -10,8 +10,10 @@ import Header from "./Header";
 import Holdable from "./Holdable";
 import KeyListener from "./KeyListener";
 import Lane from "./Lane";
+import Mixer from "./Mixer";
 import MouseDownAwayListener from "./MouseDownAwayListener";
 import RegionComponent from "./RegionComponent";
+import ResizablePane from "./ResizablePane";
 import TimelineComponent from "./TimelineComponent";
 import TrackComponent from "./TrackComponent";
 
@@ -28,8 +30,10 @@ export {
   Holdable, 
   KeyListener,
   Lane,
+  Mixer,
   MouseDownAwayListener,
   RegionComponent,
+  ResizablePane,
   TimelineComponent, 
   TrackComponent 
 }

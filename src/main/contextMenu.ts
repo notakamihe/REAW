@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from "electron";
 import channels from "./../renderer/utils/channels"
 import { Clip } from "./../renderer/components/ClipComponent";
+import { AutomationLane } from "renderer/components/AutomationLaneTrack";
   
 export default class ContextMenuBuilder {
   mainWindow : BrowserWindow;
@@ -10,10 +11,31 @@ export default class ContextMenuBuilder {
   }
 
   buildContextMenus() {
+    ipcMain.on(channels.OPEN_ADD_AUTOMATION_CONTEXT_MENU, (e, lanes : AutomationLane[]) => {
+      Menu.buildFromTemplate(this.buildAddAutomationContextMenu(lanes)).popup({
+        window: this.mainWindow,
+        callback: () => this.mainWindow.webContents.send(channels.CLOSE_ADD_AUTOMATION_CONTEXT_MENU)
+      });
+    })
+      
+    ipcMain.on(channels.OPEN_AUTOMATION_TRACK_CONTEXT_MENU, (e, lanes : AutomationLane[]) => {
+      Menu.buildFromTemplate(this.buildAutomationTrackContextMenu(lanes)).popup({
+        window: this.mainWindow,
+        callback: () => this.mainWindow.webContents.send(channels.CLOSE_AUTOMATION_TRACK_CONTEXT_MENU)
+      });
+    })
+
     ipcMain.on(channels.OPEN_CLIP_CONTEXT_MENU, (e, clip : Clip) => {
       Menu.buildFromTemplate(this.buildClipContextMenu(clip)).popup({
         window: this.mainWindow,
         callback: () => this.mainWindow.webContents.send(channels.CLOSE_CLIP_CONTEXT_MENU)
+      });
+    })
+
+    ipcMain.on(channels.OPEN_FX_CHAIN_CONTEXT_MENU, (e, isChainChanged : boolean) => {
+      Menu.buildFromTemplate(this.buildFxChainContextMenu(isChainChanged)).popup({
+        window: this.mainWindow,
+        callback: () => this.mainWindow.webContents.send(channels.CLOSE_FX_CHAIN_CONTEXT_MENU)
       });
     })
    
@@ -44,6 +66,56 @@ export default class ContextMenuBuilder {
         callback: () => this.mainWindow.webContents.send(channels.CLOSE_TRACK_REGION_CONTEXT_MENU)
       });
     })
+  }
+
+  buildAddAutomationContextMenu(lanes : AutomationLane[]) : MenuItemConstructorOptions[] {
+    const menu : MenuItemConstructorOptions[] = [
+      ...lanes.map(l => {
+        return {
+          enabled: !l.show,
+          label: l.label,
+          click: () => {
+            this.mainWindow.webContents.send(channels.ADD_AUTOMATION, l);
+          }
+        }
+      }),
+    ]
+
+    return menu;
+  }
+
+  buildAutomationTrackContextMenu(lanes : AutomationLane[]) : MenuItemConstructorOptions[] {
+    const menu : MenuItemConstructorOptions[] = [
+      ...lanes.map(l => {
+        return {
+          label: l.label,
+          click: () => {
+            this.mainWindow.webContents.send(channels.SELECT_AUTOMATION, l);
+          }
+        }
+      }),
+      {type: "separator"},
+      {
+        label: "Hide Automation",
+        click: () => {
+          this.mainWindow.webContents.send(channels.HIDE_AUTOMATION);
+        }
+      },
+      {
+        label: "Clear Automation",
+        click: () => {
+          this.mainWindow.webContents.send(channels.CLEAR_AUTOMATION);
+        }
+      },
+      {
+        label: "Remove Automation",
+        click: () => {
+          this.mainWindow.webContents.send(channels.REMOVE_AUTOMATION);
+        }
+      }
+    ]
+
+    return menu
   }
 
   buildClipContextMenu(clip : Clip) {
@@ -84,7 +156,7 @@ export default class ContextMenuBuilder {
       {type: "separator"},
       {
         label: clip.muted ? "Unmute" : "Mute",
-        accelerator: "CmdOrCtrl+M",
+        accelerator: "CmdOrCtrl+Shift+M",
         registerAccelerator: false,
         click: () => {
           this.mainWindow.webContents.send(channels.MUTE_CLIP);
@@ -92,6 +164,39 @@ export default class ContextMenuBuilder {
       }
     ]
 
+    return menu;
+  }
+
+  buildFxChainContextMenu(isChainChanged : boolean) : MenuItemConstructorOptions[] {
+    const menu : MenuItemConstructorOptions[] = [
+      {
+        label: "Save as New FX Chain",
+        click: () => {
+          this.mainWindow.webContents.send(channels.SAVE_FX_CHAIN_AS_NEW);
+        }
+      },
+      {type: "separator"},
+      {
+        label: "Rename",
+        click: () => {
+          this.mainWindow.webContents.send(channels.RENAME_FX_CHAIN);
+        }
+      }, 
+      {
+        enabled: isChainChanged,
+        label: "Reset",
+        click: () => {
+          this.mainWindow.webContents.send(channels.RESET_FX_CHAIN);
+        }
+      },
+      {
+        label: "Remove",
+        click: () => {
+          this.mainWindow.webContents.send(channels.REMOVE_FX_CHAIN);
+        }
+      }
+    ]
+  
     return menu;
   }
 

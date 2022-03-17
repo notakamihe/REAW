@@ -14,19 +14,21 @@ interface IState {
   left : number
   width : number
   height : number
+  tooltipWidth : number
+  tooltipHeight : number
 }
 
 export default class Tooltip extends React.Component<IProps, IState> {
-  ref : React.RefObject<HTMLElement>
+  ref : React.MutableRefObject<HTMLElement>
   private tooltipRef : React.RefObject<HTMLDivElement>
 
   constructor(props : IProps) {
     super(props)
 
-    this.ref = React.createRef()
+    this.ref = React.createRef() as React.MutableRefObject<HTMLElement>
     this.tooltipRef = React.createRef()
 
-    this.state = {top: 0, left: 0, width: 0, height: 0}
+    this.state = {top: 0, left: 0, width: 0, height: 0, tooltipWidth: 0, tooltipHeight: 0}
   }
 
   componentDidUpdate() {
@@ -36,7 +38,7 @@ export default class Tooltip extends React.Component<IProps, IState> {
       const rect = el.getBoundingClientRect()
 
       if (rect.top !== this.state.top || rect.left !== this.state.left) {
-        this.setState({top: rect.top, left: rect.left})
+        this.setState({top: rect.top, left: rect.left, width: el.clientWidth, height: el.clientHeight})
       }
     }
 
@@ -45,32 +47,32 @@ export default class Tooltip extends React.Component<IProps, IState> {
     if (tooltipEl) {
       const rect = tooltipEl.getBoundingClientRect()
 
-      if (rect.width !== this.state.width || rect.height !== this.state.height) {
-        this.setState({width: rect.width, height: rect.height})
+      if (rect.width !== this.state.tooltipWidth || rect.height !== this.state.tooltipHeight) {
+        this.setState({tooltipWidth: rect.width, tooltipHeight: rect.height})
       }
     }
   }
 
   getLeftMargin() {
     if (this.props.placement?.horizontal === "left") {
-      return -this.state.width - 10
+      return -this.state.tooltipWidth - 10
     } else if (this.props.placement?.horizontal === "right") {
       return 10
     } else {
-      return -this.state.width / 2
+      return -this.state.tooltipWidth / 2 + (this.ref.current?.clientWidth ?? 0) / 2
     }
   }
 
   getTopMargin() {
     if (this.props.placement?.vertical === "top") {
-      return -this.state.height - 10
+      return -this.state.tooltipHeight - 10
     } else if (this.props.placement?.vertical === "bottom") {
       return 10
     } else {
-      return -this.state.height / 2
+      return -this.state.tooltipHeight / 2 + (this.ref.current?.clientHeight ?? 0) / 2
     }
   }
-
+  
   render() {
     const topMargin = this.getTopMargin()
     const leftMargin = this.getLeftMargin()
@@ -82,7 +84,7 @@ export default class Tooltip extends React.Component<IProps, IState> {
           this.props.open && Boolean(this.props.title) &&
           ReactDOM.createPortal(
             <div 
-              className="p-1 rounded"
+              className="p-1 rounded disable-highlighting"
               ref={this.tooltipRef}
               style={{
                 backgroundColor: "#000a", 

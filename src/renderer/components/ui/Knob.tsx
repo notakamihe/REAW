@@ -251,7 +251,10 @@ export default class Knob extends React.Component<IProps, IState> {
   render() {
     return (
       <div style={this.props.style?.container} title={this.props.title}>
-        <div style={{cursor: "ns-resize", pointerEvents: this.props.disabled ? "none" : "auto"}}>
+        <div 
+          onDragStart={e => e.preventDefault()}
+          style={{cursor: "ns-resize", pointerEvents: this.props.disabled ? "none" : "auto"}}
+        >
           <div
             ref={this.ref}
             onMouseDown={() => this.setState({isDragging: true})}
@@ -268,7 +271,12 @@ export default class Knob extends React.Component<IProps, IState> {
               ...this.props.style?.knob
             }}
           >
-            <Tooltip title={this.state.value} placement="top" open={this.state.isDragging || this.state.isScrolling}>
+            <Tooltip 
+              className="disable-highlighting"
+              open={this.state.isDragging || this.state.isScrolling}
+              placement="top" 
+              title={this.state.value} 
+            >
               <div style={{width: "100%", height: "100%", position: "relative"}}>
                 <canvas 
                   width={this.props.size * 1.4}

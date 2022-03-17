@@ -48,6 +48,7 @@ interface IProps {
   showArrow : boolean
   showButtons : boolean
   style? : SelectSpinBoxStyles
+  title? : string
   value: string | number
 }
 
@@ -130,6 +131,7 @@ export default class SelectSpinBox extends React.Component<IProps, IState> {
           onMouseOver={() => this.setState({hovering: true})}
           onMouseLeave={() => this.setState({hovering: false})}
           style={style.container}
+          title={this.props.title}
         >
           {
             (this.props.icon || this.props.actionIcon) &&

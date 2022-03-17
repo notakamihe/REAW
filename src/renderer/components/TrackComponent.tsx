@@ -3,15 +3,15 @@ import { WorkstationContext } from "renderer/context/WorkstationContext"
 import { ID } from "renderer/types/types"
 import { Clip } from "./ClipComponent"
 import { EditableDisplay, Knob, HueInput, OSDialog } from "./ui"
-import { Button, ButtonGroup, IconButton, Divider, Dialog, DialogTitle, DialogContent } from "@mui/material"
-import { Add, Check, Close, Delete, FiberManualRecord } from "@mui/icons-material"
+import { Button, ButtonGroup, IconButton, DialogContent } from "@mui/material"
+import { Add, Check, FiberManualRecord } from "@mui/icons-material"
 import {v4 as uuidv4} from "uuid"
 import styled from "styled-components"
 import { AutomationLaneTrack, FXComponent } from "."
 import { AutomationLane } from "./AutomationLaneTrack"
 import { getLaneColor, getRandomTrackColor, hslToHex, hueFromHex, shadeColor } from "renderer/utils/helpers"
 import { FXChain } from "./FXComponent"
-import { ipcRenderer } from "renderer/utils/utils"
+import { getTrackPanTitle, getTrackVolumeTitle, ipcRenderer } from "renderer/utils/utils"
 import channels from "renderer/utils/channels"
 
 export interface Effect {
@@ -62,6 +62,7 @@ const TrackButton = styled(Button)`
   margin-right: 4px;
   box-shadow: 0 1px 2px 1px #0008;
   opacity: ${(props : TrackButtonProps) => props.opacity || "1"};
+  font-weight: bold;
 
   &:hover {
     border: none!important;
@@ -99,39 +100,70 @@ class TrackComponent extends React.Component<IProps, IState> {
     }
 
     this.addAutomationLane = this.addAutomationLane.bind(this)
-    this.addEffect = this.addEffect.bind(this)
     this.changeFXChain = this.changeFXChain.bind(this)
     this.onChangeHueDialogSubmit = this.onChangeHueDialogSubmit.bind(this)
     this.onContextMenu = this.onContextMenu.bind(this)
     this.onPanKnobChange = this.onPanKnobChange.bind(this)
     this.onVolumeKnobChange = this.onVolumeKnobChange.bind(this)
-    this.removeEffect = this.removeEffect.bind(this)
     this.setEffects = this.setEffects.bind(this)
-    this.toggleEffectEnabled = this.toggleEffectEnabled.bind(this)
   }
 
   componentDidMount() {
     this.setState({name: this.props.track.name})
   }
 
-  addAutomationLane() {
-    const newAutomationLanes = this.props.track.automationLanes.slice()
-    const lane = newAutomationLanes.find(l => !l.show)
+  componentDidUpdate(prevProps : IProps) {
+    if (prevProps.track.name !== this.props.track.name) {
+      this.setState({name: this.props.track.name})
+    }
+    
+    if (prevProps.track.volume !== this.props.track.volume) {
+      const automationLanes = this.props.track.automationLanes.slice()
+      const volumeLane = automationLanes.find(l => l.isVolume)
+      
+      if (volumeLane) {
+        if (volumeLane.nodes.length === 1) {
+          volumeLane.nodes[0].value = this.props.track.volume
+        }
+      }
+      
+      this.context!.setTrack({...this.props.track, automationLanes})
+    }
 
-    if (lane) {
-      lane.show = true
-      this.context!.setTrack({...this.props.track, automationLanes: newAutomationLanes})
+    if (prevProps.track.pan !== this.props.track.pan) {
+      const automationLanes = this.props.track.automationLanes.slice()
+      const panLane = automationLanes.find(l => l.isPan)
+
+      if (panLane) {
+        if (panLane.nodes.length === 1) {
+          panLane.nodes[0].value = this.props.track.pan
+        }
+      }
+
+      this.context!.setTrack({...this.props.track, automationLanes})
     }
   }
 
-  addEffect() {
-    const fx = {...this.props.track.fx}
-    const newEffect : Effect = {id: uuidv4(), name: `Effect ${fx.effects.length + 1}`, enabled: true}
+  addAutomationLane() {
+    const automationLanes = this.props.track.automationLanes.slice()
 
-    fx.effects.push(newEffect)
-
-    this.context!.setTrack({...this.props.track, fx})
-    this.setState({effectId: newEffect.id})
+    if (automationLanes.find(l => !l.show)) {
+      ipcRenderer.send(channels.OPEN_ADD_AUTOMATION_CONTEXT_MENU, this.props.track.automationLanes)
+  
+      ipcRenderer.on(channels.ADD_AUTOMATION, (lane : AutomationLane) => {
+        const laneIdx = automationLanes.findIndex(l => l.id === lane.id)
+        
+        if (laneIdx > -1) {
+          automationLanes[laneIdx].show = true
+          this.context!.setTrack({...this.props.track, automationLanes})
+        }
+      })
+  
+      ipcRenderer.on(channels.CLOSE_ADD_AUTOMATION_CONTEXT_MENU, () => {
+        ipcRenderer.removeAllListeners(channels.ADD_AUTOMATION)
+        ipcRenderer.removeAllListeners(channels.CLOSE_ADD_AUTOMATION_CONTEXT_MENU)
+      })
+    }
   }
 
   changeFXChain(fxChain : FXChain | null) {
@@ -165,30 +197,6 @@ class TrackComponent extends React.Component<IProps, IState> {
     newTracks.splice(trackIndex, 1)
 
     this.context!.setTracks(newTracks)
-  }
-
-  getPanTitle() {
-    const panLane = this.props.track.automationLanes.find(l => l.isPan)
-
-    if (panLane) {
-      if (panLane.nodes.length > 1) {
-        return "Pan: Automated"
-      }
-    }
-
-    return `Pan: ${Math.abs(this.props.track.pan).toFixed(2)}% ${this.props.track.pan > 0 ? "R" : this.props.track.pan === 0 ? "Center" : "L"}`
-  }
-
-  getVolumeTitle() {
-    const volumeLane = this.props.track.automationLanes.find(l => l.isVolume)
-
-    if (volumeLane) {
-      if (volumeLane.nodes.length > 1) {
-        return "Volume: Automated"
-      }
-    }
-
-    return `Volume: ${this.props.track.volume <= -80 ? '-Infinity dB' : this.props.track.volume.toFixed(2) + ' dB'}`
   }
 
   onChangeHueDialogSubmit = (e : React.FormEvent<HTMLFormElement>) => {
@@ -225,72 +233,25 @@ class TrackComponent extends React.Component<IProps, IState> {
   }
 
   onPanKnobChange(value : number) {
-    const automationLanes = this.props.track.automationLanes.slice()
-    const panLane = automationLanes.find(l => l.isPan)
-
-    if (panLane) {
-      if (panLane.nodes.length === 1) {
-        panLane.nodes[0].value = value
-      }
-    }
-
-    this.context!.setTrack({...this.props.track, automationLanes, pan: value})
+    this.context!.setTrack({...this.props.track, pan: value})
   }
   
   onVolumeKnobChange(value : number) {
-    const automationLanes = this.props.track.automationLanes.slice()
-    const volumeLane = automationLanes.find(l => l.isVolume)
-    
-    if (volumeLane) {
-      if (volumeLane.nodes.length === 1) {
-        volumeLane.nodes[0].value = value
-      }
-    }
-    
-    this.context!.setTrack({...this.props.track, automationLanes, volume: value})
-  }
-
-  removeEffect(effect : Effect) {
-    const fx = {...this.props.track.fx}
-    const idx = fx.effects.findIndex(e => e.id === effect.id)
-    const effects = fx.effects.filter(e => e.id !== effect.id)
-    
-    fx.effects = effects
-    
-    if (idx > -1) {
-      this.context!.setTrack({...this.props.track, fx})
-      
-      if (effects.length === 0) {
-        this.setState({effectId: null})
-      } else {
-        this.setState({effectId: idx === 0 ? effects[idx].id : effects[idx - 1].id})
-      }
-    }
+    this.context!.setTrack({...this.props.track, volume: value})
   }
   
   setEffects(effects : Effect[]) {
     this.context!.setTrack({...this.props.track, fx: {...this.props.track.fx, effects: effects.slice()}})
-    
-    if (effects.length > 0) [
-      this.setState({effectId: effects[0].id})
-    ]
   }
   
   setTrackName() {
     this.context!.setTrack({...this.props.track, name: this.state.name})
   }
-
-  toggleEffectEnabled(effect : Effect) {
-    const effects = this.props.track.fx.effects.slice().map(e => e.id === effect.id ? {...e, enabled: !e.enabled} : e)
-    this.context!.setTrack({...this.props.track, fx: {...this.props.track.fx, effects}})
-  }
   
   render() {
     const {showMaster, setTrack, tracks, verticalScale} = this.context!
     const masterTrack = tracks.find(t => t.isMaster)
-    const verticalFlex = verticalScale > 0.77 
-    const volumeTitle = this.getVolumeTitle()
-    const panTitle = this.getPanTitle()
+    const verticalFlex = verticalScale > 0.77
 
     if (showMaster || !this.props.track.isMaster) {
       return (
@@ -361,22 +322,21 @@ class TrackComponent extends React.Component<IProps, IState> {
                 compact={verticalScale < 1.1} 
                 effectId={this.state.effectId}
                 fx={this.props.track.fx}
-                onAddEffect={this.addEffect}
-                onChangeEffect={effect => this.setState({effectId: effect.id})}
+                onChangeEffect={effect => this.setState({effectId: effect?.id || null})}
                 onChangeFXChain={this.changeFXChain}
-                onRemoveEffect={this.removeEffect}
-                onToggleEffectEnabled={this.toggleEffectEnabled}
                 onSetEffects={this.setEffects}
+                style={{container: {boxShadow: "0 1px 2px 1px #0002"}}}
               />
               <div className="d-flex align-items-center mt-1">
                 <div style={{flex: 1, marginRight: 4}}>
                   <ButtonGroup>
                     <TrackButton 
-                      bgcolor="#f00" 
+                      bgcolor="#fff" 
                       className={(masterTrack?.mute && !this.props.track.isMaster) ? "pe-none" : ""}
                       $enabled={masterTrack?.mute || this.props.track.mute}
                       onClick={() => setTrack({...this.props.track, mute: !this.props.track.mute})}
                       opacity={(masterTrack?.mute && !this.props.track.isMaster) ? "0.5" : "1"}
+                      style={{color: masterTrack?.mute || this.props.track.mute ? "#f00" : "#000"}}
                       title={masterTrack?.mute || this.props.track.mute ? "Unmute" : "Mute"}
                     >
                       M
@@ -384,9 +344,10 @@ class TrackComponent extends React.Component<IProps, IState> {
                     {
                       !this.props.track.isMaster &&
                       <TrackButton 
-                        bgcolor="#cc0" 
+                        bgcolor="#fff" 
                         $enabled={this.props.track.solo}
                         onClick={() => setTrack({...this.props.track, solo: !this.props.track.solo})}
+                        style={{color: this.props.track.solo ? "#a80" : "#000"}}
                         title="Toggle Solo"
                       >
                         S
@@ -395,7 +356,7 @@ class TrackComponent extends React.Component<IProps, IState> {
                     {
                       !this.props.track.isMaster &&
                       <TrackButton 
-                        bgcolor="#e6bebe" 
+                        bgcolor="#fff" 
                         $enabled={this.props.track.armed}
                         onClick={() => setTrack({...this.props.track, armed: !this.props.track.armed})}
                         title={this.props.track.armed ? "Disarm" : "Arm"}
@@ -406,9 +367,10 @@ class TrackComponent extends React.Component<IProps, IState> {
                       </TrackButton>
                     }
                     <TrackButton 
-                      bgcolor="var(--color-primary)" 
+                      bgcolor="#fff" 
                       $enabled={this.props.track.automationEnabled}
                       onClick={() => setTrack({...this.props.track, automationEnabled: !this.props.track.automationEnabled})}
+                      style={{color: "#000a"}}
                       title={this.props.track.automationEnabled ? "Hide Automation" : "Show Automation"}
                     >
                       A
@@ -429,7 +391,7 @@ class TrackComponent extends React.Component<IProps, IState> {
                     origin={0}
                     size={20} 
                     style={{knob: {backgroundColor: "#fff9", boxShadow: "0 1px 2px 1px #0008"}, container: {marginRight: 8}}}
-                    title={volumeTitle}
+                    title={getTrackVolumeTitle(this.props.track)}
                     value={this.props.track.volume}
                   />
                   <Knob 
@@ -446,7 +408,7 @@ class TrackComponent extends React.Component<IProps, IState> {
                     origin={0}
                     size={20} 
                     style={{knob: {backgroundColor: "#fff9", boxShadow: "0 1px 2px 1px #0008"}}}
-                    title={panTitle}
+                    title={getTrackPanTitle(this.props.track)}
                     value={this.props.track.pan}
                   />
                 </div>
@@ -458,11 +420,13 @@ class TrackComponent extends React.Component<IProps, IState> {
                   style={{bottom: 4, left: 0, right: 0, cursor: "pointer"}}
                 >
                   <IconButton
+                    disabled={!this.props.track.automationLanes.find(l => !l.show)}
                     onClick={this.addAutomationLane}
                     className="m-0 p-0 pe-auto" 
                     style={{
                       backgroundColor: shadeColor(this.props.track.color, -50),
-                      transform: verticalFlex || this.props.track.isMaster ? "none" : "translateX(12px)"
+                      transform: verticalFlex || this.props.track.isMaster ? "none" : "translateX(12px)",
+                      opacity: !this.props.track.automationLanes.find(l => !l.show) ? 0.5 : 1
                     }}
                   >
                     <Add style={{fontSize: 16, color: this.props.track.isMaster ? "#fffa" : "#000a"}} />

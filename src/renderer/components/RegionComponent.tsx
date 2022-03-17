@@ -173,7 +173,7 @@ export default class RegionComponent extends React.Component<IProps, IState> {
   }
 
   render() {
-    const {isLooping, timelinePosOptions} = this.context!
+    const {timelinePosOptions} = this.context!
     const {left, width} = this.getNewRegionMarginAndWidth()
 
     return (

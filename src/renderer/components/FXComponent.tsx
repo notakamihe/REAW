@@ -1,10 +1,11 @@
-import { Add, ArrowDropDown, ArrowDropUp, Close, Delete, Edit, History, MoreHoriz, PowerSettingsNew, Save, Tune } from "@mui/icons-material";
-import { IconButton, Menu, MenuList, MenuItem, ListItemText, Dialog, DialogTitle, DialogContent } from "@mui/material";
+import { Add, ArrowDropDown, ArrowDropUp, Delete, MoreHoriz, PowerSettingsNew, Save, Tune } from "@mui/icons-material";
+import { IconButton, DialogContent } from "@mui/material";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import { ID } from "renderer/types/types";
+import channels from "renderer/utils/channels";
+import { ipcRenderer } from "renderer/utils/utils";
 import { v4 } from "uuid";
-import { MenuIcon } from "./icons";
 import { Effect, FX } from "./TrackComponent";
 import { OSDialog, SelectSpinBox } from "./ui";
 
@@ -39,23 +40,23 @@ interface FXStyle {
 }
 
 interface IProps {
+  chainControlsOnHover? : boolean
   compact? : boolean
   effectId : ID | null
   fx : FX
-  onAddEffect? : () => void
-  onChangeEffect? : (effect : Effect) => void
+  onChangeEffect? : (effect : Effect | null) => void
   onChangeFXChain? : (fxChain : FXChain | null) => void
-  onRemoveEffect? : (effect : Effect) => void
-  onToggleEffectEnabled? : (effect : Effect) => void
   onSetEffects? : (effects : Effect[]) => void
   style? : FXStyle
 }
 
 interface IState {
-  anchorEl : HTMLElement | null
   fxChainMode : boolean
   fxChainNameDialogText : string
   hovering : boolean
+  hoveringOverTop : boolean
+  prevEffects : Effect[]
+  saveAsNew : boolean
   showFxChainNameDialog : boolean
 }
 
@@ -67,19 +68,25 @@ export default class FXComponent extends React.Component<IProps, IState> {
     super(props);
 
     this.state = {
-      anchorEl: null,
       fxChainMode: false,
       fxChainNameDialogText: "",
       hovering: false,
+      hoveringOverTop: false,
+      prevEffects: this.props.fx.effects,
+      saveAsNew: true,
       showFxChainNameDialog: false
     }
 
+    this.addEffect = this.addEffect.bind(this)
     this.onChainNameDialogSubmit = this.onChainNameDialogSubmit.bind(this);
     this.onChangeChainOption = this.onChangeChainOption.bind(this);
-    this.onDeleteFxChain = this.onDeleteFxChain.bind(this)
+    this.onMore = this.onMore.bind(this)
     this.onRenameFxChain = this.onRenameFxChain.bind(this)
-    this.onResetEffects = this.onResetEffects.bind(this)
     this.onSave = this.onSave.bind(this)
+    this.removeEffect = this.removeEffect.bind(this)
+    this.removeFxChain = this.removeFxChain.bind(this)
+    this.resetFxChain = this.resetFxChain.bind(this)
+    this.toggleEnableEffect = this.toggleEnableEffect.bind(this)
   }
 
   componentDidMount() {
@@ -91,10 +98,26 @@ export default class FXComponent extends React.Component<IProps, IState> {
   }
 
   componentDidUpdate(prevProps : IProps) {
+    if (this.state.prevEffects !== this.props.fx.effects) {
+      this.setState({prevEffects: this.props.fx.effects})
+
+      if (!this.props.fx.effects.find(e => e.id === this.props.effectId)) {
+        const effect = this.props.fx.effects.find(e => e.id === this.props.fx.effects[0]?.id)
+        this.props.onChangeEffect?.(effect || null)
+      }
+    }
+
     if (prevProps.fx.chainId !== this.props.fx.chainId) {
       const fxChain = this.context!.fxChains.find(c => c.id === this.props.fx.chainId)
-      fxChain && this.props.onSetEffects?.(fxChain.effects)
+      this.props.onSetEffects?.(fxChain?.effects || [])
     }
+  }
+
+  addEffect = () => {
+    const newEffect : Effect = {id: v4(), name: `Effect ${this.props.fx.effects.length + 1}`, enabled: true}
+    
+    this.props.onSetEffects?.(this.props.fx.effects.slice().concat(newEffect))
+    this.props.onChangeEffect?.(newEffect)
   }
 
   onChainNameDialogSubmit(e : React.FormEvent<HTMLFormElement>) {
@@ -103,21 +126,22 @@ export default class FXComponent extends React.Component<IProps, IState> {
     if (this.state.fxChainNameDialogText.trim()) {
       const fxChain = this.context!.fxChains.find(c => c.id === this.props.fx.chainId)
   
-      if (fxChain) {
-        const fxChains = this.context!.fxChains.map(c => c.id === fxChain.id ? {...c, name: this.state.fxChainNameDialogText} : c)
+      if (!this.state.saveAsNew && fxChain) {
+        const fxChains = this.context!.fxChains.map(c => c.id === fxChain.id ? {...c, name: this.state.fxChainNameDialogText.trim()} : c)
   
         localStorage.setItem("fx-chains", JSON.stringify(fxChains))
         this.context!.setFxChains(fxChains)
   
         this.setState({showFxChainNameDialog: false, fxChainNameDialogText: ""})
       } else {
-        const newFxChain = {id: v4(), name: this.state.fxChainNameDialogText, effects: this.props.fx.effects.slice()}
+        const newFxChain = {id: v4(), name: this.state.fxChainNameDialogText.trim(), effects: this.props.fx.effects.slice()}
         const fxChains : FXChain[] = [...this.context!.fxChains, newFxChain]
+
+        this.setState({showFxChainNameDialog: false, fxChainNameDialogText: ""})
   
         localStorage.setItem("fx-chains", JSON.stringify(fxChains))
         this.context!.setFxChains(fxChains)
-  
-        this.setState({showFxChainNameDialog: false, fxChainNameDialogText: ""})
+
         this.props.onChangeFXChain?.(newFxChain)
       }
     }
@@ -125,23 +149,44 @@ export default class FXComponent extends React.Component<IProps, IState> {
 
   onChangeChainOption(value : string | number) {
     if (this.props.fx.chainId !== value) {
-      this.props.onChangeFXChain?.(this.context!.fxChains.find(c => c.id === value) || null)
+      const fxChain = this.context!.fxChains.find(c => c.id === value)
+
+      this.props.onChangeFXChain?.(fxChain || null)
+
+      if (fxChain)
+        this.props.onChangeEffect?.(fxChain.effects[0] || null)
     }
   }
 
-  onDeleteFxChain() {
+  onMore() {
     const fxChain = this.context!.fxChains.find(c => c.id === this.props.fx.chainId)
-    const fxChains = this.context!.fxChains.filter(c => c.id !== fxChain?.id)
+    const isChainChanged = JSON.stringify(fxChain?.effects) !== JSON.stringify(this.props.fx.effects)
 
-    localStorage.setItem("fx-chains", JSON.stringify(fxChains))
-    this.context!.setFxChains(fxChains)
-    this.setState({anchorEl: null})
-    
-    for (let track of this.context!.tracks) {
-      if (track.fx.chainId === fxChain?.id) {
-        this.context!.setTrack({...track, fx: {...track.fx, chainId: null}})
-      }
-    }
+    ipcRenderer.send(channels.OPEN_FX_CHAIN_CONTEXT_MENU, isChainChanged)
+
+    ipcRenderer.on(channels.SAVE_FX_CHAIN_AS_NEW, () => {
+      this.setState({showFxChainNameDialog: true, fxChainNameDialogText: "", saveAsNew: true})
+    })
+
+    ipcRenderer.on(channels.RENAME_FX_CHAIN, () => {
+      this.onRenameFxChain()
+    })
+
+    ipcRenderer.on(channels.RESET_FX_CHAIN, () => {
+      this.resetFxChain()
+    })
+
+    ipcRenderer.on(channels.REMOVE_FX_CHAIN, () => {
+      this.removeFxChain()
+    })
+
+    ipcRenderer.on(channels.CLOSE_FX_CHAIN_CONTEXT_MENU, () => {
+      ipcRenderer.removeAllListeners(channels.SAVE_FX_CHAIN_AS_NEW)
+      ipcRenderer.removeAllListeners(channels.RENAME_FX_CHAIN)
+      ipcRenderer.removeAllListeners(channels.RESET_FX_CHAIN)
+      ipcRenderer.removeAllListeners(channels.REMOVE_FX_CHAIN)
+      ipcRenderer.removeAllListeners(channels.CLOSE_FX_CHAIN_CONTEXT_MENU)
+    })
   }
 
   onNext(idx : number) {
@@ -155,25 +200,13 @@ export default class FXComponent extends React.Component<IProps, IState> {
       this.props.onChangeEffect?.(this.props.fx.effects[idx - 1])
     }
   }
-  
+
   onRenameFxChain() {
     const fxChain = this.context!.fxChains.find(c => c.id === this.props.fx.chainId)
 
     if (fxChain) {
-      this.setState({showFxChainNameDialog: true, fxChainNameDialogText: fxChain.name})
+      this.setState({showFxChainNameDialog: true, fxChainNameDialogText: fxChain.name, saveAsNew: false})
     }
-
-    this.setState({anchorEl: null})
-  }
-
-  onResetEffects() {
-    const fxChain = this.context!.fxChains.find(c => c.id === this.props.fx.chainId)
-
-    if (fxChain) {
-      this.props.onSetEffects?.(fxChain.effects)
-    }
-
-    this.setState({anchorEl: null})
   }
 
   onSave() {
@@ -187,9 +220,48 @@ export default class FXComponent extends React.Component<IProps, IState> {
         fxChains[idx].effects = this.props.fx.effects.slice()
         localStorage.setItem("fx-chains", JSON.stringify(fxChains))
         this.context!.setFxChains(fxChains)
+
+        const tracks = this.context!.tracks.slice()
+
+        for (const track of tracks) {
+          if (track.fx.chainId === this.props.fx.chainId) {
+            track.fx.effects = this.props.fx.effects.slice()
+          }
+        }
+
+        this.context!.setTracks(tracks)
       }
     } else {
-      this.setState({showFxChainNameDialog: true, fxChainNameDialogText: ""})
+      this.setState({showFxChainNameDialog: true, fxChainNameDialogText: "", saveAsNew: true})
+    }
+  }
+
+  removeEffect() {
+    const idx = this.props.fx.effects.findIndex(e => e.id === this.props.effectId)
+    const newEffects = this.props.fx.effects.filter(e => e.id !== this.props.effectId)
+
+    if (idx > -1) {
+      this.props.onSetEffects?.(newEffects)
+
+      if (newEffects.length === 0) {
+        this.props.onChangeEffect?.(null)
+      } else {
+        this.props.onChangeEffect?.(newEffects[idx > 0 ? idx - 1 : 0])
+      }
+    }
+  }
+
+  removeFxChain() {
+    const fxChain = this.context!.fxChains.find(c => c.id === this.props.fx.chainId)
+    const fxChains = this.context!.fxChains.filter(c => c.id !== fxChain?.id)
+
+    localStorage.setItem("fx-chains", JSON.stringify(fxChains))
+    this.context!.setFxChains(fxChains)
+    
+    for (let track of this.context!.tracks) {
+      if (track.fx.chainId === fxChain?.id) {
+        this.context!.setTrack({...track, fx: {...track.fx, chainId: null}})
+      }
     }
   }
 
@@ -203,6 +275,8 @@ export default class FXComponent extends React.Component<IProps, IState> {
       <React.Fragment>
         <div 
           className="d-flex align-items-center overflow-hidden" 
+          onMouseOver={() => this.setState({hoveringOverTop: true})}
+          onMouseLeave={() => this.setState({hoveringOverTop: false})}
           style={{
             width: "100%", 
             height: 20, 
@@ -220,6 +294,7 @@ export default class FXComponent extends React.Component<IProps, IState> {
               select: {fontWeight: "bold", fontSize: 14, ...style?.fxChainText}, 
               container: {marginLeft: 4, flex: 1, ...style?.fxChainContainer, overflow: "hidden"},
             }}
+            title={`${fxChain?.name || "None"} (${this.props.fx.effects.length} effects)`}
             value={fxChain?.id || "none"}
           >
             <option value="none">None</option>
@@ -227,33 +302,39 @@ export default class FXComponent extends React.Component<IProps, IState> {
               {this.context!.fxChains.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </React.Fragment>
           </SelectSpinBox>
-          <div className="d-flex align-items-center" style={{marginLeft: 4}}>
-            <IconButton className="p-0" disabled={disableSaveAndReset} onClick={this.onSave} style={{marginRight: 4}} title="Save">
-              <Save style={{fontSize: 16, ...style?.saveIcon}}/>
-            </IconButton>
-            <IconButton className="p-0" disabled={!fxChain} onClick={e => this.setState({anchorEl: e.currentTarget})}>
-              <MoreHoriz style={{fontSize: 16, ...style?.moreIcon}}/>
-            </IconButton>
-          </div>
+          {
+            (!this.props.chainControlsOnHover || this.state.hoveringOverTop) &&
+            <div className="d-flex align-items-center" style={{marginLeft: 4}}>
+              <IconButton className="p-0" disabled={disableSaveAndReset} onClick={this.onSave} style={{marginRight: 2}} title="Save">
+                <Save style={{fontSize: 16, ...style?.saveIcon}}/>
+              </IconButton>
+              <IconButton className="p-0" disabled={!fxChain} onClick={this.onMore}>
+                <MoreHoriz style={{fontSize: 16, ...style?.moreIcon}}/>
+              </IconButton>
+            </div>
+          }
         </div>
-        <Menu anchorEl={this.state.anchorEl} open={Boolean(this.state.anchorEl)} onClose={() => this.setState({anchorEl: null})}>
-          <MenuList className="p-0" dense style={{outline: "none"}}>
-            <MenuItem disabled={disableSaveAndReset} onClick={this.onResetEffects}>
-              <MenuIcon icon={<History />} />
-              <ListItemText>Reset</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={this.onRenameFxChain}>
-              <MenuIcon icon={<Edit />} />
-              <ListItemText>Rename</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={this.onDeleteFxChain}>
-              <MenuIcon icon={<Delete />} />
-              <ListItemText>Delete</ListItemText>
-            </MenuItem>
-          </MenuList>
-        </Menu>
       </React.Fragment>
     )
+  }
+
+  resetFxChain() {
+    const fxChain = this.context!.fxChains.find(c => c.id === this.props.fx.chainId)
+
+    if (fxChain) {
+      this.props.onSetEffects?.(fxChain.effects)
+      this.props.onChangeEffect?.(fxChain.effects[0] || null)
+    }
+  }
+
+  toggleEnableEffect() {
+    const newEffects = this.props.fx.effects.slice().map(e => {return {...e}})
+    const idx = newEffects.findIndex(e => e.id === this.props.effectId)
+
+    if (idx > -1) {
+      newEffects[idx].enabled = !newEffects[idx].enabled
+      this.props.onSetEffects?.(newEffects)
+    }
   }
   
   render() {
@@ -298,18 +379,18 @@ export default class FXComponent extends React.Component<IProps, IState> {
                 ...(this.props.compact ? style?.bottomCompact : {})
               }}
             >
-              <div className="center-by-flex-v" style={{height: "100%", paddingLeft: 4}}>
+              <div className="center-by-flex-v" style={{height: "100%"}}>
                 <IconButton 
                   className="p-0" 
-                  onClick={this.props.onAddEffect} 
+                  onClick={this.addEffect} 
                   title="Add an effect"
-                  style={{backgroundColor: "#333", borderRadius: "50%", ...style?.add}}
+                  style={{backgroundColor: "#333", borderRadius: "50%", marginLeft: 4, ...style?.add}}
                 >
                   <Add style={{fontSize: 14, color: "#fff", ...style?.addIcon}} />
                 </IconButton>
               </div>
               <div 
-                className="d-flex" 
+                className="d-flex align-items-center" 
                 onMouseOver={() => this.setState({hovering: true})}
                 onMouseLeave={() => this.setState({hovering: false})}
                 style={{flex: 1, paddingLeft: 6, height: "100%", overflow: "hidden", cursor: "pointer", ...style?.effectContainer}}
@@ -334,24 +415,16 @@ export default class FXComponent extends React.Component<IProps, IState> {
                     {
                       this.state.hovering && 
                       <div 
-                        className="d-flex px-1" 
-                        style={{backgroundColor: "#0002", borderRadius: 10, margin: "2px 0", flexShrink: 0, ...style?.effectActionsContainer}}
+                        className="d-flex" 
+                        style={{backgroundColor: "#0002", borderRadius: 10, margin: "2px 0", padding: "0 4px", flexShrink: 0, ...style?.effectActionsContainer}}
                       >
-                        <IconButton 
-                          className="p-0" 
-                          onClick={() => effect && this.props.onToggleEffectEnabled?.(effect)}
-                          title={effect?.enabled ? "Disable" : "Enable"}
-                        >
+                        <IconButton className="p-0" onClick={this.toggleEnableEffect} title={effect?.enabled ? "Disable" : "Enable"}>
                           <PowerSettingsNew 
                             className="p-0" 
                             style={{fontSize: 16, opacity: effect?.enabled ? 1 : 0.5, ...style?.enableIcon}}
                           />
                         </IconButton>
-                        <IconButton 
-                          className="p-0" 
-                          onClick={() => effect && this.props.onRemoveEffect?.(effect)}
-                          title="Remove effect"
-                        >
+                        <IconButton className="p-0" onClick={this.removeEffect} title="Remove effect" >
                           <Delete className="p-0" style={{fontSize: 16, ...style?.removeIcon}}/>
                         </IconButton>
                       </div>
@@ -400,25 +473,25 @@ export default class FXComponent extends React.Component<IProps, IState> {
           onClose={() => this.setState({showFxChainNameDialog: false})}
           open={this.state.showFxChainNameDialog}
           style={{width: 350}}
-          title={fxChain ? "Rename FX chain" : "Save FX chain"}
+          title={!this.state.saveAsNew && fxChain ? "Rename FX chain" : "Save FX chain"}
         >
-           <DialogContent className="px-3">
-              <form className="d-flex" onSubmit={this.onChainNameDialogSubmit} style={{width: "100%"}}>
-                <input
-                  autoFocus
-                  className="rounded px-2 py-1 no-outline"
-                  onChange={e => this.setState({fxChainNameDialogText: e.target.value})}
-                  style={{backgroundColor: "#0002", border: "none", fontSize: 14, flex: 1}}
-                  value={this.state.fxChainNameDialogText}
-                />
-                <input
-                  className="rounded no-borders px-2 py-1"
-                  style={{backgroundColor: "var(--color-primary)", color: "#fff", fontSize: 14, marginLeft: 4}}
-                  type="submit"
-                  value="Save"
-                />
-              </form>
-            </DialogContent>
+          <DialogContent className="px-3">
+            <form className="d-flex" onSubmit={this.onChainNameDialogSubmit} style={{width: "100%"}}>
+              <input
+                autoFocus
+                className="rounded px-2 py-1 no-outline"
+                onChange={e => this.setState({fxChainNameDialogText: e.target.value})}
+                style={{backgroundColor: "#0002", border: "none", fontSize: 14, flex: 1}}
+                value={this.state.fxChainNameDialogText}
+              />
+              <input
+                className="rounded no-borders px-2 py-1"
+                style={{backgroundColor: "var(--color-primary)", color: "#fff", fontSize: 14, marginLeft: 4}}
+                type="submit"
+                value="Save"
+              />
+            </form>
+          </DialogContent>
         </OSDialog>
       </React.Fragment>
     )

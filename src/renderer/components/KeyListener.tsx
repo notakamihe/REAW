@@ -90,7 +90,7 @@ export default class KeyListener extends React.Component<IProps> {
               if (selectedClip) {
                 duplicateClip(selectedClip)
               }
-            } else if ((e.ctrlKey || e.metaKey) && e.key === "m") {
+            } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "m") {
               if (selectedClip) {
                 toggleMuteClip(selectedClip)
               }
@@ -113,10 +113,10 @@ export default class KeyListener extends React.Component<IProps> {
             if (clipboardItem) {
               switch(clipboardItem.type) {
                 case ClipboardItemType.Clip:
-                  pasteClip(true)
+                  pasteClip(cursorPos)
                   break
                 case ClipboardItemType.Node:
-                  pasteNode(true)
+                  pasteNode(cursorPos)
                   break
               }
             }
