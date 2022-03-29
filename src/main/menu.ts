@@ -1,4 +1,4 @@
-import {app, Menu, shell, BrowserWindow, MenuItemConstructorOptions} from 'electron';
+import {Menu, BrowserWindow, MenuItemConstructorOptions} from 'electron';
 import channels from "./../renderer/utils/channels";
 
 interface DarwinMenuItemConstructorOptions extends MenuItemConstructorOptions {
@@ -100,7 +100,12 @@ export default class MenuBuilder {
       ]
     }
 
-    return {file: subMenuFile, edit: subMenuEdit, track: subMenuTrack, view: subMenuView}
+    const subMenuHelp : MenuItemConstructorOptions = {
+      label: "Help",
+      submenu: []
+    }
+
+    return {file: subMenuFile, edit: subMenuEdit, track: subMenuTrack, view: subMenuView, help: subMenuHelp};
   }
 
   buildDarwinTemplate(): MenuItemConstructorOptions[] {
@@ -206,11 +211,6 @@ export default class MenuBuilder {
       ],
     };
 
-    const subMenuHelp: MenuItemConstructorOptions = {
-      label: 'Help',
-      submenu: [],
-    };
-
     const subMenuView = baseTemplate.view
 
     if (process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true')
@@ -218,7 +218,7 @@ export default class MenuBuilder {
     else
       (subMenuView.submenu as MenuItemConstructorOptions[])!.push(...subMenuViewProd);
 
-    return [subMenuAbout, baseTemplate.file, baseTemplate.edit, baseTemplate.track, subMenuView, subMenuWindow, subMenuHelp];
+    return [subMenuAbout, baseTemplate.file, baseTemplate.edit, baseTemplate.track, subMenuView, subMenuWindow, baseTemplate.help];
   }
 
   buildDefaultTemplate() : MenuItemConstructorOptions[] {
@@ -229,18 +229,11 @@ export default class MenuBuilder {
       submenu: [
         ...baseTemplate.file.submenu! as MenuItemConstructorOptions[],
         { type: 'separator' },
-        {
-          label: "Close",
-          accelerator: "Ctrl+Q",
-          click: () => {
-            app.quit();
-          }
-        }
-      ],
+        { label: '&Close', accelerator: 'Alt+F4', role: 'close' }
+      ]
     }
 
     const subMenuViewDev : MenuItemConstructorOptions[] = [
-      {type: "separator"},
       {
         label: '&Reload',
         accelerator: 'Ctrl+R',
@@ -263,29 +256,48 @@ export default class MenuBuilder {
         click: () => {
           this.mainWindow.webContents.toggleDevTools();
         },
+      },
+      {type: "separator"},
+      {
+        label: "Actual Size",
+        accelerator: "Ctrl+0",
+        click: () => {
+          this.mainWindow.webContents.setZoomLevel(0);
+        }
+      },
+      {
+        label: "Zoom In",
+        accelerator: "Ctrl+=",
+        click: () => {
+          this.mainWindow.webContents.setZoomLevel(this.mainWindow.webContents.getZoomLevel() + 0.1);
+        }
+      },
+      {
+        label: "Zoom Out",
+        accelerator: "Ctrl+-",
+        click: () => {
+          this.mainWindow.webContents.setZoomLevel(this.mainWindow.webContents.getZoomLevel() - 0.1);
+        }
+      },
+      {type: "separator"},
+      {
+        label: "Toggle Full Screen",
+        accelerator: "F11",
+        click: () => {
+          this.mainWindow.setFullScreen(!this.mainWindow.isFullScreen())
+        }
       }
     ]
 
     const subMenuViewProd : MenuItemConstructorOptions[] = [
-      {type: "separator"},
       {
         label: 'Toggle &Full Screen',
         accelerator: 'F11',
         click: () => {
-          this.mainWindow.setFullScreen(
-            !this.mainWindow.isFullScreen()
-          );
+          this.mainWindow.setFullScreen(!this.mainWindow.isFullScreen());
         },
       }
     ]
-
-    const subMenuWindow : MenuItemConstructorOptions = {
-    }
-
-    const subMenuHelp: MenuItemConstructorOptions = {
-      label: "Help",
-      submenu: []
-    }
 
     const subMenuView = baseTemplate.view
 
@@ -294,6 +306,11 @@ export default class MenuBuilder {
     else
       (subMenuView.submenu as MenuItemConstructorOptions[])!.push(...subMenuViewProd);
 
-    return [subMenuFile, baseTemplate.edit, baseTemplate.track, subMenuView, subMenuWindow, subMenuHelp];
+    const subMenuWindow : MenuItemConstructorOptions = {
+      label: '&Window',
+      submenu: []
+    }
+
+    return [subMenuFile, baseTemplate.edit, baseTemplate.track, subMenuView, subMenuWindow, baseTemplate.help];
   }
 }
