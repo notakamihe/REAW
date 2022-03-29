@@ -1,23 +1,25 @@
-import { ThemeProvider } from '@emotion/react';
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
-import './App.css';
+import './styles/colors.css';
+import './styles/App.css';
 import { ClipboardProvider } from './context/ClipboardContext';
 import { WorkstationProvider } from './context/WorkstationContext';
 import Workstation from './pages/Workstation';
-import theme from './theme';
+import { PreferencesProvider } from './context/PreferencesContext';
+import Preferences from './components/Preferences';
 
 export default function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <ClipboardProvider>
+    <ClipboardProvider>
+      <PreferencesProvider>
         <WorkstationProvider>
             <Router>
               <Routes>
                 <Route path="/" element={<Workstation />} />
               </Routes>
             </Router>
+            <Preferences />
         </WorkstationProvider>
-      </ClipboardProvider>
-    </ThemeProvider>
+      </PreferencesProvider>
+    </ClipboardProvider>
   );
 }

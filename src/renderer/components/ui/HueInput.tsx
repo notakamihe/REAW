@@ -29,7 +29,7 @@ const Range = styled.input`
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    border: 2px solid #fff;
+    border: 2px solid var(--bg9);
     background-color: ${(props : RangeProps) => props.$thumbcolor};
     cursor: pointer;
   }

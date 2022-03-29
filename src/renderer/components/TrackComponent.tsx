@@ -2,7 +2,7 @@ import React from "react"
 import { WorkstationContext } from "renderer/context/WorkstationContext"
 import { ID } from "renderer/types/types"
 import { Clip } from "./ClipComponent"
-import { EditableDisplay, Knob, HueInput, OSDialog } from "./ui"
+import { EditableDisplay, Knob, HueInput, Dialog } from "./ui"
 import { Button, ButtonGroup, IconButton, DialogContent } from "@mui/material"
 import { Add, Check, FiberManualRecord } from "@mui/icons-material"
 import {v4 as uuidv4} from "uuid"
@@ -43,30 +43,35 @@ export interface Track {
 
 
 interface TrackButtonProps {
-  bgcolor : string
-  $enabled : boolean
+  $activated : boolean
+  bgcolor? : string
+  outlinecolor? : string
+  clr : string
   opacity? : string
 }
 
-const TrackButton = styled(Button)`
-  background-color: ${(props : TrackButtonProps) => props.$enabled ? props.bgcolor : "#fff9"};
+export const TrackButton = styled(Button)`
+  background-color: ${(props : TrackButtonProps) => props.$activated ? "#fff" : props.bgcolor || "#fff9"};
   font-size: 12px; 
   display: inline-block!important; 
   border: none; 
   min-height: 0!important; 
   min-width: 0!important;
   padding: 0;
-  width: 16px;
-  color: ${(props : TrackButtonProps) => props.$enabled ? "#fff" : "#000"};
-  margin-left: 4px;
-  margin-right: 4px;
-  box-shadow: 0 1px 2px 1px #0008;
+  width: 20px;
+  color: ${(props : TrackButtonProps) => props.$activated ? props.clr : props.outlinecolor || "#0009"}!important;
+  border-width: 1px!important;
+  border-style: solid!important;
+  border-color: ${(props : TrackButtonProps) => props.outlinecolor || "#0009"}!important;
   opacity: ${(props : TrackButtonProps) => props.opacity || "1"};
   font-weight: bold;
 
+  & * {
+    color: ${(props : TrackButtonProps) => props.$activated ? props.clr : props.outlinecolor || "#0009"}!important;
+  }
+
   &:hover {
-    border: none!important;
-    background-color: ${(props : TrackButtonProps) => props.$enabled ? props.bgcolor : "#fff9"};
+    background-color: ${(props : TrackButtonProps) => props.$activated ? "#fff" : props.bgcolor || "#fff9"};
   }
 `
 
@@ -265,7 +270,8 @@ class TrackComponent extends React.Component<IProps, IState> {
               backgroundColor: this.props.track.color, 
               overflow: "hidden",
               position: "relative",
-              flexDirection: verticalFlex ? "column" : "row"
+              flexDirection: verticalFlex ? "column" : "row",
+              borderBottom: "1px solid #0004"
             }} 
           >
             {
@@ -282,15 +288,6 @@ class TrackComponent extends React.Component<IProps, IState> {
                     value={this.state.name}
                   />
                 </form>
-                {
-                  !this.state.trackNameInputFocused && this.props.order !== undefined &&
-                  <p 
-                    className="position-absolute py-0 px-1 m-0 rounded"
-                    style={{top: 3, left: 4, backgroundColor: "#0002", color: "#0008", fontSize: 12, lineHeight: 1.4, fontWeight: "bold"}}
-                  >
-                    {this.props.order}
-                  </p>
-                }
               </div> :
               <div style={{width: 18, height: "100%", backgroundColor: "#fff9", position: "relative"}}>
                 <form onSubmit={e => {e.preventDefault(); this.setTrackName()}}>
@@ -325,18 +322,21 @@ class TrackComponent extends React.Component<IProps, IState> {
                 onChangeEffect={effect => this.setState({effectId: effect?.id || null})}
                 onChangeFXChain={this.changeFXChain}
                 onSetEffects={this.setEffects}
-                style={{container: {boxShadow: "0 1px 2px 1px #0002"}}}
+                style={{
+                  bottom: {border: "1px solid #0009", height: 22}, 
+                  toggle: {border: "1px solid #0009", height: 22}, 
+                  top: {border: "1px solid #0009", height: 22}
+                }}
               />
               <div className="d-flex align-items-center mt-1">
                 <div style={{flex: 1, marginRight: 4}}>
                   <ButtonGroup>
                     <TrackButton 
-                      bgcolor="#fff" 
+                      clr="#f00" 
                       className={(masterTrack?.mute && !this.props.track.isMaster) ? "pe-none" : ""}
-                      $enabled={masterTrack?.mute || this.props.track.mute}
+                      $activated={masterTrack?.mute || this.props.track.mute}
                       onClick={() => setTrack({...this.props.track, mute: !this.props.track.mute})}
                       opacity={(masterTrack?.mute && !this.props.track.isMaster) ? "0.5" : "1"}
-                      style={{color: masterTrack?.mute || this.props.track.mute ? "#f00" : "#000"}}
                       title={masterTrack?.mute || this.props.track.mute ? "Unmute" : "Mute"}
                     >
                       M
@@ -344,10 +344,9 @@ class TrackComponent extends React.Component<IProps, IState> {
                     {
                       !this.props.track.isMaster &&
                       <TrackButton 
-                        bgcolor="#fff" 
-                        $enabled={this.props.track.solo}
+                        clr="#a80" 
+                        $activated={this.props.track.solo}
                         onClick={() => setTrack({...this.props.track, solo: !this.props.track.solo})}
-                        style={{color: this.props.track.solo ? "#a80" : "#000"}}
                         title="Toggle Solo"
                       >
                         S
@@ -356,8 +355,8 @@ class TrackComponent extends React.Component<IProps, IState> {
                     {
                       !this.props.track.isMaster &&
                       <TrackButton 
-                        bgcolor="#fff" 
-                        $enabled={this.props.track.armed}
+                        clr="#f00" 
+                        $activated={this.props.track.armed}
                         onClick={() => setTrack({...this.props.track, armed: !this.props.track.armed})}
                         title={this.props.track.armed ? "Disarm" : "Arm"}
                       >
@@ -367,30 +366,28 @@ class TrackComponent extends React.Component<IProps, IState> {
                       </TrackButton>
                     }
                     <TrackButton 
-                      bgcolor="#fff" 
-                      $enabled={this.props.track.automationEnabled}
+                      clr="#333" 
+                      $activated={this.props.track.automationEnabled}
                       onClick={() => setTrack({...this.props.track, automationEnabled: !this.props.track.automationEnabled})}
-                      style={{color: "#000a"}}
                       title={this.props.track.automationEnabled ? "Hide Automation" : "Show Automation"}
                     >
                       A
                     </TrackButton>
                   </ButtonGroup>
                 </div>
-                <div style={{display: "flex", marginTop: 4, marginRight: 4}}>
+                <div style={{display: "flex"}}>
                   <Knob 
                     degrees={270} 
                     disabled={(this.props.track.automationLanes.find(l => l.isVolume)?.nodes.length || 0) > 1}
                     lineStyle={{height: 4, top: 6}}
                     max={6} 
-                    meter={(this.props.track.automationLanes.find(l => l.isVolume)?.nodes.length || 0) <= 1}
-                    meterStyle={{bgColor: "#0001", guageColor: "#fff"}}
+                    meter={false}
                     min={-80} 
                     offset={-135} 
                     onChange={this.onVolumeKnobChange}
                     origin={0}
-                    size={20} 
-                    style={{knob: {backgroundColor: "#fff9", boxShadow: "0 1px 2px 1px #0008"}, container: {marginRight: 8}}}
+                    size={22} 
+                    style={{knob: {backgroundColor: "#fff9", border: "1px solid #0009"}, container: {marginRight: 6}}}
                     title={getTrackVolumeTitle(this.props.track)}
                     value={this.props.track.volume}
                   />
@@ -400,14 +397,13 @@ class TrackComponent extends React.Component<IProps, IState> {
                     degrees={270} 
                     lineStyle={{height: 4, top: 6}}
                     max={100} 
-                    meter={(this.props.track.automationLanes.find(l => l.isPan)?.nodes.length || 0) <= 1}
-                    meterStyle={{bgColor: "#0001", guageColor: "#fff"}}
+                    meter={false}
                     min={-100} 
                     offset={-135} 
                     onChange={this.onPanKnobChange}
                     origin={0}
-                    size={20} 
-                    style={{knob: {backgroundColor: "#fff9", boxShadow: "0 1px 2px 1px #0008"}}}
+                    size={22} 
+                    style={{knob: {backgroundColor: "#fff9", border: "1px solid #0009"}}}
                     title={getTrackPanTitle(this.props.track)}
                     value={this.props.track.pan}
                   />
@@ -422,14 +418,14 @@ class TrackComponent extends React.Component<IProps, IState> {
                   <IconButton
                     disabled={!this.props.track.automationLanes.find(l => !l.show)}
                     onClick={this.addAutomationLane}
-                    className="m-0 p-0 pe-auto" 
+                    className="m-0 p-0 pe-auto rounded-circle" 
                     style={{
-                      backgroundColor: shadeColor(this.props.track.color, -50),
+                      border: `1px solid #0009`,
                       transform: verticalFlex || this.props.track.isMaster ? "none" : "translateX(12px)",
                       opacity: !this.props.track.automationLanes.find(l => !l.show) ? 0.5 : 1
                     }}
                   >
-                    <Add style={{fontSize: 16, color: this.props.track.isMaster ? "#fffa" : "#000a"}} />
+                    <Add style={{fontSize: 16, color: "#0009"}} />
                   </IconButton>
                 </div>
               }
@@ -451,7 +447,7 @@ class TrackComponent extends React.Component<IProps, IState> {
             </div>
           }
           {
-            <OSDialog
+            <Dialog
               onClickAway={() => this.setState({showChangeHueDialog: false})}
               onClose={() => this.setState({showChangeHueDialog: false})}
               open={this.state.showChangeHueDialog}
@@ -462,14 +458,14 @@ class TrackComponent extends React.Component<IProps, IState> {
                 <form className="d-flex align-items-center" onSubmit={this.onChangeHueDialogSubmit} style={{width: "100%"}}>
                   <HueInput onChange={hue => this.setState({hue})} value={this.state.hue} />
                   <button 
-                    className="rounded no-borders center-by-flex" 
-                    style={{backgroundColor: "var(--color-primary)", height: 18, marginLeft: 8}}
+                    className="center-by-flex rounded-circle" 
+                    style={{marginLeft: 8, backgroundColor: "var(--color1)", padding: 4}}
                   >
-                    <Check style={{color: "#fff", fontSize: 16}} />
+                    <Check style={{fontSize: 16, color: "#fff"}} />
                   </button>
                 </form>
               </DialogContent>
-            </OSDialog>
+            </Dialog>
           }
         </React.Fragment>
       )

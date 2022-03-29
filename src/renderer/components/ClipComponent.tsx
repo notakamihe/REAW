@@ -5,8 +5,6 @@ import { ID } from "renderer/types/types";
 import { shadeColor } from "renderer/utils/helpers";
 import { copyClip, marginToPos, clipAtPos, ipcRenderer } from "renderer/utils/utils";
 import { Track } from "./TrackComponent";
-import trimToLeft from "../../../assets/svg/trim-to-left.svg";
-import trimToRight from "../../../assets/svg/trim-to-right.svg";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRedo } from "@fortawesome/free-solid-svg-icons";
 import DNR, { DragAxis, DNRData, ResizeDirection } from "./DNR";
@@ -14,6 +12,7 @@ import { GuideLine } from ".";
 import { ClipboardContext } from "renderer/context/ClipboardContext";
 import { Region } from "./RegionComponent";
 import channels from "renderer/utils/channels";
+import { TrimToLeft, TrimToRight } from "./icons";
 
 export interface Clip extends Region {
   end : TimelinePosition
@@ -38,7 +37,7 @@ function Loop(props: {width : number, clipWidth : number, color : string, style?
         [...Array(Math.ceil(numRepetitions))].map((_, i) => (
           <div 
             key={i}
-            className="clip"
+            className="clip-loop"
             style={{width: props.clipWidth, height: "100%", backgroundColor: props.color, flexShrink: 0}}
           ></div>
         ))
@@ -56,13 +55,13 @@ function ResizeHandle({type, show} : {type : ResizeHandleType, show : boolean}) 
       case ResizeHandleType.ResizeLeft:
         return (
           <div className="d-flex justify-content-center align-items-center" style={{width: 10, height: "100%"}}>
-            <img src={trimToRight} style={{width: 10, transform: "translate(7px, 0)", opacity: 0.5}} />
+            <TrimToRight iconStyle={{size: 11, color: "#000"}} style={{transform: "translateX(7px)", opacity: 0.5}} />
           </div>
         )
       case ResizeHandleType.ResizeRight:
         return (
           <div className="d-flex justify-content-center align-items-center" style={{width: 10, height: "100%"}}>
-            <img src={trimToLeft} style={{width: 10, transform: "translate(-7px, 0)", opacity: 0.5}} />
+            <TrimToLeft iconStyle={{size: 11, color: "#000"}} style={{transform: "translateX(-7px)", opacity: 0.5}} />
           </div>
         )
       case ResizeHandleType.Loop:
@@ -429,14 +428,14 @@ export default class ClipComponent extends React.Component<IProps, IState> {
                         className="clip"
                         style={{
                           width: width, 
-                          height: l.expanded ? 100 * verticalScale : 30, 
+                          height: l.expanded ? 100 * verticalScale : 25, 
                           backgroundColor: shadeColor(this.props.track.color, 30)
                         }}
                       >
                         <Loop
                           clipWidth={width}   
                           color={shadeColor(this.props.track.color, 45)} 
-                          style={{right: 0, transform: "translate(100%, 0)", height: l.expanded ? 100 * verticalScale : 30}}
+                          style={{right: 0, transform: "translate(100%, -1px)", height: l.expanded ? 100 * verticalScale : 25}}
                           width={loopWidth}   
                         />
                       </div>

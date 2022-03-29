@@ -1,16 +1,8 @@
-@font-face {
-  font-family: "Segoe UI";
-  src: local("Segoe UI"), url("./../../assets/fonts/Segoe\ UI/Segoe\ UI.ttf") format("truetype");
-}
+@import "./colors.css";
+@import "./themes.css";
 
 * {
   font-family: 'Roboto', sans-serif;
-}
-
-:root {
-  --color-primary: #ff6db8;
-  --color-primary-light: #ff99cd;
-  --color-primary-muted: #ffecf6;
 }
 
 body {
@@ -40,6 +32,14 @@ object {
   border-bottom-right-radius: inherit;
 }
 
+.btn1 {
+  background-color: #0000;
+  border: 1px solid var(--border1)!important;
+  border-radius: 50%!important;
+  height: 22px;
+  width: 22px;
+}
+
 .center-by-flex {
   display: flex;
   justify-content: center;
@@ -53,7 +53,14 @@ object {
 
 .clip {
   border-radius: 5px;
-  border: 1px solid #0002;
+  border: 1px solid var(--border3);
+}
+
+.clip-loop {
+  border-radius: 5px;
+  border-color: var(--border3);
+  border-style: solid;
+  border-width: 1px 1px 1px 0;
 }
 
 .clip-loop-container {
@@ -92,8 +99,16 @@ object {
   width: 0 !important;
 }
 
+.h-btn1:hover {
+  background-color: var(--bg7)!important;
+}
+
+.muted-placeholder::placeholder {
+  opacity: 0.5;
+}
+
 .no-borders {
-  border: none;
+  border: none!important;
 }
 
 .no-disabled:disabled {
@@ -113,6 +128,22 @@ object {
   box-shadow: none!important;
 }
 
+.preferences-input-row {
+  display: flex;
+  margin-top: 16px;
+}
+
+.preferences-input-row > label {
+  font-size: 14;
+  color: var(--border7);
+  font-weight: bold;
+}
+
+.preferences-input-row > div {
+  flex: 1;
+  justify-content: flex-end;
+}
+
 .rb-spin-buttons button:nth-child(1) {
   border-top-right-radius: 3px;
 }
@@ -128,7 +159,8 @@ object {
 }
 
 .scrollbar::-webkit-scrollbar:horizontal {
-  background-color: #333;
+  background-color: #0000;
+  border-top: 1px solid var(--border5);
 }
 
 .scrollbar::-webkit-scrollbar-thumb {
@@ -136,7 +168,7 @@ object {
 }
 
 .scrollbar::-webkit-scrollbar-thumb:horizontal {
-  background-color: #fff8;
+  background-color: var(--border1);
 }
 
 .scrollbar2::-webkit-scrollbar {
@@ -146,6 +178,20 @@ object {
 
 .scrollbar2::-webkit-scrollbar-thumb {
   background-color: #0004;
+}
+
+.scrollbar3::-webkit-scrollbar {
+  height: 8px;
+  border-top: 1px solid #777;
+}
+
+.scrollbar3::-webkit-scrollbar-thumb {
+  border-radius: 20px;
+  background-color: #777;
+  border-style: solid;
+  border-color: #0000;
+  border-width: 3px 3px 2px 3px;
+  background-clip: content-box;
 }
 
 .thin-thumb::-webkit-scrollbar-thumb {
@@ -182,5 +228,5 @@ object {
 }
 
 ::-webkit-scrollbar-corner {
-  background-color: #333;
+  background-color: #0000;
 }

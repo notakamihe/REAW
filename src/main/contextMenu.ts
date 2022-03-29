@@ -86,21 +86,19 @@ export default class ContextMenuBuilder {
 
   buildAutomationTrackContextMenu(lanes : AutomationLane[]) : MenuItemConstructorOptions[] {
     const menu : MenuItemConstructorOptions[] = [
-      ...lanes.map(l => {
-        return {
-          label: l.label,
-          click: () => {
-            this.mainWindow.webContents.send(channels.SELECT_AUTOMATION, l);
-          }
-        }
-      }),
-      {type: "separator"},
       {
-        label: "Hide Automation",
-        click: () => {
-          this.mainWindow.webContents.send(channels.HIDE_AUTOMATION);
-        }
+        label: "Switch to...",
+        enabled: lanes.length > 0,
+        submenu: lanes.length > 0 ? lanes.map(l => {
+          return {
+            label: l.label,
+            click: () => {
+              this.mainWindow.webContents.send(channels.SELECT_AUTOMATION, l);
+            }
+          }
+        }) : undefined
       },
+      {type: "separator"},
       {
         label: "Clear Automation",
         click: () => {
@@ -141,7 +139,7 @@ export default class ContextMenuBuilder {
       },
       {
         label: "Split",
-        accelerator: "CmdOrCtrl+Shift+S",
+        accelerator: "CmdOrCtrl+Alt+S",
         registerAccelerator: false,
         click: () => {
           this.mainWindow.webContents.send(channels.SPLIT_CLIP);
@@ -272,7 +270,7 @@ export default class ContextMenuBuilder {
     const menu : MenuItemConstructorOptions[] = [
       {
         label: "Create Clip from Region",
-        accelerator: "CmdOrCtrl+N",
+        accelerator: "CmdOrCtrl+Alt+C",
         registerAccelerator: false,
         click: () => {
           this.mainWindow.webContents.send(channels.CREATE_CLIP_FROM_TRACK_REGION);

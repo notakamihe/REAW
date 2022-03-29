@@ -86,6 +86,10 @@ export default class KeyListener extends React.Component<IProps> {
                   setIsPlaying(!isPlaying)
                 }
               }
+            } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.code == "KeyC") {
+              if (trackRegion) {
+                createClipFromTrackRegion()
+              }
             } else if ((e.ctrlKey || e.metaKey) && e.key === "d") {
               if (selectedClip) {
                 duplicateClip(selectedClip)
@@ -94,15 +98,11 @@ export default class KeyListener extends React.Component<IProps> {
               if (selectedClip) {
                 toggleMuteClip(selectedClip)
               }
-            } else if ((e.ctrlKey || e.metaKey) && e.key === "n") {
-              if (trackRegion) {
-                createClipFromTrackRegion()
-              }
             } else if (e.key === "r") {
               if (document.activeElement?.nodeName.toLowerCase() !== "input") {
                 setIsRecording(true)
               }
-            } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "s") {
+            } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.code === "KeyS") {
               if (selectedClip) {
                 splitClip(selectedClip, cursorPos)
               }

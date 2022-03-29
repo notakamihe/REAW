@@ -23,16 +23,16 @@ const Cursor = React.forwardRef<HTMLDivElement, IProps>((props, ref) => {
         pointerEvents: "none"
       }}
     >
-      <img src={cursorHead} style={{height: 25}} />
       <div 
         style={{
           position: "absolute", 
           bottom: 0,
           left: 4,
-          backgroundColor: "var(--color-primary)", 
+          backgroundColor: "var(--color1)", 
           height: (props.height || 0) - 5, 
           width: 2, 
-          transform: "translate(0px, 100%)"
+          transform: "translate(0px, 100%)",
+          border: "1px solid #0003"
         }}
       ></div>
     </div>

@@ -1,11 +1,11 @@
 import { FiberManualRecord } from "@mui/icons-material";
-import { IconButton } from "@mui/material";
+import { Button, ButtonGroup, IconButton } from "@mui/material";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import { ID } from "renderer/types/types";
 import { getTrackPanTitle, getTrackVolumeTitle } from "renderer/utils/utils";
 import FXComponent from "./FXComponent";
-import { Track } from "./TrackComponent";
+import { Track, TrackButton } from "./TrackComponent";
 import { EditableDisplay, Knob, Slider, VolumeMeter } from "./ui";
 
 const MixerSlider = (props : {setTrack : (track : Track) => void, track: Track}) => {
@@ -44,7 +44,7 @@ const MixerSlider = (props : {setTrack : (track : Track) => void, track: Track})
         onChange={(e, v) => setValue(v as number)}
         onChangeCommitted={(e, v) => props.setTrack({...props.track, volume: v as number})}
         showLabelOnHover
-        style={{height: "100%", width: "100%", opacity: (props.track.automationLanes.find(l => l.isVolume)?.nodes.length || 0) > 1 ? 0.4 : 1}}
+        style={{height: "100%", width: 2, opacity: (props.track.automationLanes.find(l => l.isVolume)?.nodes.length || 0) > 1 ? 0.4 : 1}}
         sx={{
           color: "#0000",
           "& .MuiSlider-thumb": {
@@ -63,15 +63,15 @@ const MixerSlider = (props : {setTrack : (track : Track) => void, track: Track})
             boxShadow: "none"
           },
           "& .MuiSlider-rail": {
-            backgroundColor: "#000",
+            backgroundColor: "var(--border7)",
           },
           "& .MuiSlider-track": {
-            border: "1px solid #0002"
+            backgroundColor: "var(--border7)"
           },
           "& .MuiSlider-mark": {
-            backgroundColor: "#0004",
+            backgroundColor: "var(--border7)",
             width: 12,
-            height: 2
+            height: "1px"
           }
         }}
         value={value}
@@ -92,10 +92,10 @@ const MixerTrack = (props : {order? : number, master : Track | undefined, track 
   return (
     <div 
       className="disable-highlighting"
-      style={{height: "100%", width: 85, backgroundColor: "#ddd", flexShrink: 0, borderRight: "1px solid #0004"}}
+      style={{height: "100%", width: 85, backgroundColor: "var(--bg3)", flexShrink: 0}}
     >
       <div style={{flex: 1, height: "100%", display: "flex", flexDirection: "column"}}>
-        <div className="py-1 d-flex align-items-center" style={{flex: 1, width: "100%", flexDirection: "column"}}>
+        <div className="pb-1 d-flex align-items-center" style={{flex: 1, width: "100%", flexDirection: "column", borderRight: "1px solid var(--border1)"}}>
           <FXComponent
             chainControlsOnHover
             effectId={effectId}
@@ -104,23 +104,23 @@ const MixerTrack = (props : {order? : number, master : Track | undefined, track 
             onChangeFXChain={chain => props.setTrack({...props.track, fx: {...props.track.fx, chainId: chain?.id || null}})}
             onSetEffects={effects => props.setTrack({...props.track, fx: {...props.track.fx, effects}})}
             style={{
-              add: {marginLeft: 2, backgroundColor: "#0000"},
-              addIcon: {fontSize: 11, color: "#333"},
-              bottom: {height: 14, backgroundColor: "#fff9"},
-              container: {width: "95%", marginBottom: 4, boxShadow: "0 0px 2px 1px #0002"},
-              enableIcon: {fontSize: 11},
+              add: {marginLeft: 1, backgroundColor: "#0000"},
+              addIcon: {fontSize: 12, color: "var(--fg1)", marginTop: 0},
+              bottom: {height: 16, backgroundColor: "#0000", borderBottom: "1px solid var(--border1)", borderRadius: 0},
+              container: {width: "100%", marginBottom: 2},
+              enableIcon: {fontSize: 12, color: "var(--fg1)"},
               effectContainer: {paddingLeft: 2},
-              effectActionsContainer: {padding: 0},
+              effectActionsContainer: {padding: 0, backgroundColor: "var(--bg4)"},
               fxChainContainer: {marginLeft: 2},
-              fxChainText: {fontSize: 11},
-              moreIcon: {fontSize: 12},
-              nextIcon: {fontSize: 16},
+              fxChainText: {fontSize: 12, color: "var(--fg1)"},
+              moreIcon: {fontSize: 12, color: "var(--fg1)"},
+              nextIcon: {fontSize: 16, color: "var(--fg1)"},
               nextPrevButtons: {width: 8},
-              prevIcon: {fontSize: 16},
-              saveIcon: {fontSize: 12},
-              top: {height: 14, backgroundColor: "#fff9", marginBottom: 1},
-              removeIcon: {fontSize: 12},
-              text: {fontSize: 11, transform: "translate(-2px, 1px)"}
+              prevIcon: {fontSize: 16, color: "var(--fg1)"},
+              saveIcon: {fontSize: 12, color: "var(--fg1)"},
+              top: {height: 16, backgroundColor: "#0000", marginBottom: 0, borderBottom: "1px solid var(--border1)", borderRadius: 0},
+              removeIcon: {fontSize: 12, color: "var(--fg1)"},
+              text: {fontSize: 12, color: "var(--fg1)"}
             }}
           />
           <div style={{flex: 1, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", position: "relative"}}>
@@ -128,13 +128,13 @@ const MixerTrack = (props : {order? : number, master : Track | undefined, track 
               bidirectional
               degrees={270}
               disabled={(props.track.automationLanes.find(l => l.isPan)?.nodes.length || 0) > 1}
+              lineStyle={{height: 4, top: 6, borderColor: "var(--border7)"}}
               max={100}
-              meter={(props.track.automationLanes.find(l => l.isPan)?.nodes.length || 0) <= 1}
-              meterStyle={{bgColor: "#0001", guageColor: "#fff"}}
+              meter={false}
               min={-100}
               onChange={p => props.setTrack({...props.track, pan: p})}
               size={20}
-              style={{knob: {backgroundColor: "#fff9", boxShadow: "0 1px 2px 1px #0008"}, container: {margin: "2px 0 6px"}}}
+              style={{knob: {backgroundColor: "#0000", border: "1px solid var(--border7)"}, container: {margin: "2px 0 6px"}}}
               title={getTrackPanTitle(props.track)}
               value={props.track.pan}
             />
@@ -144,76 +144,65 @@ const MixerTrack = (props : {order? : number, master : Track | undefined, track 
                 className="position-absolute d-flex"
                 style={{top: 0, left: -16, height: "100%", transform: "translate(-100%, 0)"}}
               >
-                <VolumeMeter volume={props.track.volume} style={{width: 4, marginRight: 5, boxShadow: "0 0px 1px 1px #0002"}} />
-                <VolumeMeter volume={props.track.volume} style={{width: 4, boxShadow: "0 0px 1px 1px #0002"}} />
+                <VolumeMeter volume={props.track.volume} style={{width: 6, marginRight: 5}} meterBackgroundColor="var(--bg3)" />
+                <VolumeMeter volume={props.track.volume} style={{width: 6}} meterBackgroundColor="var(--bg3)" />
               </div>
-            </div>
-            <div 
-              className="position-absolute d-flex rounded" 
-              style={{
-                top: "50%", 
-                right: 7, 
-                transform: "translateY(-50%)", 
-                flexDirection: "column", 
-                backgroundColor: "#fff7", 
-                padding: 2,
-                boxShadow: "0 1px 2px 1px #0004"
-              }}
-            >
-              <button 
-                className={!props.track.isMaster ? "mb-1" : ""} 
-                onClick={() => props.setTrack({...props.track, mute: !props.track.mute})}
-                style={{
-                  padding: 0, 
-                  fontSize: 12, 
-                  fontWeight: "bold", 
-                  color: (props.master?.mute || props.track.mute) ? "#f00" : "#000a", 
-                  backgroundColor: "#0000",
-                  opacity: (props.master?.mute && !props.track.isMaster) ? 0.4 : 1,
-                  pointerEvents: (props.master?.mute && !props.track.isMaster) ? "none" : "auto",
-                  margin: "0 2px"
-                }}
-                title={props.master?.mute && !props.track.isMaster ? "Unmute" : "Mute"}
+              <ButtonGroup 
+                className="position-absolute"
+                orientation="vertical"
+                style={{top: 0, right: -18, transform: "translate(100%, 0)"}}
               >
-                M
-              </button>
-              {
-                !props.track.isMaster &&
-                <button 
-                  className="mb-1"
-                  onClick={() => props.setTrack({...props.track, solo: !props.track.solo})}
-                  style={{
-                    padding: 0, 
-                    fontSize: 12, 
-                    fontWeight: "bold", 
-                    color: props.track.solo ? "#a80" : "#000a", 
-                    backgroundColor: "#0000",
-                  }}
-                  title="Toggle Solo"
+                <TrackButton
+                  bgcolor="#0000"
+                  outlinecolor="var(--border7)"
+                  clr="#f00" 
+                  className={(props.master?.mute && !props.track.isMaster) ? "pe-none" : ""}
+                  $activated={props.master?.mute || props.track.mute}
+                  onClick={() => props.setTrack({...props.track, mute: !props.track.mute})}
+                  opacity={(props.master?.mute && !props.track.isMaster) ? "0.5" : "1"}
+                  style={{width: 18, borderRadius: 0}}
+                  title={props.master?.mute || props.track.mute ? "Unmute" : "Mute"}
                 >
-                  S
-                </button>
-              }
-              {
-                !props.track.isMaster &&
-                <IconButton 
-                  className="p-0" 
-                  onClick={() => props.setTrack({...props.track, armed: !props.track.armed})} 
-                  title={props.track.armed ? "Disarm" : "Arm"}
-                >
-                  <FiberManualRecord
-                    style={{fontSize: 12, fontWeight: "bold", backgroundColor: "#0000", color: props.track.armed ? "#f00" : "#000a"}}
-                  />
-                </IconButton>
-              }
+                  M
+                </TrackButton>
+                {
+                  !props.track.isMaster &&
+                  <React.Fragment>
+                    <TrackButton
+                      bgcolor="#0000"
+                      outlinecolor="var(--border7)"
+                      clr="#a80" 
+                      $activated={props.track.solo}
+                      onClick={() => props.setTrack({...props.track, solo: !props.track.solo})}
+                      style={{width: 18, borderRadius: 0}}
+                      title="Toggle Solo"
+                    >
+                      S
+                    </TrackButton>
+                    <TrackButton
+                      bgcolor="#0000"
+                      outlinecolor="var(--border7)"
+                      clr="#f00" 
+                      $activated={props.track.armed}
+                      onClick={() => props.setTrack({...props.track, armed: !props.track.armed})}
+                      style={{width: 18, borderRadius: 0}}
+                      title={props.track.armed ? "Disarm" : "Arm"}
+                    >
+                      <FiberManualRecord
+                        style={{fontSize: 12, fontWeight: "bold", backgroundColor: "#0000", color: props.track.armed ? "#f00" : "#000a"}}
+                      />
+                    </TrackButton>
+                  </React.Fragment>
+                }
+              </ButtonGroup>
             </div>
           </div>
         </div>
-        <div className="col-12 m-0 p-0" style={{backgroundColor: props.track.color}}>
+        <div className="col-12 m-0 p-0" style={{backgroundColor: props.track.color, borderColor: "#0006", borderStyle: "solid", borderWidth: "0 1px 0 0"}}>
           <form 
             className="col-12 m-0 p-0 center-by-flex" 
             onSubmit={e => {e.preventDefault(); props.setTrack({...props.track, name})}}
-            style={{backgroundColor: "#fff9", textOverflow: "ellipsis", borderTop: "1px solid #0004"}}
+            style={{backgroundColor: "#fff9", textOverflow: "ellipsis", borderTop: "1px solid var(--border1)"}}
           >
             <EditableDisplay
               className={`text-center col-12 no-borders no-outline ${props.track.isMaster ? "pe-none" : ""}`} 
@@ -227,9 +216,9 @@ const MixerTrack = (props : {order? : number, master : Track | undefined, track 
           </form>
           <p 
             className="col-12 text-center overflow-hidden m-0" 
-            style={{fontSize: 12, height: 14, lineHeight: 1.3, borderTop: "1px solid #0004"}}
+            style={{fontSize: 12, height: 14, lineHeight: 1.3, borderTop: "1px solid #0006"}}
           >
-            {props.order || <span style={{color: "#fffb"}}>M</span>}
+            {props.order || "M"}
           </p>
         </div>
       </div>
@@ -248,8 +237,8 @@ export default class Mixer extends React.Component {
 
     return(
       <div 
-        className="scrollbar thin-thumb col-12 d-flex" 
-        style={{height: "100%", overflowX: "auto", backgroundColor: "#555", borderTop: "2px solid #fff5"}}
+        className="scrollbar3 col-12 d-flex" 
+        style={{height: "100%", overflowX: "auto", backgroundColor: "var(--bg1)", borderTop: "1px solid var(--border1)"}}
       >
         {masterTrack && <MixerTrack master={masterTrack} track={masterTrack} setTrack={setTrack} />}
         {

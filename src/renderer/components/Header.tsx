@@ -1,4 +1,4 @@
-import { FastForward, FastRewind, FiberManualRecord, Loop, PlayArrow, Save, SkipNext, SkipPrevious, Stop } from "@mui/icons-material";
+import { FastForward, FastRewind, FiberManualRecord, Loop, PlayArrow, Redo, Save, SkipNext, SkipPrevious, Stop, Undo } from "@mui/icons-material";
 import { IconButton } from "@mui/material";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
@@ -6,20 +6,20 @@ import TimelinePosition from "renderer/types/TimelinePosition";
 import { SnapGridSize } from "renderer/types/types";
 import Holdable from "./Holdable";
 import styled from "styled-components"
-import { ButtonAndIcon, NumberInput, SelectSpinBox } from "./ui";
+import { NumberInput, SelectSpinBox } from "./ui";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFileExport, faMagnet, faRedo, faUndo } from "@fortawesome/free-solid-svg-icons";
+import { faMagnet } from "@fortawesome/free-solid-svg-icons";
 import Metronome from "./Metronome";
 
 const PlaybackControlButton = styled(IconButton)`
-background-color: #333;
+background-color: #0000;
 border-radius: 0!important;
 padding: 2px!important;
 
 &:hover {
-  background-color: #555;
-    transition: background-color 0.2s ease-in-out;
-  }
+  background-color: var(--bg4);
+  transition: background-color 0.2s ease-in-out;
+}
 `
 
 
@@ -215,46 +215,28 @@ export default class Header extends React.Component<IProps, IState> {
         className="disable-highlighting d-flex"
         style={{
           width: "100%", 
-          height: 70, 
+          height: 45, 
           zIndex: 19, 
-          backgroundColor: "#fff", 
-          boxShadow: "0 1px 5px 1px #0002", 
+          backgroundColor: "var(--bg2)", 
           flexShrink: 0,
-          position: "relative"
+          position: "relative",
+          borderBottom: "1px solid var(--border1)"
         }}
       >
-        <div style={{display: "flex", flexDirection: "column", height: "100%", width:80}}>
-          <div className="d-flex justify-content-center" style={{flex: 1}}>
-            <IconButton className="p-0" style={{borderRadius: 0, marginRight: 12}}>
-              <FontAwesomeIcon icon={faUndo} style={{fontSize: 12, color: "#000"}} />
-            </IconButton>
-            <IconButton className="p-0" style={{borderRadius: 0}}>
-              <FontAwesomeIcon icon={faRedo} style={{fontSize: 12, color: "#000"}} />
-            </IconButton>
-          </div>
-          <ButtonAndIcon 
-            className="col-12" 
-            icon={<Save style={{fontSize: 14, marginRight: 4}} />} 
-            style={{fontSize: 14, flex: 1, outline: "none"}}
-          >
-            Save
-          </ButtonAndIcon>
-          <ButtonAndIcon 
-            className="col-12" 
-            icon={<FontAwesomeIcon icon={faFileExport} style={{fontSize: 12, marginRight: 4}} />} 
-            style={{fontSize: 14, flex: 1, outline: "none"}}
-          >
-            Export
-          </ButtonAndIcon>
+        <div className="d-flex align-items-center p-2" style={{height: "100%"}}>
+          <IconButton className="btn1 mx-1 h-btn1">
+            <Undo style={{fontSize: 14, color: "var(--border7)"}} />
+          </IconButton>
+          <IconButton className="btn1 mx-1 h-btn1">
+            <Redo style={{fontSize: 14, color: "var(--border7)"}} />
+          </IconButton>
+          <Metronome />
         </div>
-        <div 
-          className="d-flex" 
-          style={{width: 275, height: "100%", flexDirection: "column", borderRight: "1px solid #333", borderLeft: "1px solid #333"}}
-        >
-          <div className="d-flex" style={{height: 25}}>
+        <div className="d-flex" style={{width: 280, height: "100%", borderLeft: "1px solid var(--border1)", borderRight: "1px solid var(--border1)"}}>
+          <div style={{width: 82, height: "100%", borderRight: "1px solid var(--border1)"}}>
             <div 
               className="d-flex justify-content-center align-items-center" 
-              style={{flex: 1, transform: "translateY(2px)"}}
+              style={{flex: 1, transform: "translateY(1px)"}}
             >
               <NumberInput
                 hoverStyle={{verticalContainer: {visibility: "visible"}}}
@@ -263,30 +245,30 @@ export default class Header extends React.Component<IProps, IState> {
                 onChange={(value) => setTimeSignature({...timeSignature, beats: value})}
                 reverseDirection
                 style={{
-                  container: {width: 30, height: 18, backgroundColor: "#0000"},
+                  container: {width: 26, height: 18, backgroundColor: "#0000"},
                   incr: {backgroundColor: "#0000"},
-                  incrIcon: {color: "#333"},
-                  input: {fontWeight: "bold"},
+                  incrIcon: {color: "var(--fg2)", fontSize: 20},
+                  input: {fontWeight: "bold", color: "var(--fg1)"},
                   decr: {backgroundColor: "#0000"},
-                  decrIcon: {color: "#333"},
+                  decrIcon: {color: "var(--fg2)", fontSize: 20},
                   verticalContainer: {visibility: "hidden"}
                 }}
                 value={timeSignature.beats}
                 vertical
               />
-              <span style={{fontSize: 14, color: "#0008", margin: "0 2px"}}>|</span>
+              <span style={{fontSize: 14, color: "var(--fg1)", margin: "0 0 0 2px"}}>|</span>
               <SelectSpinBox
                 enableOptions={false}
                 hoverStyle={{buttonsContainer: {visibility: "visible"}}}
                 onChange={this.onChangeNoteValue}
                 style={{
                   buttonsContainer: {visibility: "hidden"},
-                  container: {height: 18, width: 32, backgroundColor: "#0000", transform: "translateY(-1px)"},
+                  container: {height: 18, width: 26, backgroundColor: "#0000", transform: "translateY(-1px)"},
                   next: {backgroundColor: "#0000"},
-                  nextIcon: {color: "#333"},
+                  nextIcon: {color: "var(--fg2)", fontSize: 20},
                   prev: {backgroundColor: "#0000"},
-                  prevIcon: {color: "#333"},
-                  select: {fontWeight: "bold", textAlign: "center", transform: "translateY(-1px)"}
+                  prevIcon: {color: "var(--fg2)", fontSize: 20},
+                  select: {fontWeight: "bold", textAlign: "center", transform: "translateY(-1px)", color: "var(--fg1)"},
                 }}
                 value={this.state.noteValue}
               >
@@ -300,24 +282,24 @@ export default class Header extends React.Component<IProps, IState> {
             </div>
             <div 
               className="d-flex justify-content-center align-items-center" 
-              style={{flex: 1, textAlign: "center"}}
+              style={{flex: 1, textAlign: "center", padding: "0 2px", borderTop: "1px solid var(--border1)"}}
               title="Tempo"
             >
               {
                 (masterTrack?.automationLanes.find(l => l.isTempo)?.nodes.length || 0) > 1 ?
-                <p style={{margin: 0, fontSize: 14, fontWeight: "bold", color: "#0008", transform: "translateY(1px)"}}>Automated</p> :
+                <p style={{margin: 0, fontSize: 14, fontWeight: "bold", color: "var(--fg1)", transform: "translateY(1px)"}}>Automated</p> :
                 <NumberInput
                   hoverStyle={{verticalContainer: {visibility: "visible"}}}
                   min={10}
                   max={1000}
                   onChange={this.onChangeTempo}
                   style={{
-                    container: {width: 45, height: 18, backgroundColor: "#0000"},
+                    container: {width: "100%", height: 18, backgroundColor: "#0000", marginTop: 2, flexDirection: "row-reverse"},
                     incr: {backgroundColor: "#0000"},
-                    incrIcon: {color: "#333"},
-                    input: {fontWeight: "bold", transform: "translateY(2px)"},
+                    incrIcon: {color: "var(--fg2)", fontSize: 20},
+                    input: {fontWeight: "bold", padding: 0, textAlign: "center", paddingRight: 10, color: "var(--fg1)"},
                     decr: {backgroundColor: "#0000"},
-                    decrIcon: {color: "#333"},
+                    decrIcon: {color: "var(--fg2)", fontSize: 20},
                     verticalContainer: {visibility: "hidden"}
                   }}
                   typing
@@ -326,20 +308,14 @@ export default class Header extends React.Component<IProps, IState> {
                 />
               }
             </div>
-            <div 
-              className="d-flex justify-content-center align-items-center"
-              style={{flex: 1, textAlign: "center"}}
-            >
-              <Metronome />
-            </div>
           </div>
           <div className="d-flex" style={{flex: 1}}>
             <div 
               onClick={() => this.setState({showTime: !this.state.showTime})}
               className="d-flex justify-content-center align-items-center" 
-              style={{flex: 1, backgroundColor: "var(--color-primary-muted)", cursor: "pointer"}}
+              style={{flex: 1, cursor: "pointer", borderRight: "1px solid var(--border1)", backgroundColor: "var(--bg7)"}}
             >
-              <h1 className="p-0 m-0" style={{fontSize: 28, textAlign: "center"}}>
+              <h1 className="p-0 m-0" style={{fontSize: 18, textAlign: "center", fontWeight: 100, color: "var(--fg1)"}}>
                 {
                   this.state.showTime ?
                   cursorPos.toTimeString(timelinePosOptions) :
@@ -349,51 +325,55 @@ export default class Header extends React.Component<IProps, IState> {
             </div>
             <div 
             style={{display: "flex", justifyContent: "center", alignItems: "center", flexDirection: 'column'}}>
-              <div className="d-flex" style={{margin: 0, height: "50%"}}>
+              <div className="d-flex" style={{margin: 0, height: "50%", marginTop: -1}}>
                 <PlaybackControlButton onClick={() => setIsPlaying(!isPlaying)}>  
-                  <PlayArrow style={{fontSize: 17, color: isPlaying ? "var(--color-primary)" : "#fff"}} />
+                  <PlayArrow style={{fontSize: 17, color: isPlaying ? "var(--color1)" : "var(--fg1)"}} />
                 </PlaybackControlButton>
                 <PlaybackControlButton onClick={this.stop} >  
-                  <Stop style={{fontSize: 17, color: "#fff"}} />
+                  <Stop style={{fontSize: 17, color: "var(--fg1)"}} />
                 </PlaybackControlButton>
                 <PlaybackControlButton onClick={() => setIsRecording(!isRecording)}>  
-                  <FiberManualRecord style={{fontSize: 17, color: isRecording ? "#f00" : "#fff"}} />
+                  <FiberManualRecord style={{fontSize: 17, color: isRecording ? "var(--color1)" : "var(--fg1)"}} />
                 </PlaybackControlButton>
                 <PlaybackControlButton onClick={() => setIsLooping(!isLooping)}> 
-                  <Loop style={{fontSize: 17, color: isLooping ? "var(--color-primary)" : "#fff"}} />
+                  <Loop style={{fontSize: 17, color: isLooping ? "var(--color1)" : "var(--fg1)"}} />
                 </PlaybackControlButton>
               </div>
-              <div className="d-flex" style={{margin: 0, height: "50%"}}>
+              <div className="d-flex" style={{margin: 0, height: "50%", borderTop: "1px solid var(--border1)"}}>
                 <PlaybackControlButton 
                   onClick={() => setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))} 
                 > 
-                  <SkipPrevious style={{fontSize: 17, color: "#fff"}} />
+                  <SkipPrevious style={{fontSize: 17, color: "var(--fg1)"}} />
                 </PlaybackControlButton>
                 <PlaybackControlButton onClick={() => {}}> 
-                  <SkipNext style={{fontSize: 17, color: "#fff"}} />
+                  <SkipNext style={{fontSize: 17, color: "var(--fg1)"}} />
                 </PlaybackControlButton>
                 <Holdable timeout={500} interval={250} onMouseDown={this.fastForward} onHold={this.fastForward}>
                   <PlaybackControlButton> 
-                    <FastForward style={{fontSize: 17, color: "#fff"}} />
+                    <FastForward style={{fontSize: 17, color: "var(--fg1)"}} />
                   </PlaybackControlButton>
                 </Holdable>
                 <Holdable timeout={500} interval={250} onMouseDown={this.fastRewind} onHold={this.fastRewind}>
                   <PlaybackControlButton> 
-                    <FastRewind style={{fontSize: 17, color: "#fff"}} />
+                    <FastRewind style={{fontSize: 17, color: "var(--fg1)"}} />
                   </PlaybackControlButton>
                 </Holdable>
               </div>
             </div>
           </div>
         </div>
-        <div className="p-2" style={{width: 275, height: "100%"}}>
+        <div className="p-2 d-flex align-items-center" style={{width: 275, height: "100%"}}>
           <SelectSpinBox
             classes={{container: "rb-spin-buttons rounded"}}
-            icon={<FontAwesomeIcon icon={faMagnet} style={{fontSize: 10}} />}
+            icon={<FontAwesomeIcon icon={faMagnet} style={{fontSize: 10, transform: "translateY(1px)", color: "var(--fg1)"}} />}
             onChange={this.onChangeSnapSizeOption}
             style={{
-              container: {height: 25, width: 130, backgroundColor: "var(--color-primary-muted)", boxShadow: "0 1px 2px 1px #0002"},
-              select: {marginLeft: 4}
+              container: {height: 25, width: 130, padding: 2, border: "1px solid var(--fg1)", backgroundColor: "#0000"},
+              next: {backgroundColor: "#0000"},
+              nextIcon: {color: "var(--fg2)", fontSize: 20},
+              prev: {backgroundColor: "#0000"},
+              prevIcon: {color: "var(--fg2)", fontSize: 20},
+              select: {marginLeft: 4, color: "var(--fg1)"},
             }}
             value={this.state.snapSizeOptionValue}
           >

@@ -191,7 +191,7 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
               onContextMenu={this.onContextMenu}
               style={{
                 width: "100%",
-                height: this.props.lane.expanded ? 100 * verticalScale : 30,
+                height: this.props.lane.expanded ? 100 * verticalScale : 25,
                 backgroundColor: "#fff9",
                 borderBottom: `1px solid #0002`,
                 position: "relative",

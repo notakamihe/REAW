@@ -14,6 +14,11 @@ export enum SnapGridSize {
   HundredTwentyEighthBeat = 0.0078125
 }
 
+export interface SVGIconStyleProps {
+  iconStyle? : {color? : string, size? : number};
+  style? : React.CSSProperties;
+}
+
 export interface TimeSignature {
   beats : number
   noteValue : number

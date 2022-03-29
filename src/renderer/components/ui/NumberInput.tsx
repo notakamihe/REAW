@@ -10,6 +10,7 @@ interface NumberInputClasses {
   incr? : string;
   incrIcon? : string;
   input? : string;
+  inputContainer? : string;
   verticalContainer? : string;
 }
 
@@ -20,6 +21,7 @@ interface NumberInputStyles {
   incr? : React.CSSProperties;
   incrIcon? : React.CSSProperties;
   input? : React.CSSProperties;
+  inputContainer? : React.CSSProperties;
   verticalContainer? : React.CSSProperties;
 }
 
@@ -55,6 +57,7 @@ export default function NumberInput(props : IProps) {
       style.incr = {...style.incr, ...props.hoverStyle.incr};
       style.incrIcon = {...style.incrIcon, ...props.hoverStyle.incrIcon};
       style.input = {...style.input, ...props.hoverStyle.input};
+      style.inputContainer = {...style.inputContainer, ...props.hoverStyle.inputContainer};
       style.verticalContainer = {...style.verticalContainer, ...props.hoverStyle.verticalContainer};
     }
 
@@ -113,7 +116,7 @@ export default function NumberInput(props : IProps) {
           </button>
         </Holdable>
       }
-      <div className="d-flex align-items-center" style={{flex: 1}}>
+      <div className={`d-flex align-items-center ${props.classes?.inputContainer}`} style={{flex: 1, ...style?.inputContainer}}>
         {
           props.typing ?
           <input 

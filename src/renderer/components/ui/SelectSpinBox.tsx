@@ -190,7 +190,7 @@ export default class SelectSpinBox extends React.Component<IProps, IState> {
                 className={`p-0 center-by-flex overflow-hidden ${this.props.classes?.prev}`}
                 disabled={isFirst}
                 onClick={this.handlePrev}
-                style={{height:"50%",width:"100%",backgroundColor:"#333",...style?.prev, opacity: isFirst ? 0.2 : 1}} 
+                style={{height:"50%", width:"100%", ...style?.prev, opacity: isFirst ? 0.2 : 1}} 
               >
                 <ArrowDropUp
                   className={this.props.classes?.prevIcon} 
@@ -201,7 +201,7 @@ export default class SelectSpinBox extends React.Component<IProps, IState> {
                 className={`p-0 center-by-flex overflow-hidden ${this.props.classes?.next}`}
                 disabled={isLast}
                 onClick={this.handleNext}
-                style={{height:"50%",width:"100%",backgroundColor:"#333",...style?.next, opacity: isLast ? 0.2 : 1}} 
+                style={{height:"50%", width:"100%", ...style?.next, opacity: isLast ? 0.2 : 1}} 
               >
                 <ArrowDropDown 
                   className={this.props.classes?.nextIcon} 

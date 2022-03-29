@@ -41,9 +41,11 @@ export default class TimelineComponent extends React.Component<IProps> {
       if (ctx && this.props.window) {
         ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-        ctx.fillStyle = "#777"
+        const color = window.getComputedStyle(document.body).getPropertyValue("--border7")
+        
+        ctx.fillStyle = color
         ctx.lineWidth = 1
-        ctx.strokeStyle = "#777"
+        ctx.strokeStyle = color
         
         const options = this.context!.timelinePosOptions
 
@@ -131,7 +133,7 @@ export default class TimelineComponent extends React.Component<IProps> {
         <canvas 
           height={33} 
           ref={this.canvasRef} 
-          style={{position: "sticky", left: 0, borderBottom: "1px solid #777"}} 
+          style={{position: "sticky", left: 0, borderBottom: "1px solid var(--border1)"}} 
           width={this.props.width}
         ></canvas>
       </div>

@@ -1,6 +1,5 @@
 import React from "react"
 import {Accordion, AccordionDetails, AccordionSummary, IconButton, Popover, Typography} from "@mui/material"
-import automation from "./../../../assets/svg/automation.svg"
 import { WorkstationContext } from "renderer/context/WorkstationContext"
 import { ID, SnapGridSize, ValidatedInput } from "renderer/types/types"
 import { Track } from "./TrackComponent"
@@ -98,33 +97,20 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
     return this.props.track.automationLanes.filter(t => !t.show)
   }
 
-  hideLane() {
-    const automationLanes = this.props.track.automationLanes.slice()
-    const laneIdx = this.props.track.automationLanes.findIndex(l => l.id === this.props.automationLane.id)
-
-    automationLanes[laneIdx].show = false
-
-    this.context!.setTrack({...this.props.track, automationLanes})
-  }
-
   onAway = () => {
     if (laneContainsNode(this.props.automationLane, this.context!.selectedNode))
       this.context!.setCancelClickAway(false)
   }
 
-  onChangeAutomation = (e : React.MouseEvent<HTMLButtonElement>) => {
+  onContextMenu = (e : React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation()
     
-    ipcRenderer.send(channels.OPEN_AUTOMATION_TRACK_CONTEXT_MENU, [this.props.automationLane, ...this.getAvailableLanes()])
+    ipcRenderer.send(channels.OPEN_AUTOMATION_TRACK_CONTEXT_MENU, this.getAvailableLanes())
 
     ipcRenderer.on(channels.SELECT_AUTOMATION, (lane : AutomationLane) => {
       if (lane.id !== this.props.automationLane.id) {
         this.switchLane(lane)
       }
-    })
-
-    ipcRenderer.on(channels.HIDE_AUTOMATION, () => {
-      this.hideLane()
     })
 
     ipcRenderer.on(channels.CLEAR_AUTOMATION, () => {
@@ -137,7 +123,6 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
 
     ipcRenderer.on(channels.CLOSE_AUTOMATION_TRACK_CONTEXT_MENU, () => {
       ipcRenderer.removeAllListeners(channels.SELECT_AUTOMATION)
-      ipcRenderer.removeAllListeners(channels.HIDE_AUTOMATION)
       ipcRenderer.removeAllListeners(channels.CLEAR_AUTOMATION)
       ipcRenderer.removeAllListeners(channels.REMOVE_AUTOMATION)
       ipcRenderer.removeAllListeners(channels.CLOSE_AUTOMATION_TRACK_CONTEXT_MENU)
@@ -260,53 +245,57 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
       return (
         <React.Fragment>
           <Accordion 
+            className="no-shadow remove-spacing" 
             expanded={this.props.automationLane.expanded}
-            className="remove-spacing" 
-            style={{width: "100%"}}
+            onContextMenu={this.onContextMenu}
+            style={{width: "100%", backgroundColor: "var(--bg2)", borderRadius: 0}}
           >
             <AccordionSummary 
-              className="remove-spacing px-2"
-              style={{backgroundColor: "#eee", height: 30}}
-              expandIcon={<ExpandMore onClick={this.toggleExpand} />}
+              className="remove-spacing"
+              expandIcon={<ExpandMore onClick={this.toggleExpand} style={{fontSize: 16, color: "var(--fg1)"}} />}
+              style={{height: 25, borderBottom: "1px solid var(--border5)", justifyContent: "flex-start"}}
+              sx={{
+                ".MuiAccordionSummary-content.Mui-expanded": {overflow: "hidden", display: "flex"},
+                ".MuiAccordionSummary-expandIconWrapper": {flexShrink: 0, marginRight: "3px"}
+              }}
             >
-              <div className="d-flex justify-content-center align-items-center">
-                <IconButton 
-                  title="Change automation" 
-                  onClick={this.onChangeAutomation}
-                  onContextMenu={this.onChangeAutomation}
-                  className="p-1" 
-                  style={{marginRight: 6, backgroundColor: this.props.color}}
-                >
-                  <img src={automation} style={{width: 14, margin: 0, filter: this.props.track.isMaster ? "" : "invert(1)"}} />
-                </IconButton>
-                <Typography style={{fontSize: 14, fontWeight: "bold"}}>
-                  {this.props.automationLane.label}
-                </Typography>
-              </div>
+              <span 
+                className="mx-2 rounded-circle d-inline-block"
+                style={{height: 10, width: 10, border: "1px solid var(--border6)", backgroundColor: this.props.color, flexShrink: 0, marginTop: 5}}
+              ></span>
+              <Typography 
+                style={{fontSize: 14, fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", color: "var(--fg1)"}}
+                title={this.props.automationLane.label}
+              >
+                {this.props.automationLane.label}
+              </Typography>
             </AccordionSummary>
             <MouseDownAwayListener onMouseDown={() => setCancelClickAway(true)} onAway={this.onAway}>
-              <AccordionDetails className="p-0" style={{backgroundColor:"#ddd", height:(100 * verticalScale) - 30}}>
+              <AccordionDetails 
+                className="p-0" 
+                style={{height: (100 * verticalScale) - 25, borderBottom: "1px solid var(--border5)"}}
+              >
                 <div 
                   className="py-0 scrollbar2 thin-thumb d-flex px-2" 
                   style={{width: "100%", height: "100%", flexDirection: horizontal ? "row" : "column"}}
                 >
                   <div 
                     className={`d-flex justify-content-center ${horizontal ? "align-items-center" : "align-items-start"}`}
-                    style={{width: horizontal ? 20 : "100%", flex: horizontal ? 0 : 1, marginTop: horizontal ? 0 : 8}}
+                    style={{width: horizontal ? 20 : "100%", flex: horizontal ? 0 : 1, marginTop: horizontal ? 0 : verticalScale < 0.9 ? 8 : 16}}
                   >
                     <IconButton 
                       className="p-0" 
                       onClick={e => this.setState({anchorEl: e.currentTarget})} 
-                      style={{backgroundColor: this.props.color, boxShadow: "0 1px 2px 1px #0002"}}
+                      style={{border: "1px solid var(--border7)"}}
                     >
-                      <Add style={{fontSize: 16, color: this.props.track.isMaster ? "#fff" : "#000"}} />
+                      <Add style={{fontSize: 16, color: "var(--border7)"}} />
                     </IconButton>
                     <Popover 
                       anchorEl={this.state.anchorEl} 
                       anchorOrigin={{horizontal: "right", vertical: "center"}}
                       open={Boolean(this.state.anchorEl)}
                       onClose={() => this.setState({anchorEl: null})}
-                      PaperProps={{style: {transform: "translate(10px, -50%)"}}}
+                      PaperProps={{style: {transform: "translate(10px, -50%)", backgroundColor: "var(--bg9)"}}}
                     >
                       <form onSubmit={this.onSubmit} style={{width: 75, padding: 6}}>
                         <div className="text-center my-1">
@@ -319,14 +308,14 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
                             }})}
                             placeholder="0.0.000"
                             style={{
-                              borderRadius: 3, 
-                              border: "none", 
-                              backgroundColor: this.state.pos.valid ? "#0002" : "#f002",
-                              color: this.state.pos.valid ? "#000" : "#f00",
+                              borderRadius: 2, 
+                              border: `1px solid ${this.state.pos.valid ? "var(--border7)" : "#f00"}`,
+                              color: this.state.pos.valid ? "var(--border7)" : "#f00",
                               outline: "none",
                               fontSize: 14,
                               width: "100%",
-                              textAlign: "center"
+                              textAlign: "center",
+                              backgroundColor: "#0000"
                             }}
                           />
                         </div>
@@ -336,20 +325,20 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
                             onChange={e => this.setState({value: {value: e.target.value, valid: !isNaN(Number(e.target.value))}})}
                             placeholder="Val"
                             style={{
-                              borderRadius: 3, 
-                              border: "none", 
-                              backgroundColor: this.state.value.valid ? "#0002" : "#f002",
-                              color: this.state.value.valid ? "#000" : "#f00",
+                              borderRadius: 2, 
+                              border: `1px solid ${this.state.value.valid ? "var(--border7)" : "#f00"}`,
+                              color: this.state.value.valid ? "var(--border7)" : "#f00",
                               outline: "none",
                               fontSize: 14,
                               width: "100%",
-                              textAlign: "center"
+                              textAlign: "center",
+                              backgroundColor: "#0000"
                             }}
                           />
                         </div>
                         <input 
-                          className="px-1 py-0 col-12 no-borders rounded"
-                          style={{color: "#fff", backgroundColor: "var(--color-primary)", fontSize: 14, boxShadow: "0 1px 2px 1px #0004"}} 
+                          className="px-1 py-1 col-12 no-borders"
+                          style={{color: "#fff", backgroundColor: "var(--color1)", fontSize: 14, borderRadius: 2}} 
                           type="submit" 
                           value="Add" 
                         />
@@ -366,10 +355,10 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
                   >
                     <IconButton 
                       disabled={disabled}
-                      style={{padding: 2, marginRight: 6, backgroundColor: "#0003"}}
+                      style={{padding: 2, marginRight: 6, border: "1px solid var(--border7)"}}
                       onClick={() => {if (selectedNode) deleteNode(selectedNode)}}
                     >
-                      <Delete style={{fontSize: 14, color: "#0008"}} />
+                      <Delete style={{fontSize: 14, color: "var(--border7)"}} />
                     </IconButton>
                     <Slider 
                       className="remove-spacing"
@@ -379,8 +368,8 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
                       max={this.props.automationLane.maxValue}
                       onChange={(e, v) => this.setState({sliderValue: v as number})}
                       onChangeCommitted={() => this.setSelectedNodeValue(this.state.sliderValue)}
-                      style={{flex: 1, boxShadow: "0 1px 2px 1px #0002"}}
-                      sx={{color: this.props.color, "& .MuiSlider-thumb": {width: 12, height: 12, boxShadow: "none"}}}
+                      style={{flex: 1, border: "1px solid var(--border8)"}}
+                      sx={{color: this.props.color, "& .MuiSlider-thumb": {width: 15, height: 15, border: "1px solid var(--border8)"}}}
                       value={this.state.sliderValue}
                     />
                   </div>

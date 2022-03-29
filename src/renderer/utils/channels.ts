@@ -6,7 +6,6 @@ const channels =  {
   OPEN_AUTOMATION_TRACK_CONTEXT_MENU: 'open-automation-track-context-menu',
   CLOSE_AUTOMATION_TRACK_CONTEXT_MENU: 'close-automation-track-context-menu',
   SELECT_AUTOMATION: 'select-automation',
-  HIDE_AUTOMATION: 'hide-automation',
   CLEAR_AUTOMATION: 'clear-automation',
   REMOVE_AUTOMATION: 'remove-automation',
 
@@ -44,6 +43,8 @@ const channels =  {
   OPEN_TRACK_REGION_CONTEXT_MENU: "open-track-region-context-menu",
   CLOSE_TRACK_REGION_CONTEXT_MENU: "close-track-region-context-menu",
   CREATE_CLIP_FROM_TRACK_REGION: "create-clip-from-track-region",
+
+  OPEN_PREFERENCES: "open-preferences",
 
   TOGGLE_MASTER_TRACK: "toggle-master-track",
 

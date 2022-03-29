@@ -21,25 +21,12 @@ const VolumeMeter = (props : IProps) => {
         width: "100%", 
         background: "linear-gradient(to top, #0f0 75.5813%, #ff0 93.0232%, #f00)",
         marginRight: 3, 
+        border: "1px solid #999",
         ...props.style,
       }}
     >
-      <div style={{width: "100%", height: `${height}%`, backgroundColor: props.meterBackgroundColor || "#ccc"}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(6)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(0)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-6)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-12)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-18)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-24)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-30)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-36)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-42)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-48)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-54)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-60)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-66)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-72)}%`}}></div>
-      <div style={{width: "100%", borderBottom: `1px solid ${props.meterBackgroundColor || "#ccc"}`, position: "absolute", top: `${volToMarginPct(-78)}%`}}></div>
+      <div style={{width: "100%", height: `${height}%`, backgroundColor: props.meterBackgroundColor || "#ddd"}}></div>
+      <div style={{width: "100%", borderBottom: `1px solid #999`, position: "absolute", top: `${volToMarginPct(0)}%`}}></div>
     </div>
   )
 }

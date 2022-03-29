@@ -61,6 +61,15 @@ export default class Knob extends React.Component<IProps, IState> {
       anchorEl: null,
       inputValue: ""
     }
+
+    this.onChange = this.onChange.bind(this)
+    this.onContextMenu = this.onContextMenu.bind(this)
+    this.onDoubleClick = this.onDoubleClick.bind(this)
+    this.onMouseDown = this.onMouseDown.bind(this)
+    this.onMouseMove = this.onMouseMove.bind(this)
+    this.onMouseUp = this.onMouseUp.bind(this)
+    this.onSubmit = this.onSubmit.bind(this)
+    this.onWheel = this.onWheel.bind(this)
   }
 
   componentDidMount() {
@@ -115,7 +124,7 @@ export default class Knob extends React.Component<IProps, IState> {
             ctx.arc(
               canvas.width / 2, 
               canvas.height / 2, 
-              this.props.size * 0.6, 
+              this.props.size * 0.7, 
               3 * Math.PI / 2 - degreeToRad(Math.abs(this.props.degrees) / 2),
               3 * Math.PI / 2 - degreeToRad(Math.abs(this.props.degrees) / 2) + degreeToRad(this.props.degrees)
             )
@@ -129,7 +138,7 @@ export default class Knob extends React.Component<IProps, IState> {
             ctx.arc(
               canvas.width / 2, 
               canvas.height / 2, 
-              this.props.size * 0.6, 
+              this.props.size * 0.7, 
               3 * Math.PI / 2,
               3 * Math.PI / 2 + degreeToRad((this.props.degrees / 2) * percentageAndDir.percentage) * percentageAndDir.direction,
               percentageAndDir.direction === -1
@@ -142,7 +151,7 @@ export default class Knob extends React.Component<IProps, IState> {
             ctx.arc(
               canvas.width / 2, 
               canvas.height / 2, 
-              this.props.size * 0.6, 
+              this.props.size * 0.7, 
               3 * Math.PI / 2 + degreeToRad(this.props.offset), 
               (0.0174533 * this.props.degrees - 1.5708) + degreeToRad(this.props.offset)
             )
@@ -154,7 +163,7 @@ export default class Knob extends React.Component<IProps, IState> {
             ctx.arc(
               canvas.width / 2, 
               canvas.height / 2, 
-              this.props.size * 0.6, 
+              this.props.size * 0.7, 
               3 * Math.PI / 2 + degreeToRad(this.props.offset),
               (0.0174533 * Math.max(0.001, this.props.degrees * this.getPercentage()) - 1.5708) + degreeToRad(this.props.offset)
             )
@@ -162,17 +171,6 @@ export default class Knob extends React.Component<IProps, IState> {
           }
         }
       }
-    }
-  }
-
-  getMovement = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (this.props.discrete) {
-      if (Math.abs(e.movementX) > Math.abs(e.movementY))
-        return e.movementX
-  
-      return -e.movementY
-    } else {
-      return e.movementX - e.movementY
     }
   }
   
@@ -207,14 +205,26 @@ export default class Knob extends React.Component<IProps, IState> {
       this.props.onChange(newValue)
     }
   }
+
+  onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    this.setState({isDragging: true})
+
+    document.addEventListener('mousemove', this.onMouseMove)
+    document.addEventListener('mouseup', this.onMouseUp)
+  }
   
-  onMouseMove = (amt : number) => {
+  onMouseMove = (e : MouseEvent) => {
+    let movement = e.movementX - e.movementY
+
     if (this.state.isDragging) {
-      this.addToValue(amt)
+      this.addToValue(movement)
     }
   }
 
-  onMouseUp = () => {
+  onMouseUp = (e : MouseEvent) => {
+    document.removeEventListener('mousemove', this.onMouseMove)
+    document.removeEventListener('mouseup', this.onMouseUp)
+
     this.setState({isDragging: false})
     this.props.onChange(this.state.value)
   }
@@ -250,16 +260,15 @@ export default class Knob extends React.Component<IProps, IState> {
 
   render() {
     return (
-      <div style={this.props.style?.container} title={this.props.title}>
+      <div title={this.props.title}>
+
         <div 
           onDragStart={e => e.preventDefault()}
-          style={{cursor: "ns-resize", pointerEvents: this.props.disabled ? "none" : "auto"}}
+          style={{cursor: "ns-resize", pointerEvents: this.props.disabled ? "none" : "auto", ...this.props.style?.container}}
         >
           <div
             ref={this.ref}
-            onMouseDown={() => this.setState({isDragging: true})}
-            onMouseUp={this.onMouseUp}
-            onMouseMove={e => this.onMouseMove(this.getMovement(e))}
+            onMouseDown={this.onMouseDown}
             onContextMenu={this.onContextMenu}
             onDoubleClick={this.onDoubleClick}
             style={{
@@ -268,6 +277,7 @@ export default class Knob extends React.Component<IProps, IState> {
               borderRadius: this.props.size / 2,
               backgroundColor: "white",
               opacity: this.props.disabled ? 0.5 : 1,
+              position: "relative",
               ...this.props.style?.knob
             }}
           >
@@ -279,8 +289,8 @@ export default class Knob extends React.Component<IProps, IState> {
             >
               <div style={{width: "100%", height: "100%", position: "relative"}}>
                 <canvas 
-                  width={this.props.size * 1.4}
-                  height={this.props.size * 1.4}
+                  width={this.props.size * 1.5}
+                  height={this.props.size * 1.5}
                   ref={this.canvasArcRef}
                   style={{
                     position: "absolute", 
@@ -316,13 +326,10 @@ export default class Knob extends React.Component<IProps, IState> {
                 {
                   this.state.anchorEl &&
                   <Popover
-                    open={Boolean(this.state.anchorEl)}
                     anchorEl={this.state.anchorEl}
+                    anchorOrigin={{vertical: 'top', horizontal: 'right'}}
                     onClose={e => this.setState({anchorEl: null})}
-                    anchorOrigin={{
-                      vertical: 'top',
-                      horizontal: 'right',
-                    }}
+                    open={Boolean(this.state.anchorEl)}
                     style={{marginLeft: 4}}
                   >
                     <form onSubmit={this.onSubmit}>
@@ -330,24 +337,13 @@ export default class Knob extends React.Component<IProps, IState> {
                         autoFocus
                         value={this.state.inputValue} 
                         onChange={this.onChange} 
-                        style={{
-                          backgroundColor: "#fff",
-                          width: 40,
-                          border: "none",
-                          borderRadius: 3,
-                          fontSize: 14,
-                          outline: "none"
-                        }}
+                        style={{backgroundColor: "#fff", width: 40, border: "none", borderRadius: 3, fontSize: 14, outline: "none"}}
                       />
                     </form>
                   </Popover>
                 }
               </div>
             </Tooltip>
-            {
-              this.state.isDragging &&
-              <div style={{position: "fixed", top: 0, bottom: 0, left: 0, right: 0, zIndex: 20}}></div>
-            }
           </div>
         </div>
       </div>

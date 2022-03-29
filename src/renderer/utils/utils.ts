@@ -68,7 +68,7 @@ export function getBaseMasterTrack() : Track {
     ...baseTrack, 
     name: "Master", 
     isMaster: true, 
-    color: "#555", 
+    color: "#666", 
     armed: true,
     automationLanes: [
       ...baseTrack.automationLanes,

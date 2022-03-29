@@ -7,7 +7,7 @@ import channels from "renderer/utils/channels";
 import { ipcRenderer } from "renderer/utils/utils";
 import { v4 } from "uuid";
 import { Effect, FX } from "./TrackComponent";
-import { OSDialog, SelectSpinBox } from "./ui";
+import { Dialog, SelectSpinBox } from "./ui";
 
 export interface FXChain {
   id : ID
@@ -35,6 +35,8 @@ interface FXStyle {
   removeIcon? : React.CSSProperties
   saveIcon? : React.CSSProperties
   text? : React.CSSProperties
+  toggle? : React.CSSProperties
+  toggleIcon? : React.CSSProperties
   top? : React.CSSProperties
   topCompact? : React.CSSProperties
 }
@@ -357,11 +359,12 @@ export default class FXComponent extends React.Component<IProps, IState> {
                 marginRight: 2, 
                 borderRadius: "3px 0 0 3px", 
                 padding: "0 2px",
-                transition: "all ease-in-out 0.2s"
+                transition: "all ease-in-out 0.2s",
+                ...style?.toggle
               }}
               title="Toggle FX chain mode"
             >
-              <Tune style={{fontSize: 16}} />
+              <Tune style={{fontSize: 16, ...style?.toggleIcon}} />
             </IconButton> :
             this.renderChainComponent()
           }
@@ -384,16 +387,16 @@ export default class FXComponent extends React.Component<IProps, IState> {
                   className="p-0" 
                   onClick={this.addEffect} 
                   title="Add an effect"
-                  style={{backgroundColor: "#333", borderRadius: "50%", marginLeft: 4, ...style?.add}}
+                  style={{borderRadius: "50%", marginLeft: 2, ...style?.add}}
                 >
-                  <Add style={{fontSize: 14, color: "#fff", ...style?.addIcon}} />
+                  <Add style={{fontSize: 14, color: "#0009", ...style?.addIcon}} />
                 </IconButton>
               </div>
               <div 
                 className="d-flex align-items-center" 
                 onMouseOver={() => this.setState({hovering: true})}
                 onMouseLeave={() => this.setState({hovering: false})}
-                style={{flex: 1, paddingLeft: 6, height: "100%", overflow: "hidden", cursor: "pointer", ...style?.effectContainer}}
+                style={{flex: 1, paddingLeft: 2, height: "100%", overflow: "hidden", cursor: "pointer", ...style?.effectContainer}}
               >
                 {
                   effect &&
@@ -468,7 +471,7 @@ export default class FXComponent extends React.Component<IProps, IState> {
             </div>
           }
         </div>
-        <OSDialog
+        <Dialog
           onClickAway={() => this.setState({showFxChainNameDialog: false})}
           onClose={() => this.setState({showFxChainNameDialog: false})}
           open={this.state.showFxChainNameDialog}
@@ -476,23 +479,26 @@ export default class FXComponent extends React.Component<IProps, IState> {
           title={!this.state.saveAsNew && fxChain ? "Rename FX chain" : "Save FX chain"}
         >
           <DialogContent className="px-3">
-            <form className="d-flex" onSubmit={this.onChainNameDialogSubmit} style={{width: "100%"}}>
-              <input
-                autoFocus
-                className="rounded px-2 py-1 no-outline"
-                onChange={e => this.setState({fxChainNameDialogText: e.target.value})}
-                style={{backgroundColor: "#0002", border: "none", fontSize: 14, flex: 1}}
-                value={this.state.fxChainNameDialogText}
-              />
-              <input
-                className="rounded no-borders px-2 py-1"
-                style={{backgroundColor: "var(--color-primary)", color: "#fff", fontSize: 14, marginLeft: 4}}
-                type="submit"
-                value="Save"
-              />
+            <form onSubmit={this.onChainNameDialogSubmit} style={{width: "100%"}}>
+              <div className="rounded col-12 d-flex">
+                <input
+                  autoFocus
+                  className="px-2 py-1 no-outline br-inherit-l muted-placeholder"
+                  onChange={e => this.setState({fxChainNameDialogText: e.target.value})}
+                  placeholder="Name"
+                  style={{border: "1px solid var(--border7)", fontSize: 14, flex: 1, color: "var(--border7)", backgroundColor: "#0000"}}
+                  value={this.state.fxChainNameDialogText}
+                />
+                <input
+                  className="no-borders px-2 py-1 br-inherit-r"
+                  style={{backgroundColor: "var(--color1)", color: "#fff", fontSize: 14, marginLeft: 4}}
+                  type="submit"
+                  value="Save"
+                />
+              </div>
             </form>
           </DialogContent>
-        </OSDialog>
+        </Dialog>
       </React.Fragment>
     )
   }

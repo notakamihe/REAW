@@ -140,7 +140,7 @@ class Lane extends React.Component<IProps, IState> {
               onDelete={() => setTrackRegion(null)}
               onSetRegion={region => setTrackRegion(region ? {region, track: this.props.track} : null)}
               region={!trackRegion || trackRegion.track.id !== this.props.track.id ? null : trackRegion.region}
-              regionStyle={{backgroundColor: "#fff6"}}
+              regionStyle={{backgroundColor: "#fff3", borderColor: "var(--bg4)", borderStyle: "solid", borderWidth: "0 1px"}}
             />
             {
               this.props.track.clips.map(clip => (
@@ -164,7 +164,7 @@ class Lane extends React.Component<IProps, IState> {
                 color={getLaneColor(this.props.track.automationLanes, idx, this.props.track.color)}
                 key={lane.id}
                 lane={lane}
-                style={{backgroundColor: "#aaa"}}
+                style={{backgroundColor: "var(--bg6)", borderBottom: "1px solid var(--border4)"}}
                 track={this.props.track}
               />
             ))

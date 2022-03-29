@@ -32,7 +32,7 @@ export default function ConformationInput(props : IProps) {
         className="br-inherit-r center-by-flex" 
         disabled={props.disabled}
         style={{
-          backgroundColor:"var(--color-primary)", 
+          backgroundColor:"var(--color1)", 
           padding: "0 2px", 
           filter: props.disabled ? "grayscale(100%)" : "", 
           ...props.buttonStyle

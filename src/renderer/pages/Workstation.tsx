@@ -7,23 +7,12 @@ import { Add } from "@mui/icons-material"
 import { WorkstationContext } from "renderer/context/WorkstationContext"
 import { getBaseTrack, ipcRenderer } from "renderer/utils/utils"
 import ResizeDetector from "react-resize-detector"
-import hExpand from "../../../assets/svg/h-expand.svg"
-import hShrink from "../../../assets/svg/h-shrink.svg"
-import vExpand from "../../../assets/svg/v-expand.svg"
-import vShrink from "../../../assets/svg/v-shrink.svg"
-import cursor from "../../../assets/svg/cursor.svg"
 import { TimeSignature } from "renderer/types/types"
 import channels from "renderer/utils/channels"
+import { CursorIcon, HExpand, HShrink, VExpand, VShrink } from "renderer/components/icons"
+import { PreferencesContext } from "renderer/context/PreferencesContext"
 
 function ZoomButton(props : {vertical: boolean, decrease: boolean, onZoom: () => void}) {
-  const getIcon = () => {
-    if (props.vertical) {
-      return props.decrease ? vShrink : vExpand
-    } else {
-      return props.decrease ? hShrink : hExpand
-    }
-  }
-
   const getTitle = () => {
     if (props.vertical) {
       return props.decrease ? "Zoom Out Vertically" : "Zoom In Vertically"
@@ -32,15 +21,37 @@ function ZoomButton(props : {vertical: boolean, decrease: boolean, onZoom: () =>
     }
   }
 
+  const style = {size: 14, color: "var(--border7)"}
+
   return (
     <div className="d-flex align-items-center" style={{marginRight: 8}}>
       <Holdable onMouseDown={props.onZoom} interval={100} timeout={500} onHold={props.onZoom}>
-        <IconButton title={getTitle()} style={{backgroundColor: "#0003", padding: 4}}>
-          <img src={getIcon()} style={{height: 14, opacity: 0.6}} />
+        <IconButton title={getTitle()} className="btn1 h-btn1">
+          {
+            props.vertical ? 
+              props.decrease ? <VShrink iconStyle={style} /> : <VExpand iconStyle={style} /> :
+              props.decrease ? <HShrink iconStyle={style} /> : <HExpand iconStyle={style} />
+          }
         </IconButton>
       </Holdable>
     </div>
   )
+}
+
+const MenuListener = (props : {children : React.ReactNode}) => {
+  const wc = React.useContext(WorkstationContext)
+  const pc = React.useContext(PreferencesContext)
+
+  React.useEffect(() => {
+    ipcRenderer.removeAllListeners()
+
+    ipcRenderer.on(channels.OPEN_PREFERENCES, () => pc!.setShowPreferences(true))
+
+    ipcRenderer.on(channels.TOGGLE_MASTER_TRACK, () => wc!.setShowMaster(prev => !prev))
+    ipcRenderer.on(channels.TOGGLE_MIXER, () => wc!.setShowMixer(prev => !prev))
+  }, [])
+
+  return <React.Fragment>{props.children}</React.Fragment>
 }
 
 
@@ -88,11 +99,6 @@ export default class Workstation extends React.Component<IProps, IState> {
   }
 
   componentDidMount() {
-    ipcRenderer.removeAllListeners()
-    
-    ipcRenderer.on(channels.TOGGLE_MASTER_TRACK, () => this.context!.setShowMaster(prev => !prev))
-    ipcRenderer.on(channels.TOGGLE_MIXER, () => this.context!.setShowMixer(prev => !prev))
-
     let ticking = false
     let lastScrollLeft = 0
 
@@ -175,7 +181,7 @@ export default class Workstation extends React.Component<IProps, IState> {
   onWheel(e : React.WheelEvent) {
     const hScale = this.state.horizontalScale
 
-    if (e.ctrlKey) {
+    if (e.ctrlKey || e.metaKey) {
       if (e.shiftKey) {
         this.zoom(false, e.deltaY < 0 ? 0.2406 * hScale : -0.2406 * hScale)
       } else {
@@ -231,110 +237,108 @@ export default class Workstation extends React.Component<IProps, IState> {
     const masterTrack = tracks.find(t => t.isMaster)
 
     return (
-      <KeyListener>
-        <div className="m-0 p-0" style={{width: "100vw", height: "100vh", position: "relative", outline: "none"}}>
-          <Header />
-          <div style={{flex: 1, height: "calc(100vh - 70px)", display: "flex", flexDirection: "column"}}>
-            <ScrollSync>
-              <div onWheel={this.onWheel} style={{flex:1,backgroundColor:"#333",display:"flex",overflow:"hidden"}}>
-                <ScrollSyncPane>
-                  <div
-                    className="hide-vertical-scrollbar scrollbar" 
-                    style={{width: 200, height: "100%", overflow: "scroll", flexShrink: 0}}
-                  >
-                    <div 
-                      className="col-12 d-flex align-items-center"
-                      style={{position: "sticky", top: 0, height: 45, backgroundColor: "#eee", zIndex: 15, borderBottom: "1px solid #777"}}
+      <MenuListener>
+        <KeyListener>
+          <div className="m-0 p-0" style={{width: "100vw", height: "100vh", position: "relative", outline: "none"}}>
+            <Header />
+            <div style={{flex: 1, height: "calc(100vh - 45px)", display: "flex", flexDirection: "column"}}>
+              <ScrollSync>
+                <div onWheel={this.onWheel} style={{flex:1,backgroundColor:"var(--bg1)",display:"flex",overflow:"hidden"}}>
+                  <ScrollSyncPane>
+                    <div
+                      className="hide-vertical-scrollbar scrollbar" 
+                      style={{width: 200, height: "100%", overflow: "scroll", flexShrink: 0, borderRight: "1px solid var(--border1)", boxSizing: "content-box"}}
                     >
                       <div 
-                        className="text-center d-flex align-items-center" 
-                        style={{flexDirection: "column", margin: 6, marginLeft: 12}}
+                        className="col-12 d-flex align-items-center"
+                        style={{position: "sticky", top: 0, height: 45, backgroundColor: "var(--bg2)", zIndex: 15, borderBottom: "1px solid var(--border1)"}}
                       >
-                        <div className="d-flex">
-                          <ZoomButton vertical={false} decrease={false} onZoom={() => this.zoom(false, 0.2406 * horizontalScale)} />
-                          <ZoomButton vertical={false} decrease onZoom={() => this.zoom(false, -0.2406 * horizontalScale)} />
-                          <ZoomButton vertical decrease={false} onZoom={() => this.zoom(true, 0.2)} />
-                          <ZoomButton vertical decrease onZoom={() => this.zoom(true, -0.2)} />
-                          <IconButton 
-                            onClick={this.centerOnCursor} 
-                            title="Center on Cursor" 
-                            style={{backgroundColor: "#0003", padding: 4}}
-                          >
-                            <img src={cursor} style={{height: 14, opacity: 0.6}} />
+                        <div 
+                          className="text-center d-flex align-items-center" 
+                          style={{flexDirection: "column", margin: 6, marginLeft: 12}}
+                        >
+                          <div className="d-flex">
+                            <ZoomButton vertical={false} decrease={false} onZoom={() => this.zoom(false, 0.2406 * horizontalScale)} />
+                            <ZoomButton vertical={false} decrease onZoom={() => this.zoom(false, -0.2406 * horizontalScale)} />
+                            <ZoomButton vertical decrease={false} onZoom={() => this.zoom(true, 0.2)} />
+                            <ZoomButton vertical decrease onZoom={() => this.zoom(true, -0.2)} />
+                            <IconButton className="btn1 h-btn1" onClick={this.centerOnCursor} title="Center on Cursor">
+                              <CursorIcon iconStyle={{size: 14, color: "var(--border7)"}} />
+                            </IconButton>
+                          </div>
+                        </div>
+                        <div style={{marginLeft: "auto", marginRight: 8}}>
+                          <IconButton onClick={this.addTrack} className="p-1" style={{backgroundColor: "var(--color1)"}}>
+                            <Add style={{fontSize: 18, color: "#fff"}} />
                           </IconButton>
                         </div>
                       </div>
-                      <div style={{marginLeft: "auto", marginRight: 8}}>
-                        <IconButton onClick={this.addTrack} className="p-1" style={{backgroundColor: "#ff6db8"}}>
-                          <Add style={{fontSize: 18, color: "#fff"}} />
-                        </IconButton>
+                      <div style={{width: "100%"}}>
+                        {masterTrack && <TrackComponent track={masterTrack} />}
+                        {tracks.filter(t => !t.isMaster).map((t, i) => <TrackComponent key={t.id} order={i + 1} track={t} />)}
                       </div>
-                    </div>
-                    <div style={{width: "100%"}}>
-                      {masterTrack && <TrackComponent track={masterTrack} />}
-                      {tracks.filter(t => !t.isMaster).map((t, i) => <TrackComponent key={t.id} order={i + 1} track={t} />)}
-                    </div>
-                </div>
-                </ScrollSyncPane>
-                <ScrollSyncPane>
-                  <ResizeDetector handleWidth onResize={(w, h) => this.setState({editorWindowWidth: w || 0})}>
-                    <div 
-                      className="scrollbar thin-thumb2" 
-                      ref={this.editorWindowRef}
-                      style={{flex: 1, overflow: "scroll overlay", position: "relative", height: "100%"}}
-                    >
+                  </div>
+                  </ScrollSyncPane>
+                  <ScrollSyncPane>
+                    <ResizeDetector handleWidth onResize={(w, h) => this.setState({editorWindowWidth: w || 0})}>
                       <div 
-                        id="timeline-editor" 
-                        ref={this.editorRef} 
-                        style={{width: editorWidth, minWidth: "100%"}}
+                        className="scrollbar thin-thumb2" 
+                        ref={this.editorWindowRef}
+                        style={{flex: 1, overflow: "scroll overlay", position: "relative", height: "100%"}}
                       >
-                        <div style={{position: "sticky", top: 0, width: "100%", height: 45, zIndex: 15, backgroundColor: "#eee"}}>
-                          <div style={{width: "100%", height: 12, backgroundColor: "#aaa"}}>
-                            <RegionComponent 
-                              highlight
-                              highlightStyle={{height: trackLanesWindowHeight - 12, backgroundColor: "#fff", opacity: 0.15}}
-                              onDelete={() => setSongRegion(null)} 
-                              onSetRegion={(region) => setSongRegion(region)} 
-                              region={songRegion} 
-                              regionStyle={{backgroundColor: isLooping ? "var(--color-primary)" : "#fff7"}}
+                        <div 
+                          id="timeline-editor" 
+                          ref={this.editorRef} 
+                          style={{width: editorWidth, minWidth: "100%"}}
+                        >
+                          <div style={{position: "sticky", top: 0, width: "100%", height: 45, zIndex: 15, backgroundColor: "var(--bg2)"}}>
+                            <div style={{width: "100%", height: 12, backgroundColor: "#0000", borderBottom: "1px solid var(--border1)"}}>
+                              <RegionComponent 
+                                highlight
+                                highlightStyle={{height: trackLanesWindowHeight - 12, backgroundColor: "#fff", opacity: 0.15}}
+                                onDelete={() => setSongRegion(null)} 
+                                onSetRegion={(region) => setSongRegion(region)} 
+                                region={songRegion} 
+                                regionStyle={{backgroundColor: isLooping ? "var(--color1)" : "var(--bg8)"}}
+                              />
+                            </div>
+                            <Cursor ref={this.cursorRef} pos={cursorPos} height={trackLanesWindowHeight - 10} /> 
+                            <TimelineComponent 
+                              ref={this.timelineRef} 
+                              style={{height: 33}} 
+                              width={this.state.editorWindowWidth} 
+                              window={this.editorWindowRef.current}
                             />
                           </div>
-                          <Cursor ref={this.cursorRef} pos={cursorPos} height={trackLanesWindowHeight - 35} /> 
-                          <TimelineComponent 
-                            ref={this.timelineRef} 
-                            style={{height: 33}} 
-                            width={this.state.editorWindowWidth} 
-                            window={this.editorWindowRef.current}
-                          />
-                        </div>
-                        <div style={{width: "100%", minHeight: editorWindowHeight}}>
-                          {
-                            tracks.map((track, idx) => (
-                              <Lane key={idx} style={{backgroundColor: "#ccc", borderBottom: "1px solid #0002"}} track={track} />
-                            ))
-                          }
+                          <div style={{width: "100%", minHeight: editorWindowHeight}}>
+                            {
+                              tracks.map((track, idx) => (
+                                <Lane key={idx} style={{backgroundColor: "var(--bg5)", borderBottom: "1px solid var(--border2)"}} track={track} />
+                              ))
+                            }
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </ResizeDetector>
-                </ScrollSyncPane>
-              </div>
-            </ScrollSync>
-            {
-              showMixer &&
-              <ResizablePane 
-                maxHeight={450} 
-                minHeight={220} 
-                onResizeStop={(e, data) => setMixerHeight(data.height!)}
-                resizeDirection="top"
-                size={{height: mixerHeight}}
-              >
-                <Mixer />
-              </ResizablePane>
-            }
+                    </ResizeDetector>
+                  </ScrollSyncPane>
+                </div>
+              </ScrollSync>
+              {
+                showMixer &&
+                <ResizablePane 
+                  maxHeight={450} 
+                  minHeight={220} 
+                  onResizeStop={(e, data) => setMixerHeight(data.height!)}
+                  resizeDirection="top"
+                  size={{height: mixerHeight}}
+                >
+                  <Mixer />
+                </ResizablePane>
+              }
+            </div>
           </div>
-        </div>
-      </KeyListener>
+        </KeyListener>
+      </MenuListener>
     )
   }
 }
