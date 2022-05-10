@@ -14,13 +14,13 @@
 }
 
 [data-color="olive"] {
-  --color1: #b3c100;
-  --color1-muted: #eef0e4;
+  --color1: #9da800;
+  --color1-muted: #e0e3ce;
 }
 
 [data-color="violet"] {
   --color1: #8e5be8;
-  --color1-muted: #e8e6ff;
+  --color1-muted: #dedbff;
 }
 
 [data-color="citrus"] {

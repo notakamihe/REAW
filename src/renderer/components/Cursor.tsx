@@ -1,7 +1,6 @@
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
-import cursorHead from "../../../assets/svg/cursor-head.svg"
 
 interface IProps {
   height? : number
@@ -13,15 +12,9 @@ const Cursor = React.forwardRef<HTMLDivElement, IProps>((props, ref) => {
 
   return (
     <div 
-      className="disable-highlighting"
+      className="disable-highlighting position-absolute"
       ref={ref}
-      style={{
-        position: "absolute", 
-        top: 14,
-        left: -5 + props.pos.toMargin(timelinePosOptions), 
-        zIndex: 24,
-        pointerEvents: "none"
-      }}
+      style={{top: 14, left: -5 + props.pos.toMargin(timelinePosOptions), zIndex: 24, pointerEvents: "none"}}
     >
       <div 
         style={{
@@ -31,8 +24,7 @@ const Cursor = React.forwardRef<HTMLDivElement, IProps>((props, ref) => {
           backgroundColor: "var(--color1)", 
           height: (props.height || 0) - 5, 
           width: 2, 
-          transform: "translate(0px, 100%)",
-          border: "1px solid #0003"
+          transform: "translate(0px, 100%)"
         }}
       ></div>
     </div>

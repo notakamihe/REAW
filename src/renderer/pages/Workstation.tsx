@@ -128,6 +128,16 @@ export default class Workstation extends React.Component<IProps, IState> {
       }
     })
 
+    var observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "attributes" && mutation.attributeName === "data-theme") {
+          this.timelineRef.current?.drawTimeline();
+        }
+      });
+    });
+    
+    observer.observe(document.body, {attributes: true});
+
     this.setState({tracksLength: this.context!.tracks.length})
   }
 
@@ -183,7 +193,7 @@ export default class Workstation extends React.Component<IProps, IState> {
 
     if (e.ctrlKey || e.metaKey) {
       if (e.shiftKey) {
-        this.zoom(false, e.deltaY < 0 ? 0.2406 * hScale : -0.2406 * hScale)
+        this.zoom(false, e.deltaY < 0 ? 0.1 * hScale : -0.1 * hScale)
       } else {
         this.zoom(true, e.deltaY > 0 ? -0.1 : 0.1)
       }
@@ -207,7 +217,7 @@ export default class Workstation extends React.Component<IProps, IState> {
         this.centerOnCursorRef.current = cursorRect.left >= editorWindowRect.left && cursorRect.right <= editorWindowRect.right
       }
 
-      newScale = Math.min(Math.max(this.context!.horizontalScale + amt, 0.026), 25)
+      newScale = Math.min(Math.max(this.context!.horizontalScale + amt, 0.013), 25)
       this.context!.setHorizontalScale(newScale)
     }
   }
@@ -229,7 +239,7 @@ export default class Workstation extends React.Component<IProps, IState> {
       tracks, 
     } = this.context!
 
-    const editorWindowHeight = this.editorWindowRef.current ? this.editorWindowRef.current.clientHeight - 45 : 0
+    const editorWindowHeight = this.editorWindowRef.current?.clientHeight || 0
     const beatWidth = timelinePosOptions.beatWidth * horizontalScale * (4 / timeSignature.noteValue)
     const measureWidth = beatWidth * timeSignature.beats
     const editorWidth = measureWidth * numMeasures
@@ -251,26 +261,24 @@ export default class Workstation extends React.Component<IProps, IState> {
                     >
                       <div 
                         className="col-12 d-flex align-items-center"
-                        style={{position: "sticky", top: 0, height: 45, backgroundColor: "var(--bg2)", zIndex: 15, borderBottom: "1px solid var(--border1)"}}
+                        style={{position: "sticky", top: 0, height: 33, backgroundColor: "var(--bg2)", zIndex: 15, borderBottom: "1px solid var(--border1)"}}
                       >
                         <div 
                           className="text-center d-flex align-items-center" 
-                          style={{flexDirection: "column", margin: 6, marginLeft: 12}}
+                          style={{flexDirection: "column", margin: 6, marginLeft: 8}}
                         >
                           <div className="d-flex">
-                            <ZoomButton vertical={false} decrease={false} onZoom={() => this.zoom(false, 0.2406 * horizontalScale)} />
-                            <ZoomButton vertical={false} decrease onZoom={() => this.zoom(false, -0.2406 * horizontalScale)} />
+                            <ZoomButton vertical={false} decrease={false} onZoom={() => this.zoom(false, 0.1 * horizontalScale)} />
+                            <ZoomButton vertical={false} decrease onZoom={() => this.zoom(false, -0.1 * horizontalScale)} />
                             <ZoomButton vertical decrease={false} onZoom={() => this.zoom(true, 0.2)} />
                             <ZoomButton vertical decrease onZoom={() => this.zoom(true, -0.2)} />
                             <IconButton className="btn1 h-btn1" onClick={this.centerOnCursor} title="Center on Cursor">
                               <CursorIcon iconStyle={{size: 14, color: "var(--border7)"}} />
                             </IconButton>
+                            <IconButton onClick={this.addTrack} style={{backgroundColor: "var(--color1)", height: 22, width: 22, marginLeft: 20}}>
+                              <Add style={{fontSize: 18, color: "#fff"}} />
+                            </IconButton>
                           </div>
-                        </div>
-                        <div style={{marginLeft: "auto", marginRight: 8}}>
-                          <IconButton onClick={this.addTrack} className="p-1" style={{backgroundColor: "var(--color1)"}}>
-                            <Add style={{fontSize: 18, color: "#fff"}} />
-                          </IconButton>
                         </div>
                       </div>
                       <div style={{width: "100%"}}>
@@ -291,7 +299,7 @@ export default class Workstation extends React.Component<IProps, IState> {
                           ref={this.editorRef} 
                           style={{width: editorWidth, minWidth: "100%"}}
                         >
-                          <div style={{position: "sticky", top: 0, width: "100%", height: 45, zIndex: 15, backgroundColor: "var(--bg2)"}}>
+                          <div style={{position: "sticky", top: 0, width: "100%", height: 33, zIndex: 15, backgroundColor: "var(--bg2)"}}>
                             <div style={{width: "100%", height: 12, backgroundColor: "#0000", borderBottom: "1px solid var(--border1)"}}>
                               <RegionComponent 
                                 highlight
@@ -302,15 +310,16 @@ export default class Workstation extends React.Component<IProps, IState> {
                                 regionStyle={{backgroundColor: isLooping ? "var(--color1)" : "var(--bg8)"}}
                               />
                             </div>
-                            <Cursor ref={this.cursorRef} pos={cursorPos} height={trackLanesWindowHeight - 10} /> 
+                            <Cursor ref={this.cursorRef} pos={cursorPos} height={Math.max(editorWindowHeight - 12, trackLanesWindowHeight - 12)} /> 
                             <TimelineComponent 
+                              gridHeight={editorWindowHeight - 33}
                               ref={this.timelineRef} 
-                              style={{height: 33}} 
+                              style={{height: 21}} 
                               width={this.state.editorWindowWidth} 
                               window={this.editorWindowRef.current}
                             />
                           </div>
-                          <div style={{width: "100%", minHeight: editorWindowHeight}}>
+                          <div style={{width: "100%", minHeight: editorWindowHeight - 45}}>
                             {
                               tracks.map((track, idx) => (
                                 <Lane key={idx} style={{backgroundColor: "var(--bg5)", borderBottom: "1px solid var(--border2)"}} track={track} />

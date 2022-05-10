@@ -41,25 +41,31 @@ class Lane extends React.Component<IProps, IState> {
     this.context!.setTrack({...this.props.track, clips})
   }
  
-  changeLane(track : Track, clip : Clip, changeToAbove : boolean) {
+  changeLane(track : Track, clip : Clip, changeAbove : boolean) {
     const tracks = this.context!.tracks.slice()
     const trackIndex = tracks.findIndex(t => t.id === track.id)
    
-    if (trackIndex !== -1) {
-      const clipIndex = tracks[trackIndex].clips.findIndex(c => c.id === clip.id)
- 
-      if (clipIndex !== -1) {
-        tracks[trackIndex].clips.splice(clipIndex, 1)
- 
-        if (changeToAbove) {
-          tracks[Math.max(0, trackIndex - 1)].clips.push(clip)
-        } else {
-          tracks[Math.min(tracks.length - 1, trackIndex + 1)].clips.push(clip)
+    for (let i = 0; i < tracks.length; i++) {
+      if (i === trackIndex) {
+        const clipIndex = tracks[i].clips.findIndex(c => c.id === clip.id)
+        
+        if (clipIndex > -1) {
+          if (changeAbove) {
+            if (trackIndex > 0 && !tracks[i - 1].isMaster) {
+              tracks[i].clips.splice(clipIndex, 1)
+              tracks[i - 1].clips.push(clip)
+            }
+          } else {
+            if (i < tracks.length - 1 && !tracks[i + 1].isMaster) {
+              tracks[i].clips.splice(clipIndex, 1)
+              tracks[i + 1].clips.push(clip)
+            }
+          }
         }
- 
-        this.context!.setTracks(tracks)
       }
     }
+
+    this.context!.setTracks(tracks)
   }
 
   onLaneContextMenu(e : React.MouseEvent) {
@@ -95,8 +101,13 @@ class Lane extends React.Component<IProps, IState> {
       this.context!.createClipFromTrackRegion();
     })
 
+    ipcRenderer.on(channels.DELETE_TRACK_REGION, () => {
+      this.context!.setTrackRegion(null)
+    })
+
     ipcRenderer.on(channels.CLOSE_TRACK_REGION_CONTEXT_MENU, () => {
       ipcRenderer.removeAllListeners(channels.CREATE_CLIP_FROM_TRACK_REGION)
+      ipcRenderer.removeAllListeners(channels.DELETE_TRACK_REGION)
       ipcRenderer.removeAllListeners(channels.CLOSE_TRACK_REGION_CONTEXT_MENU)
     })
   }
@@ -134,7 +145,6 @@ class Lane extends React.Component<IProps, IState> {
           >
             <RegionComponent 
               containerStyle={{position: "absolute", inset: 0}}
-              onClickAway={() => setTrackRegion(null)}
               onContainerMouseDown={() => {if (!trackRegion || trackRegion.track.id !== this.props.track.id) setTrackRegion(null)}}
               onContextMenu={this.onTrackRegionContextMenu}
               onDelete={() => setTrackRegion(null)}
@@ -164,7 +174,7 @@ class Lane extends React.Component<IProps, IState> {
                 color={getLaneColor(this.props.track.automationLanes, idx, this.props.track.color)}
                 key={lane.id}
                 lane={lane}
-                style={{backgroundColor: "var(--bg6)", borderBottom: "1px solid var(--border4)"}}
+                style={{backgroundColor: "var(--bg6)", borderBottom: "1px solid var(--border4)", filter: "contrast(0.95)"}}
                 track={this.props.track}
               />
             ))

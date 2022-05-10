@@ -275,6 +275,13 @@ export default class ContextMenuBuilder {
         click: () => {
           this.mainWindow.webContents.send(channels.CREATE_CLIP_FROM_TRACK_REGION);
         }
+      },
+      {type: "separator"},
+      {
+        label: "Delete Region",
+        click: () => {
+          this.mainWindow.webContents.send(channels.DELETE_TRACK_REGION);
+        }
       }
     ]
 

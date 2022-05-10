@@ -1,6 +1,6 @@
 import React, { useRef } from "react"
-import { SnapGridSize, TimeSignature } from "renderer/types/types";
-import TimelinePosition, { TimelinePositionOptions } from "renderer/types/TimelinePosition";
+import { SnapGridSizeOption, TimeSignature } from "renderer/types/types";
+import TimelinePosition, { TimelinePositionOptions, TimelineInterval } from "renderer/types/TimelinePosition";
 import { AutomationNode } from "renderer/components/AutomationNodeComponent";
 import { useClickAwayState, useStateWPrev, useTracks } from "renderer/hooks";
 import { Clip } from "renderer/components/ClipComponent";
@@ -15,26 +15,27 @@ import { FXChain } from "renderer/components/FXComponent";
 import { BASE_MAX_MEASURES } from "renderer/utils/utils";
 
 interface WorkstationFile {
-  autoSnap : boolean,
-  cursorPos : TimelinePosition,
-  horizontalScale : number,
-  isLooping : boolean,
-  isPlaying : boolean,
-  isRecording : boolean,
-  metronome : boolean,
-  mixerHeight : number,
-  selectedClip : Clip | null,
-  selectedNode : AutomationNode | null,
-  showMaster : boolean,
-  showMixer : boolean,
-  snapGridSize : SnapGridSize,
-  songRegion : Region | null,
-  trackRegion : {region: Region, track: Track} | null,
-  tempo : number,
-  timelinePosOptions : TimelinePositionOptions,
-  timeSignature : TimeSignature,
-  tracks : Track[],
-  verticalScale : number
+  autoSnap : boolean;
+  cursorPos : TimelinePosition;
+  horizontalScale : number;
+  isLooping : boolean;
+  isPlaying : boolean;
+  isRecording : boolean;
+  metronome : boolean;
+  mixerHeight : number;
+  selectedClip : Clip | null;
+  selectedNode : AutomationNode | null;
+  showMaster : boolean;
+  showMixer : boolean;
+  snapGridSize : TimelineInterval;
+  snapGridSizeOption : SnapGridSizeOption;
+  songRegion : Region | null;
+  trackRegion : {region: Region, track: Track} | null;
+  tempo : number;
+  timelinePosOptions : TimelinePositionOptions;
+  timeSignature : TimeSignature;
+  tracks : Track[];
+  verticalScale : number;
 }
 
 export interface WorkstationContextType extends WorkstationFile {
@@ -64,7 +65,8 @@ export interface WorkstationContextType extends WorkstationFile {
   setSelectedNode : (newState: AutomationNode | null) => void
   setShowMaster : React.Dispatch<React.SetStateAction<boolean>>
   setShowMixer : React.Dispatch<React.SetStateAction<boolean>>
-  setSnapGridSize : React.Dispatch<React.SetStateAction<SnapGridSize>>
+  setSnapGridSize : React.Dispatch<React.SetStateAction<TimelineInterval>>
+  setSnapGridSizeOption : React.Dispatch<React.SetStateAction<SnapGridSizeOption>>
   setSongRegion : React.Dispatch<React.SetStateAction<Region | null>>
   setTempo : React.Dispatch<React.SetStateAction<number>>
   setTimeSignature : React.Dispatch<React.SetStateAction<TimeSignature>>
@@ -98,7 +100,8 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   const [songRegion, setSongRegion] = React.useState<Region | null>(null)
   const [selectedClip, setSelectedClip, onClipClickAway] = useClickAwayState<Clip>(null)
   const [selectedNode, setSelectedNode, onNodeClickAway, setCancelClickAway] = useClickAwayState<AutomationNode>(null)
-  const [snapGridSize, setSnapGridSize] = React.useState(SnapGridSize.ThirtySecondBeat);
+  const [snapGridSize, setSnapGridSize] = React.useState<TimelineInterval>({measures: 0, beats: 0, fraction: 500});
+  const [snapGridSizeOption, setSnapGridSizeOption] = React.useState<SnapGridSizeOption>(SnapGridSizeOption.Auto)
   const [tempo, setTempo] = React.useState(120);
   const [timeSignature, setTimeSignature] = React.useState({beats: 4, noteValue: 4});
   const [trackLanesWindowHeight, setTrackLanesWindowHeight] = React.useState(0);
@@ -126,36 +129,6 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   }, [horizontalScale, snapGridSize, timeSignature, tempo])
 
   React.useEffect(() => {
-    if (autoSnap) {
-      const beatWidth = timelinePosOptions.beatWidth * horizontalScale;
-
-      if (beatWidth > 3500) {
-        setSnapGridSize(SnapGridSize.None)
-      } else if (beatWidth > 1265) {
-        setSnapGridSize(SnapGridSize.HundredTwentyEighthBeat)
-      } else if (beatWidth > 588) {
-        setSnapGridSize(SnapGridSize.SixtyFourthBeat)
-      } else if (beatWidth > 390) {
-        setSnapGridSize(SnapGridSize.ThirtySecondBeat)
-      } else if (beatWidth > 120) {
-        setSnapGridSize(SnapGridSize.SixteenthBeat)
-      } else if (beatWidth > 57) {
-        setSnapGridSize(SnapGridSize.EighthBeat)
-      } else if (beatWidth > 23) {
-        setSnapGridSize(SnapGridSize.QuarterBeat)
-      } else if (beatWidth > 14) {
-        setSnapGridSize(SnapGridSize.HalfBeat)
-      } else if (beatWidth > 6.6) {
-        setSnapGridSize(SnapGridSize.Beat)
-      } else if (beatWidth > 2.7) {
-        setSnapGridSize(SnapGridSize.HalfMeasure)
-      } else {
-        setSnapGridSize(SnapGridSize.Measure)
-      }
-    }
-  }, [horizontalScale, autoSnap])
-
-  React.useEffect(() => {
     shouldPreserveMargins.current = true;
   }, [timeSignature])
 
@@ -169,11 +142,62 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   React.useEffect(() => {
     const baseNumMeasures = Math.ceil(100 / (4 / timeSignature.noteValue) * (4 / timeSignature.beats));
     const furthestPos = getFurthestPos();
-    const measures = baseNumMeasures * Math.ceil((furthestPos.measure - 1) / (baseNumMeasures * 0.94));
+    const measures = baseNumMeasures * Math.max(1, Math.ceil((furthestPos.measure - 1) / (baseNumMeasures * 0.94)));
     const maxMeasures = Math.ceil(BASE_MAX_MEASURES / (4 / timeSignature.noteValue) * (4 / timeSignature.beats));
     
     setNumMeasures(Math.min(measures, maxMeasures));
   }, [tracks, cursorPos, songRegion, trackRegion, timeSignature])
+
+  React.useEffect(() => {
+    switch (snapGridSizeOption) {
+      case SnapGridSizeOption.None:
+        setSnapGridSize({measures: 0, beats: 0, fraction: 0})
+        break;
+      case SnapGridSizeOption.Auto:
+        adjustSnapGridSize();
+        break;
+      case SnapGridSizeOption.EightMeasures:
+        setSnapGridSize({measures: 8, beats: 0, fraction: 0});
+        break;
+      case SnapGridSizeOption.FourMeasures:
+        setSnapGridSize({measures: 4, beats: 0, fraction: 0});
+        break;
+      case SnapGridSizeOption.TwoMeasures:
+        setSnapGridSize({measures: 2, beats: 0, fraction: 0});
+        break;
+      case SnapGridSizeOption.Measure:
+        setSnapGridSize({measures: 1, beats: 0, fraction: 0});
+        break;
+      case SnapGridSizeOption.Beat:
+        setSnapGridSize({measures: 0, beats: 1, fraction: 0});
+        break;
+      case SnapGridSizeOption.HalfBeat:
+        setSnapGridSize({measures: 0, beats: 0, fraction: 500});
+        break;
+      case SnapGridSizeOption.QuarterBeat:
+        setSnapGridSize({measures: 0, beats: 0, fraction: 250});
+        break;
+      case SnapGridSizeOption.EighthBeat:
+        setSnapGridSize({measures: 0, beats: 0, fraction: 125});
+        break;
+      case SnapGridSizeOption.SixteenthBeat:
+        setSnapGridSize({measures: 0, beats: 0, fraction: 62.5});
+        break;
+      case SnapGridSizeOption.ThirtySecondBeat:
+        setSnapGridSize({measures: 0, beats: 0, fraction: 31.25});
+        break;
+      case SnapGridSizeOption.SixtyFourthBeat:
+        setSnapGridSize({measures: 0, beats: 0, fraction: 15.625});
+        break;
+      case SnapGridSizeOption.HundredTwentyEighthBeat:
+        setSnapGridSize({measures: 0, beats: 0, fraction: 7.8125});
+        break;
+    }
+  }, [snapGridSizeOption])
+
+  React.useEffect(() => {
+    adjustSnapGridSize();
+  }, [horizontalScale, timeSignature]);
 
   const addNodeToLane = (track : Track, lane : AutomationLane, node : AutomationNode) => {
     const automationLanes = track.automationLanes.slice();
@@ -184,6 +208,42 @@ export const WorkstationProvider: React.FC = ({ children }) => {
       automationLanes[laneIndex].nodes.sort((a, b) => a.pos.compare(b.pos))
       setTrack({...track, automationLanes});
     }
+  }
+
+  const adjustSnapGridSize = () => {
+    const beatWidth = timelinePosOptions.beatWidth * horizontalScale * (4 / timelinePosOptions.timeSignature.noteValue);
+    const measureWidth = beatWidth * timeSignature.beats;
+
+    const power = -Math.floor(Math.log2(beatWidth / 17));
+    let frac = 1000 * 2 ** power;
+      
+    if (Math.log2(timeSignature.beats) % 1 !== 0) {
+      if (measureWidth < 17) {
+        frac = Math.max(timeSignature.beats * 1000 * 2 ** -Math.floor(Math.log2(measureWidth / 17)));
+      } else {
+        const factors = [];
+
+        for (let i = 1; i <= timeSignature.beats; i++) {
+          if (timeSignature.beats % i === 0) {
+            factors.push(i);
+          }
+        }
+
+        for (let f of factors) {
+          if (f * beatWidth >= 17) {
+            frac = f * 1000;
+            break;
+          }
+        }
+
+        if (frac === timeSignature.beats * 1000 && measureWidth >= 34) {
+          frac = factors[factors.length - 2] * 1000;
+        }
+      }
+    }
+
+    const interval = TimelinePosition.fromFraction(frac, timelinePosOptions);
+    setSnapGridSize(interval);
   }
 
   const createClipFromTrackRegion = () => {
@@ -249,10 +309,13 @@ export const WorkstationProvider: React.FC = ({ children }) => {
     let furthestPos = TimelinePosition.start;
 
     for (const track of tracks) {
-      for (const clip of track.clips)
+      for (const clip of track.clips) {
         if (clip.end.compare(furthestPos) > 0)
           furthestPos = clip.end;
       
+        if (clip.loopEnd && clip.loopEnd?.compare(furthestPos) > 0)
+          furthestPos = clip.loopEnd;
+      }
       for (const lane of track.automationLanes)
         for (const node of lane.nodes)
           if (node.pos.compare(furthestPos) > 0)
@@ -397,19 +460,19 @@ export const WorkstationProvider: React.FC = ({ children }) => {
           loopWidth : repetition * width
 
         const repEndSpan = TimelinePosition.fromWidth(repEndMargin, timelinePosOptions)
-        end = clip.end.add(repEndSpan.measures, repEndSpan.beats, repEndSpan.fraction, false, timelinePosOptions, false)
+        end = clip.end.add(repEndSpan.measures, repEndSpan.beats, repEndSpan.fraction, false, timelinePosOptions)
 
         const repStartSpan = TimelinePosition.fromWidth(repStartMargin, timelinePosOptions)
-        const repStart = clip.end.add(repStartSpan.measures, repStartSpan.beats, repStartSpan.fraction, false, timelinePosOptions, false)
+        const repStart = clip.end.add(repStartSpan.measures, repStartSpan.beats, repStartSpan.fraction, false, timelinePosOptions)
 
         if (clip.startLimit) {
-          const startSpan = TimelinePosition.toSpan(clip.startLimit, clip.start, timelinePosOptions)
-          startLimit = repStart.subtract(startSpan.measures, startSpan.beats, startSpan.fraction, false, timelinePosOptions, false)
+          const startSpan = TimelinePosition.toInterval(clip.startLimit, clip.start, timelinePosOptions)
+          startLimit = repStart.subtract(startSpan.measures, startSpan.beats, startSpan.fraction, false, timelinePosOptions)
         }
 
         if (clip.endLimit) {
-          const span = TimelinePosition.toSpan(clip.start, repStart, timelinePosOptions)
-          endLimit = clip.endLimit.add(span.measures, span.beats, span.fraction, false, timelinePosOptions, false)
+          const interval = TimelinePosition.toInterval(clip.start, repStart, timelinePosOptions)
+          endLimit = clip.endLimit.add(interval.measures, interval.beats, interval.fraction, false, timelinePosOptions)
         }
 
         newClip = {...clip, loopEnd: start}
@@ -429,17 +492,17 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         const {measures, beats, fraction} = TimelinePosition.fromWidth(Math.min(width, loopWidth), timelinePosOptions)
         
         start = TimelinePosition.fromPos(end!)
-        end = start.add(measures, beats, fraction, false, timelinePosOptions, false)
+        end = start.add(measures, beats, fraction, false, timelinePosOptions)
         loopEnd = loopWidth > width ? clip.loopEnd : null
 
         if (clip.startLimit) {
-          const startSpan = TimelinePosition.toSpan(clip.startLimit, clip.start, timelinePosOptions)
-          startLimit = start.subtract(startSpan.measures, startSpan.beats, startSpan.fraction, false, timelinePosOptions, false)
+          const startSpan = TimelinePosition.toInterval(clip.startLimit, clip.start, timelinePosOptions)
+          startLimit = start.subtract(startSpan.measures, startSpan.beats, startSpan.fraction, false, timelinePosOptions)
         }
         
         if (clip.endLimit) {
-          const span = TimelinePosition.toSpan(clip.start, start, timelinePosOptions)
-          endLimit = clip.endLimit.add(span.measures, span.beats, span.fraction, false, timelinePosOptions, false)
+          const interval = TimelinePosition.toInterval(clip.start, start, timelinePosOptions)
+          endLimit = clip.endLimit.add(interval.measures, interval.beats, interval.fraction, false, timelinePosOptions)
         }
 
         clips.push({id: v4(), start, end, startLimit, endLimit, loopEnd, muted: clip.muted})
@@ -506,6 +569,7 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         setShowMaster,
         setShowMixer,
         setSnapGridSize,
+        setSnapGridSizeOption,
         setSongRegion,
         setTempo,
         setTimeSignature,
@@ -517,6 +581,7 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         showMaster,
         showMixer,
         snapGridSize,
+        snapGridSizeOption,
         splitClip, 
         songRegion,
         trackRegion,

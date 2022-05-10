@@ -1,7 +1,7 @@
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
-import { BASE_MAX_MEASURES, marginToPos } from "renderer/utils/utils";
+import { marginToPos } from "renderer/utils/utils";
 import { DNR } from ".";
 import { DNRData, ResizeDirection } from "./DNR";
 
@@ -25,10 +25,10 @@ interface IProps {
 }
 
 interface IState {
-  height : number
-  newRegionStartPos : TimelinePosition | null
-  newRegionEndPos : TimelinePosition | null
-  isCreatingNewRegion : boolean
+  height : number;
+  isCreatingNewRegion : boolean;
+  newRegion: {start: number, end: number}
+  tempNewRegion: {start: number, end: number}
 }
 
 export default class RegionComponent extends React.Component<IProps, IState> {
@@ -44,9 +44,9 @@ export default class RegionComponent extends React.Component<IProps, IState> {
 
     this.state = {
       height: 0,
-      newRegionStartPos: null,
-      newRegionEndPos: null,
-      isCreatingNewRegion: false
+      isCreatingNewRegion: false,
+      newRegion: {start: 0, end: 0},
+      tempNewRegion: {start: 0, end: 0}
     }
 
     this.onMouseDown = this.onMouseDown.bind(this);
@@ -65,34 +65,16 @@ export default class RegionComponent extends React.Component<IProps, IState> {
       this.setState({height: this.containerRef.current?.clientHeight || 0})
     }
   }
-
-  getNewRegionMarginAndWidth() {
-    const options = this.context!.timelinePosOptions
-    const mw = {left: 0, width: 0}
-
-    if (this.state.newRegionStartPos && this.state.newRegionEndPos) {
-      if (this.state.newRegionEndPos.compare(this.state.newRegionStartPos) < 0) {
-        mw.left = this.state.newRegionEndPos.toMargin(options)
-        mw.width = TimelinePosition.toWidth(this.state.newRegionEndPos, this.state.newRegionStartPos, options)
-      } else {
-        mw.left = this.state.newRegionStartPos.toMargin(options)
-        mw.width = TimelinePosition.toWidth(this.state.newRegionStartPos, this.state.newRegionEndPos, options)
-      }
-    }
-
-    return mw
-  }
-
+  
   onMouseDown(e : React.MouseEvent<HTMLDivElement>) {
     this.props.onContainerMouseDown?.(e)
 
     if (e.button === 0) {
       const x = e.clientX - e.currentTarget.getBoundingClientRect().left
-      const newRegionStartPos = marginToPos(x, this.context!.timelinePosOptions)
-  
-      newRegionStartPos.snap(this.context!.timelinePosOptions)
+      const snapWidth = TimelinePosition.fromInterval(this.context!.snapGridSize).toMargin(this.context!.timelinePosOptions) || 0.00001
+      const snapX = snapWidth * Math.round(x / snapWidth)
       
-      this.setState({newRegionStartPos, newRegionEndPos: null, isCreatingNewRegion: true});
+      this.setState({isCreatingNewRegion: true, newRegion: {start: snapX, end: snapX}, tempNewRegion: {start: snapX, end: snapX}});
   
       document.addEventListener("mousemove", this.onMouseMove)
       document.addEventListener("mouseup", this.onMouseUp)
@@ -101,28 +83,18 @@ export default class RegionComponent extends React.Component<IProps, IState> {
 
   onMouseMove(e : MouseEvent) {
     e.preventDefault()
-
-    const options = this.context!.timelinePosOptions
-    const timeSignature = this.context!.timeSignature
-    const maxMeasures = Math.floor(BASE_MAX_MEASURES / (4 / timeSignature.noteValue) * (4 / timeSignature.beats));
-    const beatWidth = options.beatWidth * this.context!.horizontalScale * (4 / timeSignature.noteValue)
-    const measureWidth = beatWidth * timeSignature.beats
-    const maxMeasuresMargin = measureWidth * maxMeasures
     
-    let margin = 0
+    const containerRect = this.containerRef.current?.getBoundingClientRect();
 
-    if (this.state.newRegionEndPos) {
-      margin = this.state.newRegionEndPos.toMargin(this.context!.timelinePosOptions)
-    } else if (this.state.newRegionStartPos) {
-      margin = this.state.newRegionStartPos.toMargin(this.context!.timelinePosOptions)
+    if (containerRect) {
+      const margin = Math.min(Math.max(0, this.state.tempNewRegion.end + e.movementX), containerRect.width)
+      const snapWidth = TimelinePosition.fromInterval(this.context!.snapGridSize).toMargin(this.context!.timelinePosOptions) || 0.00001
+      const end = snapWidth * Math.round(margin / snapWidth)
+
+      this.setState({newRegion: {...this.state.newRegion, end}, tempNewRegion: {...this.state.tempNewRegion, end: margin}})
+
+      this.props.onSetRegion(null)
     }
-
-    margin = Math.min(Math.max(0, margin + e.movementX), maxMeasuresMargin)
-
-    const newRegionEndPos = marginToPos(margin, this.context!.timelinePosOptions)
-    
-    this.setState({newRegionEndPos})
-    this.props.onSetRegion(null)
   }
 
   onMouseUp(e : MouseEvent) {
@@ -131,18 +103,16 @@ export default class RegionComponent extends React.Component<IProps, IState> {
 
     this.setState({isCreatingNewRegion: false})
 
-    if (this.state.newRegionStartPos && this.state.newRegionEndPos) {
-      const newRegionEndPos = TimelinePosition.fromPos(this.state.newRegionEndPos)
-      newRegionEndPos.snap(this.context!.timelinePosOptions)
-      
-      if (newRegionEndPos.compare(this.state.newRegionStartPos) !== 0) {
-        this.setState({newRegionEndPos}, () => {
-          if (this.state.newRegionEndPos!.compare(this.state.newRegionStartPos!) < 0)
-            this.props.onSetRegion({start: this.state.newRegionEndPos!, end: this.state.newRegionStartPos!})
-          else
-            this.props.onSetRegion({start: this.state.newRegionStartPos!, end: this.state.newRegionEndPos!})
-        })
-      }
+    const {start, end} = this.state.newRegion
+    
+    if (start - end !== 0) {
+      const startPos = marginToPos(this.state.newRegion.start, this.context!.timelinePosOptions);
+      const endPos = marginToPos(this.state.newRegion.end, this.context!.timelinePosOptions);
+
+      if (startPos.compare(endPos) <= 0)
+        this.props.onSetRegion({start: startPos, end: endPos})
+      else
+        this.props.onSetRegion({start: endPos, end: startPos})
     }
   }
 
@@ -173,8 +143,10 @@ export default class RegionComponent extends React.Component<IProps, IState> {
   }
 
   render() {
-    const {timelinePosOptions} = this.context!
-    const {left, width} = this.getNewRegionMarginAndWidth()
+    const {snapGridSize, timelinePosOptions} = this.context!
+    const {start, end} = this.state.newRegion
+    const left = start <= end ? start : end
+    const snapWidth = TimelinePosition.fromInterval(snapGridSize).toMargin(timelinePosOptions)
 
     return (
       <div 
@@ -184,16 +156,7 @@ export default class RegionComponent extends React.Component<IProps, IState> {
       >
         {
           this.state.isCreatingNewRegion &&
-          <div 
-            style={{
-              ...this.props.regionStyle,
-              position: "absolute", 
-              top: 0, 
-              left, 
-              width,
-              height: "100%",
-            }}
-          >
+          <div style={{...this.props.regionStyle, position: "absolute", top: 0, left, width: Math.abs(end - start), height: "100%"}}>
             {
               this.props.highlight &&
               <div
@@ -214,11 +177,13 @@ export default class RegionComponent extends React.Component<IProps, IState> {
             }}
             disableDragging
             enableResizing={{left: true, right: true}}
+            minWidth={0}
             onClickAway={this.onRegionClickAway}
             onContextMenu={this.props.onContextMenu}
             onDoubleClick={this.props.onDelete}
             onMouseDown={e => e.stopPropagation()}
             onResizeStop={this.onResizeStop}
+            snapGridSize={{horizontal: snapWidth || 0.00001}}
             style={this.props.regionStyle}
           >
             {

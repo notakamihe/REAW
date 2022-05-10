@@ -5,7 +5,7 @@ import { ClipboardProvider } from './context/ClipboardContext';
 import { WorkstationProvider } from './context/WorkstationContext';
 import Workstation from './pages/Workstation';
 import { PreferencesProvider } from './context/PreferencesContext';
-import Preferences from './components/Preferences';
+import PreferencesComponent from './components/PreferencesComponent';
 
 export default function App() {
   return (
@@ -17,7 +17,7 @@ export default function App() {
                 <Route path="/" element={<Workstation />} />
               </Routes>
             </Router>
-            <Preferences />
+            <PreferencesComponent />
         </WorkstationProvider>
       </PreferencesProvider>
     </ClipboardProvider>

@@ -70,15 +70,15 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
     const parentEl = this.ref.current?.ref.current?.parentElement
 
     if (parentEl) {
-      this.setState({height: parentEl.clientHeight - 6})
+      this.setState({height: parentEl.clientHeight - 8})
     }
   }
 
   componentDidUpdate() {
     const parentEl = this.ref.current?.ref.current?.parentElement
 
-    if (parentEl && this.state.height !== parentEl.clientHeight - 6) {
-      this.setState({height: parentEl.clientHeight - 6})
+    if (parentEl && this.state.height !== parentEl.clientHeight - 8) {
+      this.setState({height: parentEl.clientHeight - 8})
     }
   }
 
@@ -169,15 +169,17 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
   }
 
   render() {
-    const {timelinePosOptions} = this.context!
+    const {snapGridSize, timelinePosOptions} = this.context!
     const posMargin = this.props.node.pos.toMargin(timelinePosOptions)
     const title = this.getTitle()
     const y = this.valueToY()
+    const snapWidth = TimelinePosition.fromInterval(snapGridSize).toMargin(timelinePosOptions)
+    const snapHeight = this.state.height / ((this.props.lane.maxValue - this.props.lane.minValue) * 8);
 
     return (
       <React.Fragment>
         <DNR
-          coords={{startX: posMargin, startY: y, endX: posMargin + 6, endY: y + 6}}
+          coords={{startX: posMargin, startY: y, endX: posMargin + 8, endY: y + 8}}
           disableResizing
           onClickAway={() => this.props.onClickAway(this.props.node)}
           onContextMenu={this.onContextMenu}
@@ -185,11 +187,13 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
           onDragStart={this.onDragStart}
           onDragStop={this.onDragStop}
           ref={this.ref}
+          snapGridSize={{horizontal: snapWidth || 0.00001, vertical: snapHeight}}
           style={{
             backgroundColor: this.props.isSelected ? "#fff" : this.props.color, 
             borderRadius: "50%", 
-            border: "1px solid #0008", 
+            border: "1px solid var(--border11)", 
             zIndex: this.props.isSelected ? 12 : 11,
+            transform: "translate(-2px, 0)"
           }}
         >
           <Tooltip 
@@ -218,7 +222,7 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
             </div>
           </Popover>
         </DNR>
-        {this.state.isDragging && <GuideLine margin={this.state.guideLineMargin} />}
+        {this.state.isDragging && <GuideLine margin={this.state.guideLineMargin - 1} />}
       </React.Fragment>
     )
   }

@@ -65,6 +65,7 @@ export const TrackButton = styled(Button)`
   border-color: ${(props : TrackButtonProps) => props.outlinecolor || "#0009"}!important;
   opacity: ${(props : TrackButtonProps) => props.opacity || "1"};
   font-weight: bold;
+  font-family: "Red Hat", Roboto, sans-serif;
 
   & * {
     color: ${(props : TrackButtonProps) => props.$activated ? props.clr : props.outlinecolor || "#0009"}!important;

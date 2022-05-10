@@ -3,13 +3,13 @@ import { IconButton } from "@mui/material";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
-import { SnapGridSize } from "renderer/types/types";
 import Holdable from "./Holdable";
 import styled from "styled-components"
 import { NumberInput, SelectSpinBox } from "./ui";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMagnet } from "@fortawesome/free-solid-svg-icons";
 import Metronome from "./Metronome";
+import { SnapGridSizeOption } from "renderer/types/types";
 
 const PlaybackControlButton = styled(IconButton)`
 background-color: #0000;
@@ -21,22 +21,6 @@ padding: 2px!important;
   transition: background-color 0.2s ease-in-out;
 }
 `
-
-
-enum SnapSizeOption {
-  None,
-  Auto,
-  Measure,
-  HalfMeasure,
-  Beat,
-  HalfBeat,
-  QuarterBeat,
-  EighthBeat,
-  SixteenthBeat,
-  ThirtySecondBeat,
-  SixtyFourthBeat,
-  HundredTwentyEighthBeat
-}
   
 interface IProps {
 }
@@ -45,7 +29,6 @@ interface IState {
   noteValue : number
   showTime : boolean
   tempoInput : string
-  snapSizeOptionValue : SnapSizeOption
 }
 
 
@@ -59,14 +42,12 @@ export default class Header extends React.Component<IProps, IState> {
     this.state = {
       noteValue: 1,
       showTime: false,
-      tempoInput: "",
-      snapSizeOptionValue: SnapSizeOption.None
+      tempoInput: ""
     }
 
     this.fastForward = this.fastForward.bind(this)
     this.fastRewind = this.fastRewind.bind(this)
     this.onChangeNoteValue = this.onChangeNoteValue.bind(this)
-    this.onChangeSnapSizeOption = this.onChangeSnapSizeOption.bind(this)
     this.onChangeTempo = this.onChangeTempo.bind(this)
     this.stop = this.stop.bind(this)
   }
@@ -74,14 +55,13 @@ export default class Header extends React.Component<IProps, IState> {
   componentDidMount() {
     this.setState({
       noteValue: this.context!.timeSignature.noteValue,
-      tempoInput: this.context!.tempo.toString(),
-      snapSizeOptionValue: this.getOptionBySnapSize()
+      tempoInput: this.context!.tempo.toString()
     })
   }
 
   fastForward() {
     let newPos = TimelinePosition.fromPos(this.context!.cursorPos)
-    newPos.add(0, 0, 250, true, this.context!.timelinePosOptions, false)
+    newPos.add(0, 0, 250, true, this.context!.timelinePosOptions)
     this.context!.setCursorPos(newPos)
   }
 
@@ -95,78 +75,11 @@ export default class Header extends React.Component<IProps, IState> {
     this.context!.setCursorPos(newPos)
   }
 
-  getOptionBySnapSize = () => {
-    if (this.context?.autoSnap)
-      return SnapSizeOption.Auto
-
-    switch (this.context?.snapGridSize) {
-      case SnapGridSize.Measure: return SnapSizeOption.Measure
-      case SnapGridSize.HalfMeasure: return SnapSizeOption.HalfMeasure
-      case SnapGridSize.Beat: return SnapSizeOption.Beat
-      case SnapGridSize.HalfBeat: return SnapSizeOption.HalfBeat
-      case SnapGridSize.QuarterBeat: return SnapSizeOption.QuarterBeat
-      case SnapGridSize.EighthBeat: return SnapSizeOption.EighthBeat
-      case SnapGridSize.SixteenthBeat: return SnapSizeOption.SixteenthBeat
-      case SnapGridSize.ThirtySecondBeat: return SnapSizeOption.ThirtySecondBeat
-      case SnapGridSize.SixtyFourthBeat: return SnapSizeOption.SixtyFourthBeat
-      case SnapGridSize.HundredTwentyEighthBeat: return SnapSizeOption.HundredTwentyEighthBeat
-      default: return SnapSizeOption.None
-    }
-  }
-
   onChangeNoteValue = (value : string | number) => {
     const val = Number(value)
 
     this.setState({noteValue: val})
     this.context!.setTimeSignature({...this.context!.timeSignature, noteValue: val})
-  }
-
-  onChangeSnapSizeOption(value : string | number) {
-    const val = Number(value) as SnapSizeOption
-    
-    this.setState({snapSizeOptionValue: val})
-
-    if (val === SnapSizeOption.Auto) {
-      this.context!.setAutoSnap(true)
-    } else {
-      this.context!.setAutoSnap(false)
-
-      switch (val) {
-        case SnapSizeOption.None: 
-          this.context!.setSnapGridSize(SnapGridSize.None) 
-          break
-        case SnapSizeOption.Measure:
-          this.context!.setSnapGridSize(SnapGridSize.Measure)
-          break
-        case SnapSizeOption.HalfMeasure:
-          this.context!.setSnapGridSize(SnapGridSize.HalfMeasure)
-          break
-        case SnapSizeOption.Beat:
-          this.context!.setSnapGridSize(SnapGridSize.Beat)
-          break
-        case SnapSizeOption.HalfBeat:
-          this.context!.setSnapGridSize(SnapGridSize.HalfBeat)
-          break
-        case SnapSizeOption.QuarterBeat:
-          this.context!.setSnapGridSize(SnapGridSize.QuarterBeat)
-          break
-        case SnapSizeOption.EighthBeat:
-          this.context!.setSnapGridSize(SnapGridSize.EighthBeat)
-          break
-        case SnapSizeOption.SixteenthBeat:
-          this.context!.setSnapGridSize(SnapGridSize.SixteenthBeat)
-          break
-        case SnapSizeOption.ThirtySecondBeat:
-          this.context!.setSnapGridSize(SnapGridSize.ThirtySecondBeat)
-          break
-        case SnapSizeOption.SixtyFourthBeat:
-          this.context!.setSnapGridSize(SnapGridSize.SixtyFourthBeat)
-          break
-        case SnapSizeOption.HundredTwentyEighthBeat:
-          this.context!.setSnapGridSize(SnapGridSize.HundredTwentyEighthBeat)
-          break
-      }
-    }
   }
 
   onChangeTempo(value : number) {
@@ -232,8 +145,8 @@ export default class Header extends React.Component<IProps, IState> {
           </IconButton>
           <Metronome />
         </div>
-        <div className="d-flex" style={{width: 280, height: "100%", borderLeft: "1px solid var(--border1)", borderRight: "1px solid var(--border1)"}}>
-          <div style={{width: 82, height: "100%", borderRight: "1px solid var(--border1)"}}>
+        <div className="d-flex" style={{width: 300, height: "100%", borderLeft: "1px solid var(--border1)", borderRight: "1px solid var(--border1)"}}>
+          <div style={{width: 86, height: "100%", borderRight: "1px solid var(--border1)"}}>
             <div 
               className="d-flex justify-content-center align-items-center" 
               style={{flex: 1, transform: "translateY(1px)"}}
@@ -248,7 +161,7 @@ export default class Header extends React.Component<IProps, IState> {
                   container: {width: 26, height: 18, backgroundColor: "#0000"},
                   incr: {backgroundColor: "#0000"},
                   incrIcon: {color: "var(--fg2)", fontSize: 20},
-                  input: {fontWeight: "bold", color: "var(--fg1)"},
+                  input: {fontWeight: "bold", color: "var(--fg1)", fontFamily: "inherit"},
                   decr: {backgroundColor: "#0000"},
                   decrIcon: {color: "var(--fg2)", fontSize: 20},
                   verticalContainer: {visibility: "hidden"}
@@ -365,30 +278,32 @@ export default class Header extends React.Component<IProps, IState> {
         <div className="p-2 d-flex align-items-center" style={{width: 275, height: "100%"}}>
           <SelectSpinBox
             classes={{container: "rb-spin-buttons rounded"}}
-            icon={<FontAwesomeIcon icon={faMagnet} style={{fontSize: 10, transform: "translateY(1px)", color: "var(--fg1)"}} />}
-            onChange={this.onChangeSnapSizeOption}
+            icon={<FontAwesomeIcon icon={faMagnet} style={{fontSize: 10, transform: "translateY(1px)", color: "var(--fg2)"}} />}
+            onChange={(val : string | number) => this.context!.setSnapGridSizeOption(Number(val) as SnapGridSizeOption)}
             style={{
-              container: {height: 25, width: 130, padding: 2, border: "1px solid var(--fg1)", backgroundColor: "#0000"},
+              container: {height: 25, width: 130, padding: 2, border: "1px solid var(--border7)", backgroundColor: "#0000"},
               next: {backgroundColor: "#0000"},
               nextIcon: {color: "var(--fg2)", fontSize: 20},
               prev: {backgroundColor: "#0000"},
               prevIcon: {color: "var(--fg2)", fontSize: 20},
-              select: {marginLeft: 4, color: "var(--fg1)"},
+              select: {marginLeft: 4, color: "var(--fg2)"},
             }}
-            value={this.state.snapSizeOptionValue}
+            value={this.context!.snapGridSizeOption}
           >
-            <option value={SnapSizeOption.None}>None</option>
-            <option value={SnapSizeOption.Auto}>Auto</option>
-            <option value={SnapSizeOption.Measure}>Measure</option>
-            <option value={SnapSizeOption.HalfMeasure}>1/2 Measure</option>
-            <option value={SnapSizeOption.Beat}>Beat</option>
-            <option value={SnapSizeOption.HalfBeat}>1/2 Beat</option>
-            <option value={SnapSizeOption.QuarterBeat}>1/4 Beat</option>
-            <option value={SnapSizeOption.EighthBeat}>1/8 Beat</option>
-            <option value={SnapSizeOption.SixteenthBeat}>1/16 Beat</option>
-            <option value={SnapSizeOption.ThirtySecondBeat}>1/32 Beat</option>
-            <option value={SnapSizeOption.SixtyFourthBeat}>1/64 Beat</option>
-            <option value={SnapSizeOption.HundredTwentyEighthBeat}>1/128 Beat</option>
+            <option value={SnapGridSizeOption.None}>None</option>
+            <option value={SnapGridSizeOption.Auto}>Auto</option>
+            <option value={SnapGridSizeOption.EightMeasures}>8 Measures</option>
+            <option value={SnapGridSizeOption.FourMeasures}>4 Measures</option>
+            <option value={SnapGridSizeOption.TwoMeasures}>2 Measures</option>
+            <option value={SnapGridSizeOption.Measure}>Measure</option>
+            <option value={SnapGridSizeOption.Beat}>Beat</option>
+            <option value={SnapGridSizeOption.HalfBeat}>1/2 Beat</option>
+            <option value={SnapGridSizeOption.QuarterBeat}>1/4 Beat</option>
+            <option value={SnapGridSizeOption.EighthBeat}>1/8 Beat</option>
+            <option value={SnapGridSizeOption.SixteenthBeat}>1/16 Beat</option>
+            <option value={SnapGridSizeOption.ThirtySecondBeat}>1/32 Beat</option>
+            <option value={SnapGridSizeOption.SixtyFourthBeat}>1/64 Beat</option>
+            <option value={SnapGridSizeOption.HundredTwentyEighthBeat}>1/128 Beat</option>
           </SelectSpinBox>
         </div>
       </div>

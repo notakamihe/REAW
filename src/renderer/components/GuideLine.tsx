@@ -26,7 +26,7 @@ export default function GuideLine(props : IProps) {
               top: 0, 
               height: trackLanesWindowHeight, 
               left: props.margin, 
-              borderRight: "1px dashed var(--bg10)",
+              borderRight: "1px dashed var(--border14)",
               minHeight: "100%",
               zIndex: 25
             }}

@@ -3,128 +3,105 @@ import { ClipboardContext, ClipboardItemType } from "renderer/context/ClipboardC
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
 
-interface IProps {
-  children : JSX.Element
-}
+const KeyListener = (props: {children: React.ReactNode}) => {
+  const wc = React.useContext(WorkstationContext)!;
+  const cc = React.useContext(ClipboardContext)!;
 
-export default class KeyListener extends React.Component<IProps> {
-  static contextType = ClipboardContext
-  context : React.ContextType<typeof ClipboardContext>
-
-  constructor(props : IProps) {
-    super(props)
+  const onCopy = () => {
+    if (wc.selectedClip) {
+      const track = wc.tracks.find(t => t.clips.find(c => c.id === wc.selectedClip?.id))
+      cc.copy({item: wc.selectedClip, type: ClipboardItemType.Clip, container: track?.id})
+    } else if (wc.selectedNode) {
+      const track = wc.tracks.find(t=>t.automationLanes.find(l=> l.nodes.find(n => n.id === wc.selectedNode?.id)))
+      const lane = track?.automationLanes.find(l => l.nodes.find(n => n.id === wc.selectedNode?.id))
+      cc.copy({item: wc.selectedNode, type: ClipboardItemType.Node, container: lane?.id})
+    }
   }
 
-  render() {
-    const {clipboardItem, copy} = this.context!
-
-    return (
-      <WorkstationContext.Consumer>
-        {wc => {
-          const {
-            createClipFromTrackRegion,
-            cursorPos,
-            deleteClip, 
-            deleteNode, 
-            duplicateClip,
-            isPlaying,
-            isRecording,
-            pasteClip, 
-            pasteNode, 
-            selectedClip, 
-            selectedNode, 
-            setCursorPos,
-            setIsPlaying,
-            setIsRecording,
-            splitClip,
-            toggleMuteClip,
-            trackRegion,
-            tracks
-          } = wc!
-
-          const onCopy = (e : React.ClipboardEvent<HTMLDivElement>) => {
-            if (selectedClip) {
-              const track = tracks.find(t => t.clips.find(c => c.id === selectedClip?.id))
-              copy({item: selectedClip, type: ClipboardItemType.Clip, container: track?.id})
-            } else if (selectedNode) {
-              const track = tracks.find(t=>t.automationLanes.find(l=> l.nodes.find(n => n.id === selectedNode?.id)))
-              const lane = track?.automationLanes.find(l => l.nodes.find(n => n.id === selectedNode?.id))
-              copy({item: selectedNode, type: ClipboardItemType.Node, container: lane?.id})
-            }
-          }
-      
-          const onCut = (e : React.ClipboardEvent<HTMLDivElement>) => {
-            if (selectedClip) {
-              const track = tracks.find(t => t.clips.find(c => c.id === selectedClip?.id))
-              copy({item: selectedClip, type: ClipboardItemType.Clip, container: track?.id})
-              deleteClip(selectedClip)
-            } else if (selectedNode) {
-              const track = tracks.find(t=>t.automationLanes.find(l=>l.nodes.find(n => n.id === selectedNode?.id)))
-              const lane = track?.automationLanes.find(l => l.nodes.find(n => n.id === selectedNode?.id))
-              copy({item: selectedNode, type: ClipboardItemType.Node, container: lane?.id})
-              deleteNode(selectedNode)
-            }
-          }
-
-          const onKeyDown = (e : React.KeyboardEvent<HTMLDivElement>) => {
-            if (e.key === "Delete" || e.key === "Backspace") {
-              if (document.activeElement?.nodeName.toLowerCase() !== "input") {
-                if (selectedClip) {
-                  deleteClip(selectedClip)
-                } else if (selectedNode) {
-                  deleteNode(selectedNode)
-                }
-              }
-            } else if (e.key === "Home") {
-              setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))
-            } else if (e.code === "Space") {
-              if (document.activeElement?.nodeName.toLowerCase() !== "input") {
-                if (isRecording) {
-                  setIsRecording(false)
-                  setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))
-                } else {
-                  setIsPlaying(!isPlaying)
-                }
-              }
-            } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.code == "KeyC") {
-              if (trackRegion) {
-                createClipFromTrackRegion()
-              }
-            } else if ((e.ctrlKey || e.metaKey) && e.key === "d") {
-              if (selectedClip) {
-                duplicateClip(selectedClip)
-              }
-            } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "m") {
-              if (selectedClip) {
-                toggleMuteClip(selectedClip)
-              }
-            } else if (e.key === "r") {
-              if (document.activeElement?.nodeName.toLowerCase() !== "input") {
-                setIsRecording(true)
-              }
-            } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.code === "KeyS") {
-              if (selectedClip) {
-                splitClip(selectedClip, cursorPos)
-              }
-            }
-          }
-      
-          const onPaste = (e : React.ClipboardEvent<HTMLDivElement>) => {
-            if (clipboardItem) {
-              switch(clipboardItem.type) {
-                case ClipboardItemType.Clip:
-                  pasteClip(cursorPos)
-                  break
-                case ClipboardItemType.Node:
-                  pasteNode(cursorPos)
-                  break
-              }
-            }
-          }      
-
-          return React.cloneElement(this.props.children, {tabIndex: 0, onCopy, onCut, onPaste, onKeyDown})
-        }}
-      </WorkstationContext.Consumer>
-    )
+  const onCut = () => {
+    if (wc.selectedClip) {
+      const track = wc.tracks.find(t => t.clips.find(c => c.id === wc.selectedClip?.id))
+      cc.copy({item: wc.selectedClip, type: ClipboardItemType.Clip, container: track?.id})
+      wc.deleteClip(wc.selectedClip)
+    } else if (wc.selectedNode) {
+      const track = wc.tracks.find(t=>t.automationLanes.find(l=>l.nodes.find(n => n.id === wc.selectedNode?.id)))
+      const lane = track?.automationLanes.find(l => l.nodes.find(n => n.id === wc.selectedNode?.id))
+      cc.copy({item: wc.selectedNode, type: ClipboardItemType.Node, container: lane?.id})
+      wc.deleteNode(wc.selectedNode)
+    }
   }
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Delete" || e.key === "Backspace") {
+      if (document.activeElement?.nodeName.toLowerCase() !== "input") {
+        if (wc.selectedClip) {
+          wc.deleteClip(wc.selectedClip)
+        } else if (wc.selectedNode) {
+          wc.deleteNode(wc.selectedNode)
+        }
+      }
+    } else if (e.key === "Home") {
+      wc.setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))
+    } else if (e.code === "Space") {
+      if (document.activeElement?.nodeName.toLowerCase() !== "input") {
+        if (wc.isRecording) {
+          wc.setIsRecording(false)
+          wc.setCursorPos(TimelinePosition.fromPos(TimelinePosition.start))
+        } else {
+          wc.setIsPlaying(!wc.isPlaying)
+        }
+      }
+    } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.code == "KeyC") {
+      if (wc.trackRegion) {
+        wc.createClipFromTrackRegion()
+      }
+    } else if ((e.ctrlKey || e.metaKey) && e.code === "KeyD") {
+      if (wc.selectedClip) {
+        wc.duplicateClip(wc.selectedClip)
+      }
+    } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyM") {
+      if (wc.selectedClip) {
+        wc.toggleMuteClip(wc.selectedClip)
+      }
+    } else if (e.key === "r") {
+      if (document.activeElement?.nodeName.toLowerCase() !== "input") {
+        wc.setIsRecording(true)
+      }
+    } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.code === "KeyS") {
+      if (wc.selectedClip) {
+        wc.splitClip(wc.selectedClip, wc.cursorPos)
+      }
+    }
+  }
+
+  const onPaste = () => {
+    if (cc.clipboardItem) {
+      switch(cc.clipboardItem.type) {
+        case ClipboardItemType.Clip:
+          wc.pasteClip(wc.cursorPos)
+          break
+        case ClipboardItemType.Node:
+          wc.pasteNode(wc.cursorPos)
+          break
+      }
+    }
+  }
+
+  React.useEffect(() => {
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCut);
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('paste', onPaste);
+
+    return () => {
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("cut", onCut);
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('paste', onPaste);
+    };
+  }, [onCopy, onCut, onKeyDown, onPaste]);
+
+  return <>{props.children}</>;
 }
+
+export default KeyListener;

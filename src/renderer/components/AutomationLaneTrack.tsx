@@ -1,7 +1,7 @@
 import React from "react"
-import {Accordion, AccordionDetails, AccordionSummary, IconButton, Popover, Typography} from "@mui/material"
+import {Accordion, AccordionDetails, AccordionSummary, IconButton, Popover} from "@mui/material"
 import { WorkstationContext } from "renderer/context/WorkstationContext"
-import { ID, SnapGridSize, ValidatedInput } from "renderer/types/types"
+import { ID, ValidatedInput } from "renderer/types/types"
 import { Track } from "./TrackComponent"
 import { AutomationNode } from "./AutomationNodeComponent"
 import { Add, Delete, ExpandMore } from "@mui/icons-material"
@@ -142,19 +142,23 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
       if (this.state.pos.value === "") {
         if (this.props.automationLane.nodes.length > 0) {
           let lastNodePos = TimelinePosition.fromPos(this.props.automationLane.nodes[this.props.automationLane.nodes.length - 1].pos)
+          const snapGridSize = this.context!.snapGridSize
+          const snapGridFraction = new TimelinePosition(snapGridSize.measures + 1, snapGridSize.beats + 1, snapGridSize.fraction)
+            .toFraction(this.context!.timelinePosOptions)
 
-          if (this.context!.snapGridSize === SnapGridSize.Measure)
-            pos = lastNodePos.add(1, 0, 0, false, this.context!.timelinePosOptions)
-          else if (this.context!.snapGridSize === SnapGridSize.HalfMeasure)
-            pos = lastNodePos.add(0, Math.ceil(this.context!.timeSignature.beats / 2), 0, false, this.context!.timelinePosOptions)
-          else
-            pos = lastNodePos.add(0, 1, 0, false, this.context!.timelinePosOptions)
+          if (snapGridFraction <= 1000) {
+            pos = lastNodePos.add(0, 1, 0, false, this.context!.timelinePosOptions);
+          } else {
+            pos = lastNodePos.add(snapGridSize.measures, snapGridSize.beats, snapGridSize.fraction, false, this.context!.timelinePosOptions);
+          }
         } else {
           pos = TimelinePosition.fromPos(TimelinePosition.start)
         }
       } else {
         pos = TimelinePosition.parseFromString(this.state.pos.value, this.context!.timelinePosOptions)!
       }
+
+      pos.snap(this.context!.timelinePosOptions)
 
       if (pos.compare(maxMeasuresPos) > 0) {
         pos = maxMeasuresPos
@@ -261,14 +265,14 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
             >
               <span 
                 className="mx-2 rounded-circle d-inline-block"
-                style={{height: 10, width: 10, border: "1px solid var(--border6)", backgroundColor: this.props.color, flexShrink: 0, marginTop: 5}}
+                style={{height: 10, width: 10, border: `1px solid ${this.props.track.isMaster ? "#fff6" : "var(--border6)"}`, backgroundColor: this.props.color, flexShrink: 0, marginTop: 5}}
               ></span>
-              <Typography 
-                style={{fontSize: 14, fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", color: "var(--fg1)"}}
+              <p 
+                style={{fontSize: 14, fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", color: "var(--fg1)", margin: 0}}
                 title={this.props.automationLane.label}
               >
                 {this.props.automationLane.label}
-              </Typography>
+              </p>
             </AccordionSummary>
             <MouseDownAwayListener onMouseDown={() => setCancelClickAway(true)} onAway={this.onAway}>
               <AccordionDetails 

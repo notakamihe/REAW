@@ -15,16 +15,16 @@ export function clipAtPos(to : TimelinePosition, clip : Clip, options : Timeline
   const endLimit = clip.endLimit ? TimelinePosition.fromPos(clip.endLimit) : null
   const loopEnd = clip.loopEnd ? TimelinePosition.fromPos(clip.loopEnd) : null
 
-  const widthSpan = TimelinePosition.toSpan(start, end, options)
-  const loopWidthSpan = TimelinePosition.toSpan(end, loopEnd, options)
-  const startToLimitSpan = TimelinePosition.toSpan(startLimit, start, options)
-  const endToLimitSpan = TimelinePosition.toSpan(end, endLimit, options)
+  const widthSpan = TimelinePosition.toInterval(start, end, options)
+  const loopWidthSpan = TimelinePosition.toInterval(end, loopEnd, options)
+  const startToLimitSpan = TimelinePosition.toInterval(startLimit, start, options)
+  const endToLimitSpan = TimelinePosition.toInterval(end, endLimit, options)
 
   to.snap(options)
-  end.setPos(to.add(widthSpan.measures, widthSpan.beats, widthSpan.fraction, false, options, false))
-  loopEnd?.setPos(end.add(loopWidthSpan.measures, loopWidthSpan.beats, loopWidthSpan.fraction, false, options, false))
-  startLimit?.setPos(to.subtract(startToLimitSpan.measures, startToLimitSpan.beats, startToLimitSpan.fraction, false, options, false))
-  endLimit?.setPos(end.add(endToLimitSpan.measures, endToLimitSpan.beats, endToLimitSpan.fraction, false, options, false))
+  end.setPos(to.add(widthSpan.measures, widthSpan.beats, widthSpan.fraction, false, options))
+  loopEnd?.setPos(end.add(loopWidthSpan.measures, loopWidthSpan.beats, loopWidthSpan.fraction, false, options))
+  startLimit?.setPos(to.subtract(startToLimitSpan.measures, startToLimitSpan.beats, startToLimitSpan.fraction, false, options))
+  endLimit?.setPos(end.add(endToLimitSpan.measures, endToLimitSpan.beats, endToLimitSpan.fraction, false, options))
 
   return {...clip, start: to, end, startLimit, endLimit, loopEnd}
 }

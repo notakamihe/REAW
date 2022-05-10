@@ -43,6 +43,7 @@ const channels =  {
   OPEN_TRACK_REGION_CONTEXT_MENU: "open-track-region-context-menu",
   CLOSE_TRACK_REGION_CONTEXT_MENU: "close-track-region-context-menu",
   CREATE_CLIP_FROM_TRACK_REGION: "create-clip-from-track-region",
+  DELETE_TRACK_REGION: "delete-track-region",
 
   OPEN_PREFERENCES: "open-preferences",
 

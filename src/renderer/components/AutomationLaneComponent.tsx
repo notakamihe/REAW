@@ -88,7 +88,7 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
         if (i === 0)
           points.push(`${0},${y + 3}`)
         
-        points.push(`${x + 3},${y + 3}`)
+        points.push(`${x + 2},${y + 3}`)
         
         if (i === nodes.length - 1) {
           points.push(`${this.state.width},${y + 3}`)
@@ -97,13 +97,13 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
     } else {
       if (this.props.lane.isVolume) {
         const y = this.getY(this.props.track.volume)
-        points = [`0,${y + 3}`, `${this.state.width},${y + 3}`]
+        points = [`0,${y + 2}`, `${this.state.width},${y + 3}`]
       } else if (this.props.lane.isPan) {
         const y = this.getY(this.props.track.pan)
-        points = [`0,${y + 3}`, `${this.state.width},${y + 3}`]
+        points = [`0,${y + 2}`, `${this.state.width},${y + 3}`]
       } else if (this.props.lane.isTempo) {
         const y = this.getY(this.context!.tempo)
-        points = [`0,${y + 3}`, `${this.state.width},${y + 3}`]
+        points = [`0,${y + 2}`, `${this.state.width},${y + 3}`]
       }
     }
 
@@ -112,7 +112,7 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
 
   getY(value : number) {
     const percentage = inverseLerp(value, this.props.lane.minValue, this.props.lane.maxValue)
-    return (this.state.height - 6) - percentage * (this.state.height - 6)
+    return (this.state.height - 8) - percentage * (this.state.height - 8)
   }
 
   onClick = (e : React.MouseEvent<HTMLDivElement>) => {
@@ -178,11 +178,8 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
   }
 
   render() {
-    const {verticalScale, selectedNode, setSelectedNode, onNodeClickAway, pasteNode, timelinePosOptions} = this.context!
+    const {verticalScale, selectedNode, setSelectedNode, onNodeClickAway} = this.context!
     const polylinePoints = this.getPolylinePoints()
-    const lane = this.props.lane
-    const strokeWidth = lane.nodes.length === 0 && (lane.isVolume || lane.isPan || lane.isTempo) ? 1 : 2
-
     if (this.props.lane.show) {
       return (
         <React.Fragment>
@@ -192,7 +189,6 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
               style={{
                 width: "100%",
                 height: this.props.lane.expanded ? 100 * verticalScale : 25,
-                backgroundColor: "#fff9",
                 borderBottom: `1px solid #0002`,
                 position: "relative",
                 ...this.props.style
@@ -226,7 +222,7 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
                 >
                   <polyline
                     points={polylinePoints.join(" ")} 
-                    style={{fill: "none", stroke: this.props.color, strokeWidth}}
+                    style={{fill: "none", stroke: this.props.color, strokeWidth: 1, opacity: this.props.lane.nodes.length === 0 ? 0.5 : 1}}
                   />
                 </svg>
               </div>

@@ -9,7 +9,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRedo } from "@fortawesome/free-solid-svg-icons";
 import DNR, { DragAxis, DNRData, ResizeDirection } from "./DNR";
 import { GuideLine } from ".";
-import { ClipboardContext } from "renderer/context/ClipboardContext";
 import { Region } from "./RegionComponent";
 import channels from "renderer/utils/channels";
 import { TrimToLeft, TrimToRight } from "./icons";
@@ -68,7 +67,7 @@ function ResizeHandle({type, show} : {type : ResizeHandleType, show : boolean}) 
         return (
           <FontAwesomeIcon 
             icon={faRedo} 
-            style={{color: "#000", fontSize: 9, transform: "translate(-6px, 2px)", opacity: 0.5, zIndex: 14}} 
+            style={{color: "#000", fontSize: 9, transform: "translate(-8px, 2px)", opacity: 0.5, zIndex: 14}} 
           />
         )
     }
@@ -130,14 +129,6 @@ export default class ClipComponent extends React.Component<IProps, IState> {
     this.onResizeStop = this.onResizeStop.bind(this);
   }
 
-  componentDidUpdate() {
-    if (this.state.isDragging) {
-      document.addEventListener("mousemove", this.onMouseMove)
-    } else {
-      document.removeEventListener("mousemove", this.onMouseMove)
-    }
-  }
-
   getBounds() {
     const options = this.context!.timelinePosOptions
 
@@ -145,6 +136,13 @@ export default class ClipComponent extends React.Component<IProps, IState> {
       return {}
 
     return {left: this.props.clip.startLimit?.toMargin(options), right: this.props.clip.endLimit?.toMargin(options)}
+  }
+
+  getLoopOffset() {
+    const offsetPos = TimelinePosition.fromPos(this.props.clip.start);
+    offsetPos.snap(this.context!.timelinePosOptions, true);
+    
+    return TimelinePosition.toWidth(offsetPos, this.props.clip.start, this.context!.timelinePosOptions);
   }
 
   getLoopWidth() {
@@ -198,12 +196,15 @@ export default class ClipComponent extends React.Component<IProps, IState> {
   }
 
   onDragStart(e : React.MouseEvent, data : DNRData) {
+    document.addEventListener("mousemove", this.onMouseMove)
+
     this.props.onSelect(this.props.clip);
     this.setState({isDragging: true}, () => this.setGuideLineMargins(data.coords.startX, data.coords.endX, null))
     this.context!.setTrackRegion(null)
   }
 
   onDragStop(e : MouseEvent, data : DNRData) {
+    document.removeEventListener("mousemove", this.onMouseMove)
     this.setState({isDragging: false})
     
     if (data.deltaWidth != 0) {
@@ -218,8 +219,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
 
   onLoopStart(e : React.MouseEvent, dir : ResizeDirection, ref : HTMLElement) {
     this.props.onSelect(this.props.clip)
-    this.setState({isLooping: true, tempLoopWidth: ref.offsetWidth}, () => 
-      this.setGuideLineMargins(null, null, ref.offsetWidth))
+    this.setState({isLooping: true, tempLoopWidth: ref.offsetWidth}, () => this.setGuideLineMargins(null, null, ref.offsetWidth))
   }
 
   onLoopStop(e : MouseEvent, dir : ResizeDirection, ref : HTMLElement, data : DNRData) {
@@ -306,8 +306,7 @@ export default class ClipComponent extends React.Component<IProps, IState> {
       if (newClip.loopEnd && newClip.end.compare(newClip.loopEnd) >= 0)
         newClip.loopEnd = null
   
-      if (newClip.start.compare(newClip.end) >= 0)
-        return
+      if (newClip.start.compare(newClip.end) >= 0) return
   
       if (newClip.startLimit && newClip.start.compare(newClip.startLimit) <= 0)
         newClip.start.setPos(newClip.startLimit)
@@ -339,118 +338,110 @@ export default class ClipComponent extends React.Component<IProps, IState> {
   }
 
   render() {
-    const {timelinePosOptions, verticalScale} = this.context!
+    const {snapGridSize, timelinePosOptions, verticalScale} = this.context!
     const bounds = this.getBounds()
     const width = this.state.isResizing ? this.state.tempWidth : 
       TimelinePosition.toWidth(this.props.clip.start, this.props.clip.end, timelinePosOptions)
     const loopWidth = this.state.isResizing || this.state.isLooping ? this.state.tempLoopWidth : this.getLoopWidth()
+    const snapWidth = TimelinePosition.fromInterval(snapGridSize).toMargin(timelinePosOptions)
+    const threshold = Math.max(2, snapWidth / 4.282);
+    const loopOffset = this.getLoopOffset();
 
     return (
-      <ClipboardContext.Consumer>
-        {clipboard => {
-          const {copy} = clipboard!
-
-          return (
-            <React.Fragment>
-              <DNR
-                bounds={bounds}
-                className="clip"
-                coords={{
-                  startX: this.props.clip.start.toMargin(timelinePosOptions), 
-                  startY: 0, 
-                  endX: this.props.clip.end.toMargin(timelinePosOptions), 
-                  endY: 100 * verticalScale
-                }}
-                dragAxis={DragAxis.X}
-                enableResizing={{left: true, right: true}}
-                onClickAway={() => this.props.onClickAway(this.props.clip)}
-                onContextMenu={this.onContextMenu}
-                onDrag={this.onDrag}
-                onDragStart={this.onDragStart}
-                onDragStop={this.onDragStop}
-                onResize={this.onResize}
-                onResizeStart={this.onResizeStart}
-                onResizeStop={this.onResizeStop}
-                ref={this.ref}
-                resizeHandles={{
-                  left: <ResizeHandle type={ResizeHandleType.ResizeLeft} show={this.props.isSelected && width >= 20}/>,
-                  right: <ResizeHandle type={ResizeHandleType.ResizeRight} show={this.props.isSelected && width >= 20} />,
-                }}
-                resizeHandleStyles={{left: {zIndex: 11}, right: {zIndex: 11}}}
-                style={{
-                  backgroundColor: this.props.isSelected ? "#fff" : shadeColor(this.props.track.color, 15),
-                  zIndex: this.props.isSelected ? 10 : 9,
-                  opacity: this.props.clip.muted ? 0.5 : 1
-                }}
-              >
-                {
-                  this.props.clip.muted && (width > 25 || loopWidth > 5) &&
-                  <p style={{position: "absolute", top: 0, left: 2, fontSize: 12, color: "#0008", fontWeight: "bold"}}>M</p>
-                }
-                <DNR 
-                  className="clip-loop-container"
-                  constrainToParent={{vertical: false, horizontal: false}}
-                  coords={{
-                    startX: 0,
-                    startY: 0,
-                    endX: loopWidth,
-                    endY: 10
-                  }}
-                  disableDragging
-                  enableResizing={{right: true}}
-                  minWidth={0}
-                  onResizeStart={this.onLoopStart}
-                  onResize={this.onLoop}
-                  onResizeStop={this.onLoopStop}
-                  resizeHandleClasses={{right: "center-by-flex"}}
-                  resizeHandles={{
-                    right: <ResizeHandle type={ResizeHandleType.Loop} show={this.props.isSelected && (width > 25 || loopWidth > 5)} /> 
-                  }}
-                  resizeHandleStyles={{right: {zIndex: 14}}}
-                  style={{zIndex: 12}}
+      <React.Fragment>
+        <DNR
+          bounds={bounds}
+          className="clip"
+          coords={{
+            startX: this.props.clip.start.toMargin(timelinePosOptions), 
+            startY: 0, 
+            endX: this.props.clip.end.toMargin(timelinePosOptions), 
+            endY: 100 * verticalScale
+          }}
+          dragAxis={DragAxis.X}
+          enableResizing={{left: true, right: true}}
+          onClickAway={() => this.props.onClickAway(this.props.clip)}
+          onContextMenu={this.onContextMenu}
+          onDrag={this.onDrag}
+          onDragStart={this.onDragStart}
+          onDragStop={this.onDragStop}
+          onResize={this.onResize}
+          onResizeStart={this.onResizeStart}
+          onResizeStop={this.onResizeStop}
+          ref={this.ref}
+          resizeHandles={{
+            left: <ResizeHandle type={ResizeHandleType.ResizeLeft} show={this.props.isSelected && width >= 20}/>,
+            right: <ResizeHandle type={ResizeHandleType.ResizeRight} show={this.props.isSelected && width >= 20} />,
+          }}
+          resizeHandleStyles={{left: {zIndex: 11}, right: {zIndex: 11}}}
+          snapGridSize={{horizontal: snapWidth || 0.00001}}
+          style={{
+            backgroundColor: this.props.isSelected ? "#fff" : shadeColor(this.props.track.color, 15),
+            zIndex: this.props.isSelected ? 10 : 9,
+            opacity: this.props.clip.muted ? 0.5 : 1
+          }}
+        >
+          {
+            this.props.clip.muted && (width > 25 || loopWidth > 5) &&
+            <p style={{position: "absolute", top: 0, left: 2, fontSize: 12, color: "#0008", fontWeight: "bold"}}>M</p>
+          }
+          <div className="position-absolute" style={{top: 0, left: -1 - loopOffset}}>
+            <DNR 
+              constrainToParent={{vertical: false, horizontal: false}}
+              coords={{
+                startX: (width + loopOffset),
+                startY: 0,
+                endX: (width + loopOffset) + loopWidth,
+                endY: 10
+              }}
+              disableDragging
+              enableResizing={{right: true}}
+              minWidth={0}
+              onResizeStart={this.onLoopStart}
+              onResize={this.onLoop}
+              onResizeStop={this.onLoopStop}
+              resizeHandleClasses={{right: "center-by-flex"}}
+              resizeHandles={{
+                right: <ResizeHandle type={ResizeHandleType.Loop} show={this.props.isSelected && (width > 25 || loopWidth > 5)} /> 
+              }}
+              resizeHandleStyles={{right: {zIndex: 14}}}
+              snapGridSize={{horizontal: snapWidth || 0.00001}}
+              snapThreshold={{horizontal: threshold}}
+              style={{zIndex: 12}}
+            >
+              <Loop
+                clipWidth={width}   
+                color={this.props.isSelected ? "#eee" : shadeColor(this.props.track.color, 30) } 
+                style={{height: 100 * verticalScale, transform: "translateY(-1px)"}}
+                width={loopWidth}   
+              />
+            </DNR>
+          </div>
+          <div className="position-absolute pe-none" style={{bottom: 0, left: -1, transform: "translate(0, 100%)", opacity: 0.3}}>
+            {
+              this.props.track.automationEnabled &&
+              this.props.track.automationLanes.filter(l => l.show).map((l, idx) => (
+                <div 
+                  key={idx} 
+                  className="clip"
+                  style={{width: width, height: l.expanded ? 100 * verticalScale : 25, backgroundColor: this.props.track.color, opacity: 0.5}}
                 >
                   <Loop
                     clipWidth={width}   
-                    color={this.props.isSelected ? "#eee" : shadeColor(this.props.track.color, 30) } 
-                    style={{height: 100 * verticalScale}}
+                    color={shadeColor(this.props.track.color, 45)} 
+                    style={{right: 0, transform: "translate(100%, -1px)", height: l.expanded ? 100 * verticalScale : 25}}
                     width={loopWidth}   
                   />
-                </DNR>
-                <div 
-                  className="position-absolute pe-none"
-                  style={{bottom: 0, left: -1, transform: "translate(0, 100%)", opacity: 0.3}}
-                >
-                  {
-                    this.props.track.automationEnabled &&
-                    this.props.track.automationLanes.filter(l => l.show).map((l, idx) => (
-                      <div 
-                        key={idx} 
-                        className="clip"
-                        style={{
-                          width: width, 
-                          height: l.expanded ? 100 * verticalScale : 25, 
-                          backgroundColor: shadeColor(this.props.track.color, 30)
-                        }}
-                      >
-                        <Loop
-                          clipWidth={width}   
-                          color={shadeColor(this.props.track.color, 45)} 
-                          style={{right: 0, transform: "translate(100%, -1px)", height: l.expanded ? 100 * verticalScale : 25}}
-                          width={loopWidth}   
-                        />
-                      </div>
-                    ))
-                  }
                 </div>
-              </DNR>
-              {
-                (this.state.isDragging || this.state.isResizing || this.state.isLooping) &&
-                this.state.guideLineMargins.map((m, idx) => <GuideLine key={idx} margin={m} />)
-              }
-            </React.Fragment>
-          )
-        }}
-      </ClipboardContext.Consumer>
+              ))
+            }
+          </div>
+        </DNR>
+        {
+          (this.state.isDragging || this.state.isResizing || this.state.isLooping) &&
+          this.state.guideLineMargins.map((m, idx) => <GuideLine key={idx} margin={m} />)
+        }
+      </React.Fragment>
     )
   }
 }

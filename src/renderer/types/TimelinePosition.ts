@@ -1,14 +1,14 @@
-import { SnapGridSize, TimeSignature } from "./types"
+import { TimeSignature } from "./types"
 
 export interface TimelinePositionOptions {
-  snapSize : SnapGridSize
+  snapSize : TimelineInterval
   beatWidth : number
   horizontalScale : number,
   timeSignature : TimeSignature,
   tempo : number
 }
 
-export interface TimelineSpan {
+export interface TimelineInterval {
   measures : number
   beats : number
   fraction : number
@@ -28,12 +28,12 @@ export default class TimelinePosition {
   }
 
   add(measures : number, beats : number, fraction : number, mutate : boolean = true, 
-    options : TimelinePositionOptions, snap : boolean = true) : TimelinePosition {
+    options : TimelinePositionOptions) : TimelinePosition {
     let pos = mutate ? this : TimelinePosition.fromPos(this)
 
     pos.addMeasures(measures)
     pos.addBeats(beats, options)
-    pos.addFraction(fraction, options, snap)
+    pos.addFraction(fraction, options)
 
     return pos
   }
@@ -54,7 +54,7 @@ export default class TimelinePosition {
     this.beat = beat
   }
   
-  private addFraction(fraction : number, options : TimelinePositionOptions, snap : boolean = true) {
+  private addFraction(fraction : number, options : TimelinePositionOptions) {
     const beats = Math.floor(fraction / 1000)
     const remainder = fraction % 1000
 
@@ -67,53 +67,6 @@ export default class TimelinePosition {
       frac %= 1000
     }
 
-    if (snap && options.snapSize !== SnapGridSize.None) {
-      if (options.snapSize <= SnapGridSize.Beat) {
-        const interval = 1000 * options.snapSize
-        frac = Math.round(frac / interval) * interval
-      } else {
-        let step = 1
-
-        if (options.snapSize === SnapGridSize.Measure)
-          step = 1000 * options.timeSignature.beats
-        else if (options.snapSize === SnapGridSize.HalfMeasure)
-          step = 1000 * Math.ceil(options.timeSignature.beats / 2)
-
-        const measureFraction = options.timeSignature.beats * 1000
-        let fractionFromMeasure = Math.min((this.beat - 1) * 1000 + frac, measureFraction)
-        let intervals = []
-        
-        for (let i = 0; i < measureFraction; i += step) {
-          intervals.push(i)
-        }
-
-        intervals.push(measureFraction)
-
-        for (let i = 0; i < intervals.length; i++) {
-          const interval = intervals[i]
-          const nextInterval = intervals[i + 1]
-
-          if (fractionFromMeasure >= interval && fractionFromMeasure <= nextInterval) {
-            fractionFromMeasure = fractionFromMeasure - interval < nextInterval - fractionFromMeasure ? 
-              interval : nextInterval
-
-            break
-          }
-        }
-
-        const {measures, beats, fraction} = TimelinePosition.fromFraction(fractionFromMeasure, options)
-
-        this.addMeasures(measures)
-        this.beat = beats + 1 
-        frac = fraction
-      }
-
-      if (frac >= 1000) {
-        this.addBeats(Math.floor(frac / 1000), options)
-        frac %= 1000
-      }
-    }
-
     this.fraction = frac
   }
   
@@ -122,24 +75,22 @@ export default class TimelinePosition {
   }
 
   compare(other : TimelinePosition) : number {
-    if (this.measure > other.measure) {
+    if (this.measure > other.measure)
       return 1
-    } else if (this.measure < other.measure) {
+    else if (this.measure < other.measure)
       return -1
-    } else if (this.beat > other.beat) {
+    else if (this.beat > other.beat)
       return 1
-    } else if (this.beat < other.beat) {
+    else if (this.beat < other.beat)
       return -1
-    } else if (this.fraction > other.fraction) {
+    else if (this.fraction > other.fraction)
       return 1
-    } else if (this.fraction < other.fraction) {
+    else if (this.fraction < other.fraction)
       return -1
-    } else {
-      return 0
-    }
+    else return 0
   }
 
-  static fromFraction (frac : number, options : TimelinePositionOptions) {
+  static fromFraction (frac : number, options : TimelinePositionOptions) : TimelineInterval {
     const measures = Math.floor(frac / (1000 * options.timeSignature.beats))
     const beats = Math.floor((frac - measures * 1000 * options.timeSignature.beats) / 1000)
     const fraction = frac % 1000
@@ -151,7 +102,11 @@ export default class TimelinePosition {
     return new TimelinePosition(pos.measure, pos.beat, pos.fraction)
   }
 
-  static fromWidth(width: number, options : TimelinePositionOptions) : TimelineSpan {
+  static fromInterval(interval : TimelineInterval) {
+    return new TimelinePosition(interval.measures + 1, interval.beats + 1, interval.fraction);
+  }
+
+  static fromWidth(width: number, options : TimelinePositionOptions) : TimelineInterval {
     const beatWidth = options.beatWidth * options.horizontalScale * (4 / options.timeSignature.noteValue)
     const measureWidth = options.timeSignature.beats * beatWidth
 
@@ -165,9 +120,7 @@ export default class TimelinePosition {
   static isStringValid(str : string) {
     let arr = str.split('.')
 
-    if (arr.length < 3) {
-      return false
-    }
+    if (arr.length < 3) return false
 
     let parts = arr.slice(0, 2)
     parts.push(arr.slice(2).join('.'))
@@ -190,15 +143,14 @@ export default class TimelinePosition {
       fraction = 0
 
     this.setPos(TimelinePosition.start)
-    this.add(measure - 1, beat - 1, fraction, true, options, false)
+    this.add(measure - 1, beat - 1, fraction, true, options)
 
     return this
   }
 
   static parseFromString(str : string, options : TimelinePositionOptions) {
-    if (!TimelinePosition.isStringValid(str)) {
+    if (!TimelinePosition.isStringValid(str))
       return undefined
-    }
 
     let arr = str.split('.')
     let parts = arr.slice(0, 2)
@@ -218,17 +170,27 @@ export default class TimelinePosition {
     this.fraction = pos.fraction
   }
 
-  snap(options : TimelinePositionOptions) {
-    this.add(0, 0, 0, true, options, true)
+  snap(options : TimelinePositionOptions, floor : boolean = false) {
+    const {measures, beats, fraction} = options.snapSize;
+    const snapSizeFraction = (new TimelinePosition(measures + 1, beats + 1, fraction)).toFraction(options);
+    
+    if (snapSizeFraction > 0) {
+      const posFraction = this.toFraction(options);
+      const newFraction = floor ? snapSizeFraction * Math.floor(posFraction / snapSizeFraction) : 
+        snapSizeFraction * Math.round(posFraction / snapSizeFraction);
+      const newSpan = TimelinePosition.fromFraction(newFraction, options);
+  
+      this.setPos(new TimelinePosition(newSpan.measures + 1, newSpan.beats + 1, newSpan.fraction));
+    }
   }
 
   subtract(measures : number, beats : number, fraction : number, mutate : boolean = true,
-    options : TimelinePositionOptions, snap : boolean = true) : TimelinePosition {
+    options : TimelinePositionOptions) : TimelinePosition {
     let pos = mutate ? this : TimelinePosition.fromPos(this)
 
     pos.subtractMeasures(measures)
     pos.subtractBeats(beats, options)
-    pos.subtractFraction(fraction, options, snap)
+    pos.subtractFraction(fraction, options)
 
     return pos
   }
@@ -249,7 +211,7 @@ export default class TimelinePosition {
     this.beat = beat
   }
   
-  private subtractFraction(fraction : number, options : TimelinePositionOptions, snap : boolean = true) {
+  private subtractFraction(fraction : number, options : TimelinePositionOptions) {
     const beats = Math.floor(fraction / 1000)
     const remainder = fraction % 1000
 
@@ -262,58 +224,15 @@ export default class TimelinePosition {
       frac = 1000 - Math.abs(frac)
     }
 
-    if (snap && options.snapSize !== SnapGridSize.None) {
-      if (options.snapSize <= SnapGridSize.Beat) {
-        const interval = 1000 * options.snapSize
-        frac = Math.round(frac / interval) * interval
-      } else {
-        let step = 1
-
-        if (options.snapSize === SnapGridSize.Measure)
-          step = 1000 * options.timeSignature.beats
-        else if (options.snapSize === SnapGridSize.HalfMeasure)
-          step = 1000 * Math.ceil(options.timeSignature.beats / 2)
-
-        const measureFraction = options.timeSignature.beats * 1000
-        let fractionFromMeasure = Math.min((this.beat - 1) * 1000 + frac, measureFraction)
-        let intervals = []
-        
-        for (let i = 0; i < measureFraction; i += step) {
-          intervals.push(i)
-        }
-
-        intervals.push(measureFraction)
-
-        for (let i = 0; i < intervals.length; i++) {
-          const interval = intervals[i]
-          const nextInterval = intervals[i + 1]
-
-          if (fractionFromMeasure >= interval && fractionFromMeasure <= nextInterval) {
-            fractionFromMeasure = fractionFromMeasure - interval < nextInterval - fractionFromMeasure ? 
-              interval : nextInterval
-
-            break
-          }
-        }
-
-        const {measures, beats, fraction} = TimelinePosition.fromFraction(fractionFromMeasure, options)
-
-        this.addMeasures(measures)
-        this.beat = beats + 1 
-        frac = fraction
-      }
-
-      if (frac >= 1000) {
-        this.addBeats(Math.floor(frac / 1000), options)
-        frac %= 1000
-      }
-    }
-
     this.fraction = frac
   }
   
   private subtractMeasures(numMeasures : number) {
     this.measure -= numMeasures
+  }
+
+  toFraction(options : TimelinePositionOptions) {
+    return options.timeSignature.beats * 1000 * (this.measure - 1) + (this.beat - 1) * 1000 + this.fraction
   }
   
   toMargin(options : TimelinePositionOptions) {
@@ -326,9 +245,8 @@ export default class TimelinePosition {
     return measureMargin + beatMargin + fractionMargin
   }
   
-  static toSpan(pos1 : TimelinePosition | null, pos2 : TimelinePosition | null, options: TimelinePositionOptions) : TimelineSpan {
-    if (!pos1 || !pos2) 
-      return {measures: 0, beats: 0, fraction: 0}
+  static toInterval(pos1 : TimelinePosition | null, pos2 : TimelinePosition | null, options: TimelinePositionOptions) : TimelineInterval {
+    if (!pos1 || !pos2) return {measures: 0, beats: 0, fraction: 0}
 
     const width = TimelinePosition.toWidth(pos1, pos2, options)
     const {measures, beats, fraction} = TimelinePosition.fromWidth(width, options)
@@ -367,8 +285,7 @@ export default class TimelinePosition {
   }
 
   static toWidth(pos1 : TimelinePosition | null, pos2 : TimelinePosition | null, options: TimelinePositionOptions) {
-    if (!pos1 || !pos2)
-      return 0
+    if (!pos1 || !pos2) return 0
     
     return pos2.toMargin(options) - pos1.toMargin(options)
   }
