@@ -1,50 +1,87 @@
-import { Clip } from "renderer/components/ClipComponent";
-import { Track } from "renderer/components/TrackComponent";
 import TimelinePosition, { TimelinePositionOptions } from "renderer/types/TimelinePosition";
+import { AudioClip, AutomationLane, AutomationNode, Clip, Track, TrackType } from "renderer/types/types";
 import { v4 as uuidv4 } from "uuid";
-import { getRandomTrackColor } from "./helpers";
+import { getRandomTrackColor } from "./general";
 
 export const BASE_MAX_MEASURES = 2000;
 export const ipcRenderer = (window as any).electron.ipcRenderer
 
 export function clipAtPos(to : TimelinePosition, clip : Clip, options : TimelinePositionOptions) : Clip {
-  to = TimelinePosition.fromPos(to)
-  const start = TimelinePosition.fromPos(clip.start)
-  const end = TimelinePosition.fromPos(clip.end)
-  const startLimit = clip.startLimit ? TimelinePosition.fromPos(clip.startLimit) : null
-  const endLimit = clip.endLimit ? TimelinePosition.fromPos(clip.endLimit) : null
-  const loopEnd = clip.loopEnd ? TimelinePosition.fromPos(clip.loopEnd) : null
+  const {measures, beats, fraction} = TimelinePosition.toInterval(to, clip.start, options);
+  let newClip;
 
-  const widthSpan = TimelinePosition.toInterval(start, end, options)
-  const loopWidthSpan = TimelinePosition.toInterval(end, loopEnd, options)
-  const startToLimitSpan = TimelinePosition.toInterval(startLimit, start, options)
-  const endToLimitSpan = TimelinePosition.toInterval(end, endLimit, options)
+  if (to.compare(clip.start) >= 0) {
+    newClip = {
+      ...clip,
+      start: TimelinePosition.fromPos(to),
+      end: clip.end.add(measures, beats, fraction, false, options),
+      startLimit: clip.startLimit?.add(measures, beats, fraction, false, options) || null,
+      endLimit: clip.endLimit?.add(measures, beats, fraction, false, options) || null,
+      loopEnd: clip.loopEnd?.add(measures, beats, fraction, false, options) || null
+    }
+  } else {
+    newClip = {
+      ...clip,
+      start: TimelinePosition.fromPos(to),
+      end: clip.end.subtract(measures, beats, fraction, false, options),
+      startLimit: clip.startLimit?.subtract(measures, beats, fraction, false, options) || null,
+      endLimit: clip.endLimit?.subtract(measures, beats, fraction, false, options) || null,
+      loopEnd: clip.loopEnd?.subtract(measures, beats, fraction, false, options) || null
+    }
+  }
 
-  to.snap(options)
-  end.setPos(to.add(widthSpan.measures, widthSpan.beats, widthSpan.fraction, false, options))
-  loopEnd?.setPos(end.add(loopWidthSpan.measures, loopWidthSpan.beats, loopWidthSpan.fraction, false, options))
-  startLimit?.setPos(to.subtract(startToLimitSpan.measures, startToLimitSpan.beats, startToLimitSpan.fraction, false, options))
-  endLimit?.setPos(end.add(endToLimitSpan.measures, endToLimitSpan.beats, endToLimitSpan.fraction, false, options))
+  if ((clip as AudioClip).audio) {
+    let clipAsAudio = newClip as AudioClip;
 
-  return {...clip, start: to, end, startLimit, endLimit, loopEnd}
+    if (to.compare(clip.start) >= 0) {
+      newClip = {
+        ...newClip,
+        audio: {
+          ...clipAsAudio.audio,
+          start: clipAsAudio.audio.start.add(measures, beats, fraction, false, options),
+          end: clipAsAudio.audio.end.add(measures, beats, fraction, false, options)
+        }
+      } as Clip;
+    } else {
+      newClip = {
+        ...newClip,
+        audio: {
+          ...clipAsAudio.audio,
+          start: clipAsAudio.audio.start.subtract(measures, beats, fraction, false, options),
+          end: clipAsAudio.audio.end.subtract(measures, beats, fraction, false, options)
+        }
+      } as Clip;
+    }
+  }
+
+  return newClip;
 }
 
 export function copyClip(clip: Clip) : Clip {
-  return {
-    id: clip.id,
+  const newClip = {
+    ...clip,
     start: TimelinePosition.fromPos(clip.start),
     end: TimelinePosition.fromPos(clip.end),
     startLimit: clip.startLimit ? TimelinePosition.fromPos(clip.startLimit) : null,
     endLimit: clip.endLimit ? TimelinePosition.fromPos(clip.endLimit) : null,
-    loopEnd: clip.loopEnd ? TimelinePosition.fromPos(clip.loopEnd) : null,
-    muted: clip.muted
+    loopEnd: clip.loopEnd ? TimelinePosition.fromPos(clip.loopEnd) : null
   }
+
+  if ((clip as AudioClip).audio) {
+    const audioClip = newClip as AudioClip;
+
+    audioClip.audio.start = TimelinePosition.fromPos(audioClip.audio.start);
+    audioClip.audio.end = TimelinePosition.fromPos(audioClip.audio.end);
+  }
+
+  return newClip;
 }
 
 export function getBaseTrack() : Track {
   return {
     id: uuidv4(), 
     name: `Track`, 
+    type: TrackType.Audio,
     color: getRandomTrackColor(), 
     clips: [],
     fx: {effects: []},
@@ -97,6 +134,10 @@ export function getTrackVolumeTitle(track : Track) : string {
     return "Volume: Automated"
   else
     return `Volume: ${track.volume <= -80 ? '-Infinity dB' : track.volume.toFixed(2) + ' dB'}`
+}
+
+export function laneContainsNode(lane : AutomationLane, node : AutomationNode | null) {
+  return lane.nodes.findIndex(n => n.id === node?.id) !== -1
 }
 
 export function marginToPos(margin : number, options: TimelinePositionOptions) : TimelinePosition {
