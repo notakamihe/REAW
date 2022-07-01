@@ -2,9 +2,8 @@ import React from "react";
 import { IconButton } from "@mui/material";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import Timer from "renderer/types/Timer";
-import metronomeIcon from "../../../assets/svg/metronome.svg"
-import metronomeTick from "../../../assets/audio/metronome-tick.mp3"
-import metronomeTIckAccentuated from "../../../assets/audio/metronome-tick-accentuated.mp3"
+import metronomeTick from "./../../../assets/audio/metronome-tick.mp3";
+import metronomeTIckAccentuated from "../../../assets/audio/metronome-tick-accentuated.mp3";
 import { MetronomeIcon } from "./icons";
 
 const tickAudio = new Audio(metronomeTick);
@@ -49,7 +48,7 @@ export default function Metronome() {
       onClick={() => setMetronome(!metronome)} 
       style={{backgroundColor: metronome ? "var(--color1)" : "#0000", width: 24, height: 24}}
     >
-      <MetronomeIcon iconStyle={{size: 14, color: metronome ? "#fff" : "var(--border7)"}} />
+      <MetronomeIcon iconStyle={{size: 14, color: metronome ? "var(--bg9)" : "var(--border7)"}} />
     </IconButton>
   )
 }

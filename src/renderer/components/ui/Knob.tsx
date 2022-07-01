@@ -1,6 +1,6 @@
 import { Popover, Tooltip } from "@mui/material"
 import React from "react"
-import { clamp, degreeToRad, inverseLerp, lerp } from "renderer/utils/helpers"
+import { clamp, degreeToRad, inverseLerp, lerp } from "renderer/utils/general"
 
 interface IProps {
   bidirectional? : boolean

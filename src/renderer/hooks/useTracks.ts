@@ -1,5 +1,5 @@
 import React, { SetStateAction } from "react";
-import {Track} from "./../components/TrackComponent"
+import {Track} from "./../types/types"
 
 export default function useTracks(initialState: Track[] | (() => Track[])) : 
   [Track[], React.Dispatch<SetStateAction<Track[]>>, (track : Track) => void] 

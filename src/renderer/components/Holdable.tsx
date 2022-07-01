@@ -2,35 +2,43 @@ import React from "react";
 
 interface IProps {  
   children: JSX.Element;
-  timeout: number;
+  delay?: number;
   interval: number;
   onHold: () => void;
-  onMouseDown: () => void;
+  onMouseDown?: () => void;
 }
 
 export default class Holdable extends React.Component<IProps, {}> {
-  private timeoutID: any;
+  t: any;
 
   constructor(props: IProps) {
     super(props);
+
+    this.t = undefined;
+
+    this.repeat = this.repeat.bind(this);
     this.onMouseDown = this.onMouseDown.bind(this);
   }
 
-  onMouseDown() {
-    this.props.onMouseDown();
-  
-    this.timeoutID = setTimeout(() => {
-      this.timeoutID = setInterval(() => {
-        this.props.onHold();
-      }, this.props.interval || 0);
-    }, this.props.timeout || 1000);
+  repeat() {
+    this.props.onHold();
+    this.t = setTimeout(this.repeat, this.props.interval);
   }
-  
+
+  onMouseDown() {
+    this.props.onMouseDown?.();
+
+    if (this.props.delay)
+      this.props.onHold();
+      
+    this.t = setTimeout(this.repeat, this.props.delay || 0);
+  }
+
   render() {
     return React.cloneElement(this.props.children, {
       onMouseDown: this.onMouseDown,
-      onMouseUp: () => clearTimeout(this.timeoutID),
-      onMouseOut: () => clearTimeout(this.timeoutID)
+      onMouseUp: () => clearTimeout(this.t),
+      onMouseLeave: () => clearTimeout(this.t)
     })
   }
 }

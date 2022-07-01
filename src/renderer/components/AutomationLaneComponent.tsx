@@ -1,15 +1,13 @@
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
-import { inverseLerp, lerp } from "renderer/utils/helpers";
+import { inverseLerp, lerp } from "renderer/utils/general";
 import { AutomationNodeComponent } from ".";
-import { AutomationLane } from "./AutomationLaneTrack";
-import { AutomationNode } from "./AutomationNodeComponent";
-import { Track } from "./TrackComponent";
 import {v4 as uuidv4} from "uuid";
 import ResizeDetector from "react-resize-detector";
 import { ipcRenderer, marginToPos } from "renderer/utils/utils";
 import channels from "renderer/utils/channels";
+import { AutomationLane, AutomationNode, Track } from "renderer/types/types";
 
 interface IProps {
   color : string

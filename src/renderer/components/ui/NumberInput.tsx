@@ -107,7 +107,7 @@ export default function NumberInput(props : IProps) {
     >
       {
         !props.vertical &&
-        <Holdable timeout={250} interval={200} onMouseDown={handleDecrement} onHold={handleDecrement}>
+        <Holdable delay={250} interval={200} onMouseDown={handleDecrement} onHold={handleDecrement}>
           <button 
             className={`p-0 center-by-flex overflow-hidden ${props.classes?.decr}`}
             style={{width: 16, height: "100%", backgroundColor: "#333", ...style?.decr}}
@@ -140,7 +140,7 @@ export default function NumberInput(props : IProps) {
           className={props.classes?.verticalContainer}
           style={{display: "flex", flexDirection: "column", width: 10, height: "100%", ...style?.verticalContainer}}
         >
-          <Holdable timeout={250} interval={200} onMouseDown={handleIncrement} onHold={handleIncrement}>
+          <Holdable delay={250} interval={200} onMouseDown={handleIncrement} onHold={handleIncrement}>
             <button
               className={`p-0 center-by-flex overflow-hidden ${props.classes?.incr}`}
               style={{height: "50%", width: "100%", backgroundColor: "#333", ...style?.incr}} 
@@ -151,7 +151,7 @@ export default function NumberInput(props : IProps) {
               />
             </button>
           </Holdable>
-          <Holdable timeout={250} interval={200} onMouseDown={handleDecrement} onHold={handleDecrement}>
+          <Holdable delay={250} interval={200} onMouseDown={handleDecrement} onHold={handleDecrement}>
             <button
               className={`p-0 center-by-flex overflow-hidden ${props.classes?.decr}`}
               style={{height: "50%", width: "100%", backgroundColor: "#333", ...style?.decr}} 
@@ -166,7 +166,7 @@ export default function NumberInput(props : IProps) {
       }
       {
         !props.vertical &&
-        <Holdable timeout={250} interval={200} onMouseDown={handleIncrement} onHold={handleIncrement}>
+        <Holdable delay={250} interval={200} onMouseDown={handleIncrement} onHold={handleIncrement}>
           <button 
             className={`p-0 center-by-flex overflow-hidden ${props.classes?.incr}`}
             style={{width: 16, height: "100%", backgroundColor: "#333", ...style?.incr}}

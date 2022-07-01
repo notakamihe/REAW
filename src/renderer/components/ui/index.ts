@@ -8,6 +8,7 @@ import Slider from "./Slider";
 import NumberInput from "./NumberInput";
 import Dialog from "./Dialog";
 import VolumeMeter from "./VolumeMeter";
+import SpeedDial from "./SpeedDial";
 
 export {
   ConfirmationInput, 
@@ -18,6 +19,7 @@ export {
   Dialog,
   SelectSpinBox, 
   Slider, 
+  SpeedDial,
   Tooltip,
   VolumeMeter
 };

@@ -263,6 +263,10 @@ export default class DNR extends React.Component<IProps, IState> {
 
   componentWillUnmount() {
     document.removeEventListener("mousedown", this.onOutsideMouseDown);
+    document.removeEventListener("mousemove", this.onMouseMoveDrag);
+    document.removeEventListener("mousemove", this.onMouseMoveResize);
+    document.removeEventListener("mouseup", this.onMouseUpDrag);
+    document.removeEventListener("mouseup", this.onMouseUpResize);
   }
   
   getBorderWidth(el : Element | null) {

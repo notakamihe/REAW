@@ -1,4 +1,4 @@
-import { inverseLerp } from "renderer/utils/helpers"
+import { inverseLerp } from "renderer/utils/general"
 
 interface IProps {
   meterBackgroundColor?: string

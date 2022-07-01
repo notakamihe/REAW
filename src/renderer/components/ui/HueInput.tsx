@@ -1,5 +1,5 @@
 import React from "react"
-import { hslToHex } from "renderer/utils/helpers"
+import { hslToHex } from "renderer/utils/general"
 import styled from "styled-components"
 
 interface IProps {

@@ -1,30 +1,15 @@
 import React from "react"
 import {Accordion, AccordionDetails, AccordionSummary, IconButton, Popover} from "@mui/material"
 import { WorkstationContext } from "renderer/context/WorkstationContext"
-import { ID, ValidatedInput } from "renderer/types/types"
-import { Track } from "./TrackComponent"
-import { AutomationNode } from "./AutomationNodeComponent"
+import { AutomationLane, AutomationNode, ValidatedInput, Track } from "renderer/types/types"
 import { Add, Delete, ExpandMore } from "@mui/icons-material"
 import { MouseDownAwayListener } from "."
-import { clamp, laneContainsNode, lerp } from "renderer/utils/helpers"
+import { clamp, lerp } from "renderer/utils/general"
 import TimelinePosition from "renderer/types/TimelinePosition"
 import { v4 } from "uuid"
 import { Slider} from "./ui"
-import { BASE_MAX_MEASURES, ipcRenderer } from "renderer/utils/utils"
+import { BASE_MAX_MEASURES, ipcRenderer, laneContainsNode } from "renderer/utils/utils"
 import channels from "renderer/utils/channels"
-
-export interface AutomationLane {
-  expanded : boolean
-  id : ID
-  isPan? : boolean
-  isTempo? : boolean
-  isVolume? : boolean
-  label : string
-  maxValue : number
-  minValue : number
-  nodes: AutomationNode[]
-  show : boolean
-}
 
 interface IProps {
   automationLane : AutomationLane
@@ -342,7 +327,7 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
                         </div>
                         <input 
                           className="px-1 py-1 col-12 no-borders"
-                          style={{color: "#fff", backgroundColor: "var(--color1)", fontSize: 14, borderRadius: 2}} 
+                          style={{color: "var(--bg9)", backgroundColor: "var(--color1)", fontSize: 14, borderRadius: 2}} 
                           type="submit" 
                           value="Add" 
                         />

@@ -19,27 +19,38 @@ export default function ConformationInput(props : IProps) {
       className={props.className}
       onMouseDown={e => e.stopPropagation()}
       onSubmit={props.onConfirm}
-      style={{display: "flex", borderRadius: 3, ...props.style}}
+      style={{display: "flex", ...props.style}}
     >
       <input
         className="br-inherit-l"
         disabled={props.disabled}
         value={props.value} 
         onChange={props.onChange} 
-        style={{backgroundColor:"#fff", width:40, border:"none", fontSize:13, outline:"none", ...props.inputStyle}}
+        style={{
+          backgroundColor: "#0000", 
+          width: 40, 
+          border: "1px solid var(--border7)", 
+          color: "var(--border7)", 
+          fontSize: 13, 
+          outline: "none", 
+          marginRight: 2,
+          borderRadius: 3,
+          ...props.inputStyle
+        }}
       />
       <button 
-        className="br-inherit-r center-by-flex" 
+        className="center-by-flex" 
         disabled={props.disabled}
         style={{
           backgroundColor:"var(--color1)", 
-          padding: "0 2px", 
+          padding: "0 4px", 
+          borderRadius: 3,
           filter: props.disabled ? "grayscale(100%)" : "", 
           ...props.buttonStyle
         }}
         type="submit" 
       >
-        {props.icon || <Check style={{fontSize: 14, color: "#fff"}} />}
+        {props.icon || <Check style={{fontSize: 14, color: "var(--bg9)"}} />}
       </button>
     </form>
   )

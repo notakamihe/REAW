@@ -1,81 +1,16 @@
 import React from "react"
 import { WorkstationContext } from "renderer/context/WorkstationContext"
-import { ID } from "renderer/types/types"
-import { Clip } from "./ClipComponent"
+import { AudioClip, AutomationLane, Clip, Effect, FXChain, ID, Track } from "renderer/types/types"
 import { EditableDisplay, Knob, HueInput, Dialog } from "./ui"
-import { Button, ButtonGroup, IconButton, DialogContent } from "@mui/material"
+import { IconButton, DialogContent } from "@mui/material"
 import { Add, Check, FiberManualRecord } from "@mui/icons-material"
 import {v4 as uuidv4} from "uuid"
-import styled from "styled-components"
 import { AutomationLaneTrack, FXComponent } from "."
-import { AutomationLane } from "./AutomationLaneTrack"
-import { getLaneColor, getRandomTrackColor, hslToHex, hueFromHex, shadeColor } from "renderer/utils/helpers"
-import { FXChain } from "./FXComponent"
+import { getLaneColor, getRandomTrackColor, hslToHex, hueFromHex, shadeColor } from "renderer/utils/general"
 import { getTrackPanTitle, getTrackVolumeTitle, ipcRenderer } from "renderer/utils/utils"
 import channels from "renderer/utils/channels"
-
-export interface Effect {
-  id : ID
-  name : string
-  enabled : boolean
-}
-
-export interface FX {
-  chainId? : ID | null
-  effects : Effect[]
-}
-
-export interface Track {
-  armed : boolean
-  automationEnabled : boolean
-  automationLanes : AutomationLane[]
-  clips : Clip[]
-  color : string
-  fx : FX
-  id : ID
-  isMaster? : boolean
-  mute : boolean
-  name : string
-  pan : number
-  solo : boolean
-  volume : number
-}
-
-
-interface TrackButtonProps {
-  $activated : boolean
-  bgcolor? : string
-  outlinecolor? : string
-  clr : string
-  opacity? : string
-}
-
-export const TrackButton = styled(Button)`
-  background-color: ${(props : TrackButtonProps) => props.$activated ? "#fff" : props.bgcolor || "#fff9"};
-  font-size: 12px; 
-  display: inline-block!important; 
-  border: none; 
-  min-height: 0!important; 
-  min-width: 0!important;
-  padding: 0;
-  width: 20px;
-  color: ${(props : TrackButtonProps) => props.$activated ? props.clr : props.outlinecolor || "#0009"}!important;
-  border-width: 1px!important;
-  border-style: solid!important;
-  border-color: ${(props : TrackButtonProps) => props.outlinecolor || "#0009"}!important;
-  opacity: ${(props : TrackButtonProps) => props.opacity || "1"};
-  font-weight: bold;
-  font-family: "Red Hat", Roboto, sans-serif;
-
-  & * {
-    color: ${(props : TrackButtonProps) => props.$activated ? props.clr : props.outlinecolor || "#0009"}!important;
-  }
-
-  &:hover {
-    background-color: ${(props : TrackButtonProps) => props.$activated ? "#fff" : props.bgcolor || "#fff9"};
-  }
-`
-
+import ButtonGroup from "./ui/ButtonGroup"
+import TimelinePosition from "renderer/types/TimelinePosition"
 
 interface IProps {
   order? : number
@@ -177,10 +112,34 @@ class TrackComponent extends React.Component<IProps, IState> {
   }
 
   duplicateTrack = () => {
-    const track = {...this.props.track, id : uuidv4(), name : `${this.props.track.name} (Copy)`}
+    const track = {...this.props.track, id: uuidv4(), name: `${this.props.track.name} (Copy)`}
     
-    track.color = getRandomTrackColor()
-    track.clips = track.clips.map(clip => {return {...clip, id: uuidv4()}})
+    track.color = getRandomTrackColor();
+
+    track.clips = track.clips.map(clip => {
+      const newClip: Clip = {
+        ...clip,
+        id: uuidv4(),
+        start: TimelinePosition.fromPos(clip.start),
+        end: TimelinePosition.fromPos(clip.end),
+        startLimit: clip.startLimit ? TimelinePosition.fromPos(clip.startLimit) : null,
+        endLimit: clip.endLimit ? TimelinePosition.fromPos(clip.endLimit) : null,
+        loopEnd: clip.loopEnd ? TimelinePosition.fromPos(clip.loopEnd) : null
+      }
+
+      if ((newClip as AudioClip).audio) {
+        const audioClip = newClip as AudioClip
+
+        audioClip.audio = {
+          ...audioClip.audio,
+          start: TimelinePosition.fromPos(audioClip.audio.start),
+          end: TimelinePosition.fromPos(audioClip.audio.end)
+        }
+      }
+
+      return newClip;
+    });
+
     track.fx.effects = track.fx.effects.map(effect => {return {...effect, id: uuidv4()}})
     track.automationLanes = track.automationLanes.map(lane => {return {
       ...lane, 
@@ -331,49 +290,55 @@ class TrackComponent extends React.Component<IProps, IState> {
               />
               <div className="d-flex align-items-center mt-1">
                 <div style={{flex: 1, marginRight: 4}}>
-                  <ButtonGroup>
-                    <TrackButton 
-                      clr="#f00" 
-                      className={(masterTrack?.mute && !this.props.track.isMaster) ? "pe-none" : ""}
-                      $activated={masterTrack?.mute || this.props.track.mute}
+                  <ButtonGroup 
+                    buttonStyle={{fontWeight: "bold", backgroundColor: "#fff9", width: 20, height: 20}}
+                    style={{width: "fit-content"}}
+                  >
+                    <button
                       onClick={() => setTrack({...this.props.track, mute: !this.props.track.mute})}
-                      opacity={(masterTrack?.mute && !this.props.track.isMaster) ? "0.5" : "1"}
+                      style={{
+                        color: masterTrack?.mute || this.props.track.mute ? "#f00" : "#0009", 
+                        backgroundColor: masterTrack?.mute || this.props.track.mute ? "#fff" : "#fff9",
+                        opacity: (masterTrack?.mute && !this.props.track.isMaster) ? 0.5 : 1,
+                        pointerEvents: (masterTrack?.mute && !this.props.track.isMaster) ? "none" : "auto"
+                      }}
                       title={masterTrack?.mute || this.props.track.mute ? "Unmute" : "Mute"}
                     >
                       M
-                    </TrackButton>
+                    </button>
                     {
-                      !this.props.track.isMaster &&
-                      <TrackButton 
-                        clr="#a80" 
-                        $activated={this.props.track.solo}
+                      !this.props.track.isMaster ?
+                      <button
                         onClick={() => setTrack({...this.props.track, solo: !this.props.track.solo})}
+                        style={{
+                          color: this.props.track.solo ? "#a80" : "#0009", 
+                          backgroundColor: this.props.track.solo ? "#fff" : "#fff9"
+                        }}
                         title="Toggle Solo"
                       >
                         S
-                      </TrackButton>
+                      </button> : null
                     }
                     {
-                      !this.props.track.isMaster &&
-                      <TrackButton 
-                        clr="#f00" 
-                        $activated={this.props.track.armed}
+                      !this.props.track.isMaster ?
+                      <button
                         onClick={() => setTrack({...this.props.track, armed: !this.props.track.armed})}
+                        style={{backgroundColor: this.props.track.armed ? "#fff" : "#fff9",}}
                         title={this.props.track.armed ? "Disarm" : "Arm"}
                       >
-                        <FiberManualRecord 
-                          style={{fontSize: 14, color: this.props.track.armed ? "#f00" : "#000", transform: "translateY(-1px)"}} 
-                        />
-                      </TrackButton>
+                        <FiberManualRecord style={{fontSize: 14, color: this.props.track.armed ? "#f00" : "#0009"}} />
+                      </button> : null
                     }
-                    <TrackButton 
-                      clr="#333" 
-                      $activated={this.props.track.automationEnabled}
-                      onClick={() => setTrack({...this.props.track, automationEnabled: !this.props.track.automationEnabled})}
-                      title={this.props.track.automationEnabled ? "Hide Automation" : "Show Automation"}
+                    <button
+                       onClick={() => setTrack({...this.props.track, automationEnabled: !this.props.track.automationEnabled})}
+                       style={{
+                        color: this.props.track.automationEnabled ? "#000" : "#0009", 
+                        backgroundColor: this.props.track.automationEnabled ? "#fff" : "#fff9"
+                      }}
+                       title={this.props.track.automationEnabled ? "Hide Automation" : "Show Automation"}
                     >
                       A
-                    </TrackButton>
+                    </button>
                   </ButtonGroup>
                 </div>
                 <div style={{display: "flex"}}>
@@ -462,7 +427,7 @@ class TrackComponent extends React.Component<IProps, IState> {
                     className="center-by-flex rounded-circle" 
                     style={{marginLeft: 8, backgroundColor: "var(--color1)", padding: 4}}
                   >
-                    <Check style={{fontSize: 16, color: "#fff"}} />
+                    <Check style={{fontSize: 16, color: "var(--bg1)"}} />
                   </button>
                 </form>
               </DialogContent>

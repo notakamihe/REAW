@@ -1,11 +1,12 @@
-import { Track } from "./components/TrackComponent";
 import {v4 as uuidv4} from 'uuid';
 import TimelinePosition from "./types/TimelinePosition";
+import { Track, TrackType } from "./types/types";
 
 const data : Track[] = [
   {
     id: uuidv4(), 
     name: "Track 1", 
+    type: TrackType.Midi,
     color: "#aaf", 
     clips: [
       {

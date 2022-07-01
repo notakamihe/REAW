@@ -1,14 +1,16 @@
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
-import { AudioClip, Clip, Track } from "renderer/types/types";
+import { AudioClip, Track } from "renderer/types/types";
 import { shadeColor } from "renderer/utils/general";
 import { copyClip, marginToPos, clipAtPos, ipcRenderer } from "renderer/utils/utils";
+import { ImLoop } from "react-icons/im";
 import DNR, { DragAxis, DNRData, ResizeDirection } from "./DNR";
 import { GuideLine } from ".";
 import channels from "renderer/utils/channels";
 import { TrimToLeft, TrimToRight } from "./icons";
-import { ImLoop } from "react-icons/im";
+import Waveform, { WaveformContainer } from "./Waveform";
+import { reverseAudio } from "renderer/utils/audio";
 
 enum ResizeHandleType {ResizeLeft, ResizeRight, Loop}
 
@@ -37,42 +39,51 @@ function ResizeHandle({type, show} : {type : ResizeHandleType, show : boolean}) 
   return null
 }
 
-
 interface IProps {
-  clip : Clip
+  clip : AudioClip
   track : Track
   isSelected : boolean
-  onSelect : (clip : Clip) => void
-  onClickAway : (clip : Clip) => void
-  onChangeLane : (track : Track, clip : Clip, changeToAbove : boolean) => void
-  setClip : (clip : Clip) => void
+  onSelect : (clip : AudioClip) => void
+  onClickAway : (clip : AudioClip) => void
+  onChangeLane : (track : Track, clip : AudioClip, changeToAbove : boolean) => void
+  setClip : (clip : AudioClip) => void
 }
 
 interface IState {
-  guideLineMargins : number[]
-  isDragging : boolean
-  isLooping : boolean
-  isResizing : boolean
-  tempLoopWidth : number
-  tempWidth : number
+  buffer: AudioBuffer | null;
+  guideLineMargins : number[];
+  isDragging : boolean;
+  isLooping : boolean;
+  isResizing : boolean;
+  prevHorizontalScale: number;
+  srcOffset: number;
+  tempLoopWidth : number;
+  tempWidth : number;
 }
 
-class ClipComponent extends React.Component<IProps, IState> {
+class AudioClipComponent extends React.Component<IProps, IState> {
   static contextType = WorkstationContext;
   context!: React.ContextType<typeof WorkstationContext>;
 
   private ref : React.RefObject<DNR>
+  audioRef: React.RefObject<HTMLAudioElement>;
+
+  audioContext: AudioContext = new AudioContext();
 
   constructor(props : IProps) {
     super(props);
 
     this.ref = React.createRef();
+    this.audioRef = React.createRef();
 
     this.state = {
+      buffer: null,
       guideLineMargins : [],
       isDragging: false,
       isLooping: false,
       isResizing: false,
+      prevHorizontalScale: 0,
+      srcOffset: 0,
       tempLoopWidth: 0,
       tempWidth: 0
     }
@@ -81,6 +92,7 @@ class ClipComponent extends React.Component<IProps, IState> {
     this.onDrag = this.onDrag.bind(this);
     this.onDragStart = this.onDragStart.bind(this);
     this.onDragStop = this.onDragStop.bind(this);
+    this.onKeyDown = this.onKeyDown.bind(this);
     this.onLoop = this.onLoop.bind(this);
     this.onLoopStart = this.onLoopStart.bind(this);
     this.onLoopStop = this.onLoopStop.bind(this);
@@ -88,6 +100,37 @@ class ClipComponent extends React.Component<IProps, IState> {
     this.onResize = this.onResize.bind(this);
     this.onResizeStart = this.onResizeStart.bind(this);
     this.onResizeStop = this.onResizeStop.bind(this);
+  }
+
+  componentDidMount() {
+    window.addEventListener("keydown", this.onKeyDown);
+
+    this.setState({srcOffset: -TimelinePosition.toWidth(this.props.clip.audio.start, 
+      this.props.clip.start, this.context!.timelinePosOptions)});
+    this.loadBuffer();
+  }
+
+  componentDidUpdate(prevProps: IProps) {
+    if (this.state.prevHorizontalScale !== this.context!.timelinePosOptions.horizontalScale) {
+      this.setState({
+        prevHorizontalScale: this.context!.timelinePosOptions.horizontalScale,
+        srcOffset: -TimelinePosition.toWidth(this.props.clip.audio.start, 
+          this.props.clip.start, this.context!.timelinePosOptions)
+      });
+    }
+
+    if (prevProps.clip.audio.start !== this.props.clip.audio.start) {
+        this.setState({srcOffset: -TimelinePosition.toWidth(this.props.clip.audio.start, 
+          this.props.clip.start, this.context!.timelinePosOptions)});
+    }
+
+    if (prevProps.clip.audio.buffer !== this.props.clip.audio.buffer) {
+      this.loadBuffer();
+    }
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("keydown", this.onKeyDown);
   }
 
   getBounds() {
@@ -110,10 +153,20 @@ class ClipComponent extends React.Component<IProps, IState> {
     return TimelinePosition.toWidth(this.props.clip.end, this.props.clip.loopEnd, this.context!.timelinePosOptions)
   }
 
+  async loadBuffer() {
+    const ab = new ArrayBuffer(this.props.clip.audio.buffer.length);
+    const view = new Uint8Array(ab);
+    
+    for (let i = 0; i < this.props.clip.audio.buffer.length; ++i)
+        view[i] = this.props.clip.audio.buffer[i];
+    
+    this.setState({buffer: await this.audioContext.decodeAudioData(ab)});
+  }
+
   moveClipByMargin(margin : number) {
     const newStartPos = marginToPos(margin, this.context!.timelinePosOptions)
-    const newClip = clipAtPos(newStartPos, this.props.clip, this.context!.timelinePosOptions)
-    this.props.setClip(newClip)
+    const newClip = clipAtPos(newStartPos, this.props.clip, this.context!.timelinePosOptions) as AudioClip;
+    this.props.setClip(newClip);
   }
 
   onContextMenu(e : React.MouseEvent) {
@@ -138,9 +191,30 @@ class ClipComponent extends React.Component<IProps, IState> {
       this.context!.setSongRegion({start: this.props.clip.start, end: this.props.clip.end})
     })
 
-    ipcRenderer.on(channels.CONSOLIDATE_CLIP, () => {
-      this.context!.consolidateClip(this.props.clip);
+    ipcRenderer.on(channels.CONSOLIDATE_CLIP, async () => {
+      if (this.state.buffer) {
+        this.context!.consolidateAudioClip(this.props.clip, this.audioContext, this.state.buffer);
+      }
     });
+
+    ipcRenderer.on(channels.REVERSE_AUDIO, async () => {
+      if (this.state.buffer) {
+        const reversedBuffer = reverseAudio(this.audioContext, this.state.buffer);
+        const clip: AudioClip = {
+          ...this.props.clip,
+          audio: {
+            ...this.props.clip.audio, 
+            buffer: reversedBuffer, 
+            src: {
+              ...this.props.clip.audio.src,
+              data: reversedBuffer.toString("base64")
+            }
+          }
+        };
+
+        this.props.setClip(clip);
+      }
+    })
 
     ipcRenderer.on(channels.MUTE_CLIP, () => {
       this.context!.toggleMuteClip(this.props.clip)
@@ -152,6 +226,7 @@ class ClipComponent extends React.Component<IProps, IState> {
       ipcRenderer.removeAllListeners(channels.SPLIT_CLIP);
       ipcRenderer.removeAllListeners(channels.SET_SONG_REGION_TO_CLIP);
       ipcRenderer.removeAllListeners(channels.CONSOLIDATE_CLIP);
+      ipcRenderer.removeAllListeners(channels.REVERSE_AUDIO);
       ipcRenderer.removeAllListeners(channels.MUTE_CLIP);
       ipcRenderer.removeAllListeners(channels.CLOSE_CLIP_CONTEXT_MENU);
     })
@@ -177,6 +252,16 @@ class ClipComponent extends React.Component<IProps, IState> {
       this.moveClipByMargin(data.coords.startX)
     }
   }
+
+  onKeyDown(e: KeyboardEvent) {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyC") {
+      if (this.context!.selectedClip?.id === this.props.clip.id) {
+        if (this.state.buffer) {
+          this.context!.consolidateAudioClip(this.props.clip, this.audioContext, this.state.buffer);
+        }
+      }
+    }
+  }
   
   onLoop (e : MouseEvent, dir : ResizeDirection, ref : HTMLElement, data : DNRData) {
     this.setGuideLineMargins(null, null, data.width)
@@ -191,7 +276,7 @@ class ClipComponent extends React.Component<IProps, IState> {
   onLoopStop(e : MouseEvent, dir : ResizeDirection, ref : HTMLElement, data : DNRData) {
     const options = this.context!.timelinePosOptions
     const {measures, beats, fraction} = TimelinePosition.fromWidth(Math.abs(data.width), options)
-    const newClip = copyClip(this.props.clip)
+    const newClip = copyClip(this.props.clip) as AudioClip;
     const newLoopEnd = newClip.end.add(measures, beats, fraction, false, options)
     
     newClip.loopEnd = newLoopEnd.compare(newClip.end) > 0 ? newLoopEnd : null
@@ -225,22 +310,24 @@ class ClipComponent extends React.Component<IProps, IState> {
     const options = this.context!.timelinePosOptions
     const totalWidth = TimelinePosition.toWidth(this.props.clip.start, this.props.clip.loopEnd, options)
     const loopWidth = this.getLoopWidth()
-    const tempLoopWidth = dir === ResizeDirection.Right ? Math.max(0, totalWidth - ref.offsetWidth) : loopWidth
+    const tempLoopWidth = dir === ResizeDirection.Right ? Math.max(0,totalWidth - ref.offsetWidth) : loopWidth  
+    let srcOffset = this.state.srcOffset; 
     
     if (dir === ResizeDirection.Right) {
       this.setGuideLineMargins(null, data.coords.endX, null)
 
       if (ref.offsetWidth > totalWidth && this.props.clip.loopEnd) {
-        const clip = copyClip(this.props.clip)
+        const clip = copyClip(this.props.clip) as AudioClip;
         
         clip.loopEnd = null
         this.props.setClip(clip)
       }
     } else {
       this.setGuideLineMargins(data.coords.startX, null, null)
+      srcOffset = -TimelinePosition.toWidth(this.props.clip.audio.start, marginToPos(data.coords.startX || 0, options), options);
     }
 
-    this.setState({tempWidth: data.width, tempLoopWidth})
+    this.setState({srcOffset, tempWidth: data.width, tempLoopWidth})
   }
 
   onResizeStart (e : React.MouseEvent, dir : ResizeDirection, ref : HTMLElement) {
@@ -258,7 +345,7 @@ class ClipComponent extends React.Component<IProps, IState> {
     this.setState({isResizing: false})
 
     if (data.deltaWidth != 0) {
-      const newClip = copyClip(this.props.clip)
+      const newClip = copyClip(this.props.clip) as AudioClip;
   
       if (dir === ResizeDirection.Left) {
         const newStartPos = marginToPos(data.coords.startX, this.context!.timelinePosOptions)
@@ -313,10 +400,12 @@ class ClipComponent extends React.Component<IProps, IState> {
     const snapWidth = TimelinePosition.fromInterval(snapGridSize).toMargin(timelinePosOptions)
     const threshold = Math.max(2, snapWidth / 4.282);
     const loopOffset = this.getLoopOffset();
-    const numRepetitions = Math.max(width ? loopWidth / width : 0, 0);
-    
+    const numRepetitions = Math.max(width ? loopWidth / width : 0, 0)
+    const borderRight = numRepetitions === Math.floor(numRepetitions) ? "none" : "1px solid #0002"
+    const audioWidth = TimelinePosition.toWidth(this.props.clip.audio.start, this.props.clip.audio.end, timelinePosOptions);
+
     return (
-      <React.Fragment>
+      <React.Fragment>  
         <DNR
           bounds={bounds}
           className="clip"
@@ -349,107 +438,126 @@ class ClipComponent extends React.Component<IProps, IState> {
             opacity: this.props.clip.muted ? 0.5 : 1
           }}
         >
-          {
-            this.props.clip.muted && (width > 25 || loopWidth > 5) &&
-            <p style={{position: "absolute", top: 0, left: 2, fontSize: 12, color: "#0008", fontWeight: "bold"}}>M</p>
-          }
-          <div className="position-absolute" style={{top: 0, left: -1 - loopOffset}}>
-            <DNR 
-              constrainToParent={{vertical: false, horizontal: false}}
-              coords={{
-                startX: (width + loopOffset),
-                startY: 0,
-                endX: (width + loopOffset) + loopWidth,
-                endY: 10
-              }}
-              disableDragging
-              enableResizing={{right: true}}
-              minWidth={0}
-              onResizeStart={this.onLoopStart}
-              onResize={this.onLoop}
-              onResizeStop={this.onLoopStop}
-              resizeHandleClasses={{right: "center-by-flex"}}
-              resizeHandles={{
-                right: <ResizeHandle type={ResizeHandleType.Loop} show={this.props.isSelected && (width > 25 || loopWidth > 5)} /> 
-              }}
-              resizeHandleStyles={{right: {zIndex: 14}}}
-              snapGridSize={{horizontal: snapWidth || 0.00001}}
-              snapThreshold={{horizontal: threshold}}
-              style={{zIndex: 12}}
-            >
-              <div 
-                className="position-absolute d-flex overflow-hidden"
-                style={{width: loopWidth, borderRight: "1px solid #0002", height: 100 * verticalScale, transform: "translateY(-1px)"}}>
-                {
-                  [...Array(Math.ceil(numRepetitions))].map((_, i) => (
-                    <div 
-                      key={i}
-                      className="clip-loop"
-                      style={{
-                        width: width, 
-                        height: "100%", 
-                        backgroundColor: this.props.isSelected ? "#eee" : shadeColor(this.props.track.color, 30), 
-                        flexShrink: 0,
-                        position: "relative"
-                      }}
-                    >
-                    </div>
-                  ))
-                }
-              </div>
-            </DNR>
-          </div>
-          <div className="position-absolute pe-none" style={{bottom: 0, left: -1, transform: "translate(0, 100%)", opacity: 0.3}}>
+          <WaveformContainer>
+            <Waveform 
+              buffer={this.state.buffer}
+              host
+              height={100 * verticalScale}
+              offset={this.state.srcOffset}
+              width={audioWidth}
+            />
             {
-              this.props.track.automationEnabled &&
-              this.props.track.automationLanes.filter(l => l.show).map((l, idx) => (
+              this.props.clip.muted && (width > 25 || loopWidth > 5) &&
+              <p style={{position: "absolute", top: 0, left: 2, fontSize: 12, color: "#0008", fontWeight: "bold"}}>M</p>
+            }
+            <div className="position-absolute" style={{top: 0, left: -1 - loopOffset}}>
+              <DNR 
+                constrainToParent={{vertical: false, horizontal: false}}
+                coords={{
+                  startX: (width + loopOffset),
+                  startY: 0,
+                  endX: (width + loopOffset) + loopWidth,
+                  endY: 10
+                }}
+                disableDragging
+                enableResizing={{right: true}}
+                minWidth={0}
+                onResizeStart={this.onLoopStart}
+                onResize={this.onLoop}
+                onResizeStop={this.onLoopStop}
+                resizeHandleClasses={{right: "center-by-flex"}}
+                resizeHandles={{
+                  right: <ResizeHandle type={ResizeHandleType.Loop} show={this.props.isSelected && (width > 25 || loopWidth > 5)} /> 
+                }}
+                resizeHandleStyles={{right: {zIndex: 14}}}
+                snapGridSize={{horizontal: snapWidth || 0.00001}}
+                snapThreshold={{horizontal: threshold}}
+                style={{zIndex: 12}}
+              >
                 <div 
-                  key={idx} 
-                  className="clip"
-                  style={{
-                    width: width, 
-                    height: l.expanded ? 100 * verticalScale : 25, 
-                    backgroundColor: this.props.isSelected ? "#eee" : shadeColor(this.props.track.color, 45),
-                    opacity: 0.5
-                  }}
-                >
+                  className="position-absolute d-flex overflow-hidden"
+                  style={{width: loopWidth, borderRight: borderRight, height: 100 * verticalScale, transform: "translateY(-1px)"}}>
+                  {
+                    [...Array(Math.ceil(numRepetitions))].map((_, i) => (
+                      <div 
+                        key={i}
+                        className="clip-loop"
+                        style={{
+                          width: width, 
+                          height: "100%", 
+                          backgroundColor: this.props.isSelected ? "#eee" : shadeColor(this.props.track.color, 30), 
+                          flexShrink: 0,
+                          position: "relative"
+                        }}
+                      >
+                        <Waveform 
+                          buffer={this.state.buffer}
+                          height={100 * verticalScale}
+                          offset={this.state.srcOffset}
+                          width={TimelinePosition.toWidth(this.props.clip.audio.start, this.props.clip.audio.end, timelinePosOptions)}
+                        />  
+                      </div>
+                    ))
+                  }
+                </div>
+              </DNR>
+            </div>
+            <div className="position-absolute pe-none" style={{bottom: 0, left: -1, transform: "translate(0, 100%)", opacity: 0.3}}>
+              {
+                this.props.track.automationEnabled &&
+                this.props.track.automationLanes.filter(l => l.show).map((l, idx) => (
                   <div 
-                    className="position-absolute d-flex overflow-hidden"
+                    key={idx} 
+                    className="clip"
                     style={{
-                      width: loopWidth, 
-                      borderRight: "1px solid #0002", 
-                      right: 0, 
-                      transform: "translate(100%, -1px)", 
-                      height: l.expanded ? 100 * verticalScale : 25
+                      width: width, 
+                      height: l.expanded ? 100 * verticalScale : 25, 
+                      backgroundColor: this.props.isSelected ? "#eee" : shadeColor(this.props.track.color, 45),
+                      opacity: 0.5
                     }}
                   >
-                    {
-                      [...Array(Math.ceil(numRepetitions))].map((_, i) => (
-                        <div 
-                          key={i}
-                          className="clip-loop"
-                          style={{
-                            width: width, 
-                            height: "100%", 
-                            backgroundColor: this.props.isSelected ? "#eee" : shadeColor(this.props.track.color, 45), 
-                            flexShrink: 0
-                          }}
-                        ></div>
-                      ))
-                    }
+                    <div 
+                      className="position-absolute d-flex overflow-hidden"
+                      style={{
+                        width: loopWidth, 
+                        borderRight: borderRight, 
+                        right: 0, 
+                        transform: "translate(100%, -1px)", 
+                        height: l.expanded ? 100 * verticalScale : 25
+                      }}
+                    >
+                      {
+                        [...Array(Math.ceil(numRepetitions))].map((_, i) => (
+                          <div 
+                            key={i}
+                            className="clip-loop"
+                            style={{
+                              width: width, 
+                              height: "100%", 
+                              backgroundColor: this.props.isSelected ? "#eee" : shadeColor(this.props.track.color, 45), 
+                              flexShrink: 0
+                            }}
+                          ></div>
+                        ))
+                      }
+                    </div>
                   </div>
-                </div>
-              ))
-            }
-          </div>
+                ))
+              }
+            </div>
+          </WaveformContainer>
         </DNR>
         {
           (this.state.isDragging || this.state.isResizing || this.state.isLooping) &&
           this.state.guideLineMargins.map((m, idx) => <GuideLine key={idx} margin={m} />)
         }
+        <audio 
+          ref={this.audioRef} 
+          src={`data:audio/${this.props.clip.audio.src.extension};base64,${this.props.clip.audio.src.data}`} 
+        />
       </React.Fragment>
     )
   }
 }
 
-export default React.memo(ClipComponent);
+export default React.memo(AudioClipComponent);

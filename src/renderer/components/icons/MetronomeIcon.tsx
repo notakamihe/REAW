@@ -2,7 +2,7 @@ import { SVGIconStyleProps } from "renderer/types/types";
 
 export default function MetronomeIcon(props : SVGIconStyleProps) {
   return (
-    <div
+    <span
       dangerouslySetInnerHTML={{
         __html: `
           <?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -143,7 +143,7 @@ export default function MetronomeIcon(props : SVGIconStyleProps) {
           </svg>                
         `
       }}
-      style={{transform: "translateY(-2px)", ...props.style}}
-    ></div>
+      style={{transform: "translateY(-3px)", ...props.style}}
+    ></span>
   )
 }

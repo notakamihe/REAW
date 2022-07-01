@@ -89,6 +89,17 @@ export default class TimelinePosition {
       return -1
     else return 0
   }
+  
+  static fromDuration(duration: number, options: TimelinePositionOptions): TimelineInterval {
+    const beatsPerSecond = options.tempo / 60;
+    const totalBeats = duration * beatsPerSecond;
+
+    const measures = Math.floor(totalBeats / options.timeSignature.beats);
+    const beats = Math.floor(totalBeats - (measures * options.timeSignature.beats));
+    const fraction = (totalBeats - (measures * options.timeSignature.beats) - beats) * 1000;
+
+    return {measures, beats, fraction};
+  }
 
   static fromFraction (frac : number, options : TimelinePositionOptions) : TimelineInterval {
     const measures = Math.floor(frac / (1000 * options.timeSignature.beats))
@@ -97,13 +108,13 @@ export default class TimelinePosition {
 
     return {measures, beats, fraction}
   }
+  
+  static fromInterval(interval : TimelineInterval) {
+    return new TimelinePosition(interval.measures + 1, interval.beats + 1, interval.fraction);
+  }
 
   static fromPos(pos : TimelinePosition) : TimelinePosition {
     return new TimelinePosition(pos.measure, pos.beat, pos.fraction)
-  }
-
-  static fromInterval(interval : TimelineInterval) {
-    return new TimelinePosition(interval.measures + 1, interval.beats + 1, interval.fraction);
   }
 
   static fromWidth(width: number, options : TimelinePositionOptions) : TimelineInterval {
@@ -260,9 +271,7 @@ export default class TimelinePosition {
 
   toTime(options : TimelinePositionOptions) {
     const beatsPerSecond = options.tempo / 60
-    let beats = (this.measure - 1) * options.timeSignature.beats + this.beat - 1
-    
-    beats += this.fraction / 1000
+    let beats = ((this.measure - 1) * options.timeSignature.beats) + (this.beat - 1) + this.fraction / 1000
 
     const totalSeconds = (beats / beatsPerSecond) * (4 / options.timeSignature.noteValue)
     const hours = Math.floor(totalSeconds / 3600)

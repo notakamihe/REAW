@@ -1,12 +1,11 @@
 import { FiberManualRecord } from "@mui/icons-material";
-import { Button, ButtonGroup, IconButton } from "@mui/material";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
-import { ID } from "renderer/types/types";
+import { ID, Track } from "renderer/types/types";
 import { getTrackPanTitle, getTrackVolumeTitle } from "renderer/utils/utils";
 import FXComponent from "./FXComponent";
-import { Track, TrackButton } from "./TrackComponent";
 import { EditableDisplay, Knob, Slider, VolumeMeter } from "./ui";
+import ButtonGroup from "./ui/ButtonGroup";
 
 const MixerSlider = (props : {setTrack : (track : Track) => void, track: Track}) => {
   const [value, setValue] = React.useState(props.track.volume);
@@ -148,51 +147,44 @@ const MixerTrack = (props : {order? : number, master : Track | undefined, track 
                 <VolumeMeter volume={props.track.volume} style={{width: 6}} meterBackgroundColor="var(--bg3)" />
               </div>
               <ButtonGroup 
-                className="position-absolute"
+                buttonStyle={{fontWeight: "bold", width: 20, height: 20, borderColor: "var(--border7)"}}
                 orientation="vertical"
-                style={{top: 0, right: -18, transform: "translate(100%, 0)"}}
+                style={{position: "absolute", top: 0, right: -18, transform: "translate(100%, 0)", height: "fit-content"}}
               >
-                <TrackButton
-                  bgcolor="#0000"
-                  outlinecolor="var(--border7)"
-                  clr="#f00" 
-                  className={(props.master?.mute && !props.track.isMaster) ? "pe-none" : ""}
-                  $activated={props.master?.mute || props.track.mute}
+                <button
                   onClick={() => props.setTrack({...props.track, mute: !props.track.mute})}
-                  opacity={(props.master?.mute && !props.track.isMaster) ? "0.5" : "1"}
-                  style={{width: 18, borderRadius: 0}}
+                  style={{
+                    color: props.master?.mute || props.track.mute ? "#f00" : "var(--border7)", 
+                    backgroundColor: props.master?.mute || props.track.mute ? "#fff" : "#0000",
+                    opacity: (props.master?.mute && !props.track.isMaster) ? 0.5 : 1,
+                    pointerEvents: (props.master?.mute && !props.track.isMaster) ? "none" : "auto"
+                  }}
                   title={props.master?.mute || props.track.mute ? "Unmute" : "Mute"}
                 >
                   M
-                </TrackButton>
+                </button>
                 {
-                  !props.track.isMaster &&
-                  <React.Fragment>
-                    <TrackButton
-                      bgcolor="#0000"
-                      outlinecolor="var(--border7)"
-                      clr="#a80" 
-                      $activated={props.track.solo}
-                      onClick={() => props.setTrack({...props.track, solo: !props.track.solo})}
-                      style={{width: 18, borderRadius: 0}}
-                      title="Toggle Solo"
-                    >
-                      S
-                    </TrackButton>
-                    <TrackButton
-                      bgcolor="#0000"
-                      outlinecolor="var(--border7)"
-                      clr="#f00" 
-                      $activated={props.track.armed}
-                      onClick={() => props.setTrack({...props.track, armed: !props.track.armed})}
-                      style={{width: 18, borderRadius: 0}}
-                      title={props.track.armed ? "Disarm" : "Arm"}
-                    >
-                      <FiberManualRecord
-                        style={{fontSize: 12, fontWeight: "bold", backgroundColor: "#0000", color: props.track.armed ? "#f00" : "#000a"}}
-                      />
-                    </TrackButton>
-                  </React.Fragment>
+                  !props.track.isMaster ?
+                  <button
+                    onClick={() => props.setTrack({...props.track, solo: !props.track.solo})}
+                    style={{
+                      color: props.track.solo ? "#a80" : "var(--border7)", 
+                      backgroundColor: props.track.solo ? "#fff" : "#0000"
+                    }}
+                    title="Toggle Solo"
+                  >
+                    S
+                  </button> : null
+                }
+                {
+                  !props.track.isMaster ? 
+                  <button
+                    onClick={() => props.setTrack({...props.track, armed: !props.track.armed})}
+                    style={{backgroundColor: props.track.armed ? "#fff" : "#0000"}}
+                    title={props.track.armed ? "Disarm" : "Arm"}
+                  >
+                    <FiberManualRecord style={{fontSize: 14, color: props.track.armed ? "#f00" : "var(--border7)"}} />
+                  </button> : null
                 }
               </ButtonGroup>
             </div>
@@ -214,12 +206,12 @@ const MixerTrack = (props : {order? : number, master : Track | undefined, track 
               value={name}
             />
           </form>
-          <p 
-            className="col-12 text-center overflow-hidden m-0" 
-            style={{fontSize: 12, height: 14, lineHeight: 1.3, borderTop: "1px solid #0006"}}
+          <div 
+            className="col-12 overflow-hidden m-0 d-flex justify-content-center align-items-center" 
+            style={{height: 14, borderTop: "1px solid #0006"}}
           >
-            {props.order || "M"}
-          </p>
+            <p className="m-0" style={{fontSize: 12, lineHeight: 1.3}}>{props.order || "M"}</p>
+          </div>
         </div>
       </div>
     </div>

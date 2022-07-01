@@ -11,7 +11,7 @@ const TabLI = styled.li`
   font-size: 14px;
   cursor: pointer;
   background-color: ${(props : {$active : boolean}) => props.$active ? "var(--color1)!important" : "#0000"};
-  color: ${(props : {$active : boolean}) => props.$active ? "#fff" : "var(--fg1)"};
+  color: ${(props : {$active : boolean}) => props.$active ? "var(--bg1)" : "var(--fg1)"};
   transition: 0.25s ease-in-out background-color;
   font-weight: ${(props : {$active : boolean}) => props.$active ? "400" : "100"};
 
@@ -190,7 +190,7 @@ export default class PreferencesComponent extends React.Component<IProps, IState
                 </button>
                 <button 
                   className="br-inherit-r"
-                  style={{fontSize: 13, backgroundColor: "var(--color1)", color: "#fff", padding: "5px 8px"}}
+                  style={{fontSize: 13, backgroundColor: "var(--color1)", color: "var(--bg9)", padding: "5px 8px"}}
                 >
                   OK
                 </button>
@@ -204,7 +204,10 @@ export default class PreferencesComponent extends React.Component<IProps, IState
           open={this.state.saved} 
           onClose={() => this.setState({saved: false})}
         >
-          <Alert icon={<Settings style={{color: "#fff"}} />} sx={{width: '100%', backgroundColor: "var(--color1)", color: "#fff"}}>
+          <Alert 
+            icon={<Settings style={{color: "var(--bg9)"}} />} 
+            sx={{width: '100%', backgroundColor: "var(--color1)", color: "var(--bg9)"}}
+          >
             Changes saved
           </Alert>
         </Snackbar>

@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 
-interface IProps {
+export interface TooltipProps {
   children : JSX.Element
   open : boolean
   style? : React.CSSProperties
@@ -18,11 +18,11 @@ interface IState {
   tooltipHeight : number
 }
 
-export default class Tooltip extends React.Component<IProps, IState> {
+export default class Tooltip extends React.Component<TooltipProps, IState> {
   ref : React.MutableRefObject<HTMLElement>
   private tooltipRef : React.RefObject<HTMLDivElement>
 
-  constructor(props : IProps) {
+  constructor(props : TooltipProps) {
     super(props)
 
     this.ref = React.createRef() as React.MutableRefObject<HTMLElement>

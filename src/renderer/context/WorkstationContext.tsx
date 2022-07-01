@@ -1,18 +1,13 @@
 import React, { useRef } from "react"
-import { SnapGridSizeOption, TimeSignature } from "renderer/types/types";
+import { AudioClip, AutomationLane, AutomationNode, Clip, FXChain, Region, SnapGridSizeOption, TimeSignature, Track } from "renderer/types/types";
 import TimelinePosition, { TimelinePositionOptions, TimelineInterval } from "renderer/types/TimelinePosition";
-import { AutomationNode } from "renderer/components/AutomationNodeComponent";
 import { useClickAwayState, useStateWPrev, useTracks } from "renderer/hooks";
-import { Clip } from "renderer/components/ClipComponent";
-import { Track } from "renderer/components/TrackComponent";
 import data from "renderer/tempData";
-import { AutomationLane } from "renderer/components/AutomationLaneTrack";
 import { ClipboardContext, ClipboardItemType } from "./ClipboardContext";
 import { v4 } from "uuid";
 import { clipAtPos, preserveClipMargins, preservePosMargin, getBaseMasterTrack } from "renderer/utils/utils";
-import { Region } from "renderer/components/RegionComponent";
-import { FXChain } from "renderer/components/FXComponent";
 import { BASE_MAX_MEASURES } from "renderer/utils/utils";
+import { audioBufferToBuffer, concatAudioBuffer } from "renderer/utils/audio";
 
 interface WorkstationFile {
   autoSnap : boolean;
@@ -39,50 +34,53 @@ interface WorkstationFile {
 }
 
 export interface WorkstationContextType extends WorkstationFile {
-  addNodeToLane : (track : Track, lane : AutomationLane, node : AutomationNode) => void
-  createClipFromTrackRegion : () => void
-  deleteClip : (clip : Clip) => void
-  deleteNode : (node : AutomationNode) => void
-  duplicateClip : (clip : Clip) => void
-  fxChains : FXChain[]
-  numMeasures : number
-  onClipClickAway : (clip : Clip | null) => void
-  onNodeClickAway : (node : AutomationNode | null) => void
-  pasteClip : (pos : TimelinePosition, track? : Track) => void
-  pasteNode : (pos : TimelinePosition, lane? : AutomationLane) => void,
-  setAutoSnap : React.Dispatch<React.SetStateAction<boolean>>
-  setCancelClickAway : (cancel : boolean) => void
-  setCursorPos : React.Dispatch<React.SetStateAction<TimelinePosition>>
-  setFxChains : React.Dispatch<React.SetStateAction<FXChain[]>>
-  setHorizontalScale : React.Dispatch<React.SetStateAction<number>>
-  setIsLooping : React.Dispatch<React.SetStateAction<boolean>>
-  setIsPlaying : React.Dispatch<React.SetStateAction<boolean>>
-  setIsRecording : React.Dispatch<React.SetStateAction<boolean>>
-  setMetronome : React.Dispatch<React.SetStateAction<boolean>>
-  setMixerHeight : React.Dispatch<React.SetStateAction<number>>
+  addNodeToLane : (track : Track, lane : AutomationLane, node : AutomationNode) => void;
+  consolidateAudioClip: (clip: AudioClip, ctx: AudioContext, audioBuffer: AudioBuffer) => AudioBuffer | null;
+  consolidateClip: (clip: Clip) => void;
+  createClipFromTrackRegion : () => void;
+  deleteClip : (clip : Clip) => void;
+  deleteNode : (node : AutomationNode) => void;
+  duplicateClip : (clip : Clip) => void;
+  fxChains : FXChain[];
+  numMeasures : number;
+  onClipClickAway : (clip : Clip | null) => void;
+  onNodeClickAway : (node : AutomationNode | null) => void;
+  pasteClip : (pos : TimelinePosition, track? : Track) => void;
+  pasteNode : (pos : TimelinePosition, lane? : AutomationLane) => void;
+  prevTimelinePosOptions: TimelinePositionOptions | null;
+  setAutoSnap : React.Dispatch<React.SetStateAction<boolean>>;
+  setCancelClickAway : (cancel : boolean) => void;
+  setCursorPos : React.Dispatch<React.SetStateAction<TimelinePosition>>;
+  setFxChains : React.Dispatch<React.SetStateAction<FXChain[]>>;
+  setHorizontalScale : React.Dispatch<React.SetStateAction<number>>;
+  setIsLooping : React.Dispatch<React.SetStateAction<boolean>>;
+  setIsPlaying : React.Dispatch<React.SetStateAction<boolean>>;
+  setIsRecording : React.Dispatch<React.SetStateAction<boolean>>;
+  setMetronome : React.Dispatch<React.SetStateAction<boolean>>;
+  setMixerHeight : React.Dispatch<React.SetStateAction<number>>;
   setNumMeasures : React.Dispatch<React.SetStateAction<number>>
-  setSelectedClip : (clip : Clip | null) => void
-  setSelectedNode : (newState: AutomationNode | null) => void
-  setShowMaster : React.Dispatch<React.SetStateAction<boolean>>
-  setShowMixer : React.Dispatch<React.SetStateAction<boolean>>
-  setSnapGridSize : React.Dispatch<React.SetStateAction<TimelineInterval>>
-  setSnapGridSizeOption : React.Dispatch<React.SetStateAction<SnapGridSizeOption>>
-  setSongRegion : React.Dispatch<React.SetStateAction<Region | null>>
-  setTempo : React.Dispatch<React.SetStateAction<number>>
-  setTimeSignature : React.Dispatch<React.SetStateAction<TimeSignature>>
+  setSelectedClip : (clip : Clip | null) => void;
+  setSelectedNode : (newState: AutomationNode | null) => void;
+  setShowMaster : React.Dispatch<React.SetStateAction<boolean>>;
+  setShowMixer : React.Dispatch<React.SetStateAction<boolean>>;
+  setSnapGridSize : React.Dispatch<React.SetStateAction<TimelineInterval>>;
+  setSnapGridSizeOption : React.Dispatch<React.SetStateAction<SnapGridSizeOption>>;
+  setSongRegion : React.Dispatch<React.SetStateAction<Region | null>>;
+  setTempo : React.Dispatch<React.SetStateAction<number>>;
+  setTimeSignature : React.Dispatch<React.SetStateAction<TimeSignature>>;
   setTrack : (track : Track) => void;
-  setTrackLanesWindowHeight : React.Dispatch<React.SetStateAction<number>>
-  setTrackRegion : React.Dispatch<React.SetStateAction<{region: Region, track: Track} | null>>
-  setTracks : React.Dispatch<React.SetStateAction<Track[]>>
-  setVerticalScale : React.Dispatch<React.SetStateAction<number>>
-  splitClip : (clip : Clip, pos : TimelinePosition) => void
-  toggleMuteClip : (clip : Clip) => void
-  trackLanesWindowHeight : number
+  setTrackLanesWindowHeight : React.Dispatch<React.SetStateAction<number>>;
+  setTrackRegion : React.Dispatch<React.SetStateAction<{region: Region, track: Track} | null>>;
+  setTracks : React.Dispatch<React.SetStateAction<Track[]>>;
+  setVerticalScale : React.Dispatch<React.SetStateAction<number>>;
+  splitClip : (clip : Clip, pos : TimelinePosition) => void;
+  toggleMuteClip : (clip : Clip) => void;
+  trackLanesWindowHeight : number;
 };
 
 export const WorkstationContext = React.createContext<WorkstationContextType | undefined>(undefined);
 
-export const WorkstationProvider: React.FC = ({ children }) => {
+export const WorkstationProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
   const {clipboardItem} = React.useContext(ClipboardContext)!
 
   const [autoSnap, setAutoSnap] = React.useState(true);
@@ -107,7 +105,7 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   const [trackLanesWindowHeight, setTrackLanesWindowHeight] = React.useState(0);
   const [trackRegion, setTrackRegion] = React.useState<{region: Region, track: Track} | null>(null)
   const [tracks, setTracks, setTrack] = useTracks([getBaseMasterTrack(), ...data]);
-  const [timelinePosOptions, setTimelinePosOptions, prevTimelineOptions] = useStateWPrev({
+  const [timelinePosOptions, setTimelinePosOptions, prevTimelinePosOptions] = useStateWPrev({
     snapSize: snapGridSize, 
     beatWidth: 50, 
     horizontalScale,
@@ -196,7 +194,8 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   }, [snapGridSizeOption])
 
   React.useEffect(() => {
-    adjustSnapGridSize();
+    if (snapGridSizeOption === SnapGridSizeOption.Auto)
+      adjustSnapGridSize();
   }, [horizontalScale, timeSignature]);
 
   const addNodeToLane = (track : Track, lane : AutomationLane, node : AutomationNode) => {
@@ -246,10 +245,106 @@ export const WorkstationProvider: React.FC = ({ children }) => {
     setSnapGridSize(interval);
   }
 
+  const consolidateAudioClip = (clip: AudioClip, ctx: AudioContext, audioBuffer: AudioBuffer) => {
+    const track = tracks.find(t => t.clips.find((c: Clip) => c.id === clip.id));
+
+    if (track) {
+      const clips = track.clips.slice();
+      const clipIndex = clips.findIndex(c => c.id === clip.id);
+
+      if (clipIndex > -1) {
+        let concatenatedAudioBuffer = null;
+
+        const fullWidth = TimelinePosition.toWidth(clip.start, clip.loopEnd || clip.end, timelinePosOptions);
+        const width = TimelinePosition.toWidth(clip.start, clip.end, timelinePosOptions);
+        const audioWidth = TimelinePosition.toWidth(clip.audio.start, clip.audio.end, timelinePosOptions);
+        const audioStartOffset = TimelinePosition.toWidth(clip.audio.start, clip.start, timelinePosOptions);
+        const audioEndOffset = audioStartOffset + width;
+        const repetitions = Math.ceil(fullWidth / width)
+
+        const audioStartOffsetPercentange = Math.max(0, audioStartOffset / audioWidth);
+        const audioEndOffsetPercentange = audioEndOffset / audioWidth;
+        const start = Math.floor(audioStartOffsetPercentange * audioBuffer.length);
+        const end = Math.floor(audioEndOffsetPercentange * audioBuffer.length);
+
+        for (let i = 0; i < repetitions; i++) {
+          const repetitionWidth = Math.min(width, fullWidth - width * i);
+          const repetitionScale = repetitionWidth / audioWidth;
+          const length = Math.ceil(repetitionScale * audioBuffer.length);
+          const newBuffer = ctx.createBuffer(audioBuffer.numberOfChannels, length, audioBuffer.sampleRate);
+          
+          for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+            var channel = newBuffer.getChannelData(i); 
+            channel.set(audioBuffer.getChannelData(i).slice(start, end).slice(0, length));
+          }
+
+          concatenatedAudioBuffer = concatenatedAudioBuffer ? 
+            concatAudioBuffer(ctx, concatenatedAudioBuffer, newBuffer) : newBuffer;
+        }
+
+        if (concatenatedAudioBuffer) {
+          const buffer = audioBufferToBuffer(concatenatedAudioBuffer);
+  
+          const newClip: AudioClip = {
+            ...clips[clipIndex],
+            startLimit: clip.startLimit ? clip.start : null,
+            start: clip.start,
+            endLimit: clip.endLimit ? (clip.loopEnd || clip.end) : null,
+            end: clip.loopEnd || clip.end,
+            loopEnd: null,
+            audio: {
+              buffer,
+              src: {...clip.audio.src, data: buffer.toString("base64")},
+              duration: concatenatedAudioBuffer.duration,
+              end: TimelinePosition.fromPos(clip.loopEnd || clip.end),
+              start: TimelinePosition.fromPos(clip.start)
+            }
+          }
+  
+          clips[clipIndex] = newClip;
+          setTrack({...track, clips});
+  
+          if (selectedClip?.id !== clip.id)
+            setSelectedClip(newClip);
+  
+          return concatenatedAudioBuffer;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  const consolidateClip = (clip: Clip) => {
+    const track = tracks.find(t => t.clips.find((c: Clip) => c.id === clip.id));
+
+    if (track) {
+      const clips = track.clips.slice();
+      const clipIndex = clips.findIndex(c => c.id === clip.id);
+
+      if (clipIndex > -1) {
+        const newClip = {
+          ...clips[clipIndex],
+          startLimit: clip.startLimit ? clip.start : null,
+          start: clip.start,
+          endLimit: clip.endLimit ? (clip.loopEnd || clip.end) : null,
+          end: clip.loopEnd || clip.end,
+          loopEnd: null
+        }
+        
+        clips[clipIndex] = newClip;
+        setTrack({...track, clips});
+
+        if (selectedClip?.id !== clip.id)
+          setSelectedClip(newClip);
+      }
+    }
+  }
+
   const createClipFromTrackRegion = () => {
     if (trackRegion) {
       if (trackRegion.region) {
-        const clip = {
+        const clip: Clip = {
           id: v4(), 
           start: trackRegion.region.start, 
           end: trackRegion.region.end, 
@@ -266,10 +361,10 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   }
 
   const deleteClip = (clip : Clip) => {
-    const track = tracks.find(t => t.clips.find(c => c.id === clip.id));
+    const track = tracks.find(t => t.clips.find((c: Clip) => c.id === clip.id));
 
     if (track) {
-      const newClips = track.clips.filter(c => c.id !== clip.id);
+      const newClips = track.clips.filter((c: Clip) => c.id !== clip.id);
       setTrack({...track, clips: newClips});
     }
 
@@ -279,10 +374,10 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   }
 
   const deleteNode = (node : AutomationNode) => {
-    const track = tracks.find(t => t.automationLanes.find(l => l.nodes.find(n => n.id === node.id)));
+    const track = tracks.find(t => t.automationLanes.find((l: AutomationLane) => l.nodes.find(n => n.id === node.id)));
 
     if (track) {
-      const newLanes = track.automationLanes.map(l => {
+      const newLanes = track.automationLanes.map((l: AutomationLane) => {
         const newNodes = l.nodes.filter(n => n.id !== node.id);
         newNodes.sort((a, b) => a.pos.compare(b.pos));
         return {...l, nodes: newNodes};
@@ -297,11 +392,12 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   }
 
   const duplicateClip = (clip : Clip) => {
-    const track = tracks.find(t => t.clips.find(c => c.id === clip.id));
+    const track = tracks.find(t => t.clips.find((c: Clip) => c.id === clip.id));
 
     if (track) {
       const newClip = clipAtPos(clip.loopEnd || clip.end, {...clip, id: v4()}, timelinePosOptions)
       setTrack({...track, clips: [...track.clips, newClip]});
+      setSelectedClip(newClip);
     }
   }
 
@@ -338,12 +434,12 @@ export const WorkstationProvider: React.FC = ({ children }) => {
     navigator.clipboard.readText().then(text => {
       if (!text) {
         if (clipboardItem?.item && clipboardItem?.type === ClipboardItemType.Clip) {
-          const itemClip = clipboardItem?.item as Clip;
+          const itemClip = {...clipboardItem?.item} as Clip;
       
           if (track === undefined) {
             track = tracks.find(t => t.id === clipboardItem?.container);
           }
-      
+
           if (track) {
             const newClip = {...clipAtPos(pos, itemClip, timelinePosOptions), id: v4()};
             setTrack({...track, clips: [...track.clips, newClip]});
@@ -362,10 +458,10 @@ export const WorkstationProvider: React.FC = ({ children }) => {
           let track;
       
           if (lane === undefined) {
-            track = tracks.find(t => t.automationLanes.find(l => l.id === clipboardItem?.container));
-            lane = track?.automationLanes.find(l => l.id === clipboardItem?.container);
+            track = tracks.find(t => t.automationLanes.find((l: AutomationLane) => l.id === clipboardItem?.container));
+            lane = track?.automationLanes.find((l: AutomationLane) => l.id === clipboardItem?.container);
           } else {
-            track = tracks.find(t => t.automationLanes.find(l => l.id === lane!.id));
+            track = tracks.find(t => t.automationLanes.find((l: AutomationLane) => l.id === lane!.id));
           }
       
           if (lane) {
@@ -379,12 +475,19 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   }
 
   const preserveMargins = () => {
-    if (prevTimelineOptions) {
+    if (prevTimelinePosOptions) {
       const newTracks = tracks.slice()
 
       for (var i = 0; i < newTracks.length; i++) {
         for (var j = 0; j < newTracks[i].clips.length; j++) {
-          newTracks[i].clips[j] = preserveClipMargins(newTracks[i].clips[j], prevTimelineOptions, timelinePosOptions);
+          newTracks[i].clips[j] = preserveClipMargins(newTracks[i].clips[j], prevTimelinePosOptions, timelinePosOptions);
+
+          if ((newTracks[i].clips[j] as AudioClip).audio) {
+            (newTracks[i].clips[j] as AudioClip).audio.start = preservePosMargin(
+              (newTracks[i].clips[j] as AudioClip).audio.start, prevTimelinePosOptions, timelinePosOptions);
+            (newTracks[i].clips[j] as AudioClip).audio.end = preservePosMargin(
+              (newTracks[i].clips[j] as AudioClip).audio.end, prevTimelinePosOptions, timelinePosOptions);
+          }
 
           if (newTracks[i].clips[j].id === selectedClip?.id)
             setSelectedClip(newTracks[i].clips[j]);
@@ -394,7 +497,7 @@ export const WorkstationProvider: React.FC = ({ children }) => {
           const lane = newTracks[i].automationLanes[j];
 
           for (var k = 0; k < newTracks[i].automationLanes[j].nodes.length; k++) {
-            newTracks[i].automationLanes[j].nodes[k].pos = preservePosMargin(lane.nodes[k].pos, prevTimelineOptions, timelinePosOptions);
+            newTracks[i].automationLanes[j].nodes[k].pos = preservePosMargin(lane.nodes[k].pos, prevTimelinePosOptions, timelinePosOptions);
 
             if (lane.nodes[k].id === selectedNode?.id)
               setSelectedNode(lane.nodes[k]);
@@ -403,27 +506,27 @@ export const WorkstationProvider: React.FC = ({ children }) => {
       }
 
       const newSongRegion : Region | null = songRegion ? {
-        start: preservePosMargin(songRegion.start, prevTimelineOptions, timelinePosOptions),
-        end: preservePosMargin(songRegion.end, prevTimelineOptions, timelinePosOptions)
+        start: preservePosMargin(songRegion.start, prevTimelinePosOptions, timelinePosOptions),
+        end: preservePosMargin(songRegion.end, prevTimelinePosOptions, timelinePosOptions)
       } : null
 
       const newTrackRegion = trackRegion ? {
         ...trackRegion,
         region: {
-          start: preservePosMargin(trackRegion.region.start, prevTimelineOptions, timelinePosOptions),
-          end: preservePosMargin(trackRegion.region.end, prevTimelineOptions, timelinePosOptions)
+          start: preservePosMargin(trackRegion.region.start, prevTimelinePosOptions, timelinePosOptions),
+          end: preservePosMargin(trackRegion.region.end, prevTimelinePosOptions, timelinePosOptions)
         }
       } : null
   
       setTracks(newTracks);
-      setCursorPos(preservePosMargin(cursorPos, prevTimelineOptions, timelinePosOptions));
+      setCursorPos(preservePosMargin(cursorPos, prevTimelinePosOptions, timelinePosOptions));
       setSongRegion(newSongRegion);
       setTrackRegion(newTrackRegion);
     }
   }
 
   const splitClip = (clip : Clip, pos : TimelinePosition) => {
-    const track = tracks.find(t => t.clips.find(c => c.id === clip.id));
+    const track = tracks.find(t => t.clips.find((c: Clip) => c.id === clip.id));
     const width = TimelinePosition.toWidth(clip.start, clip.end, timelinePosOptions)
 
     if (track && pos.compare(clip.start) > 0) {
@@ -441,11 +544,23 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         loopEnd = null
 
         newClip = {...clip, end: TimelinePosition.fromPos(pos), loopEnd: null}
-        const index = clips.findIndex(c => c.id === newClip!.id)
+        const index = clips.findIndex((c: Clip) => c.id === newClip!.id)
 
         clips[index] = newClip
-        clips.push({id: v4(), start, end, startLimit, endLimit, loopEnd, muted: clip.muted})
 
+        const secondClip = {id: v4(), start, end, startLimit, endLimit, loopEnd, muted: clip.muted};
+
+        if ((newClip as AudioClip).audio) {
+          const audioClip = newClip as AudioClip;
+
+          (secondClip as AudioClip).audio = {
+            ...audioClip.audio,
+            start: audioClip.audio.start,
+            end: audioClip.audio.end,
+          }
+        }
+
+        clips.push(secondClip);
         addExtraClip = Boolean(clip.loopEnd)
       } else if (clip.loopEnd && pos.compare(clip.loopEnd) < 0) {
         start = TimelinePosition.fromPos(pos)
@@ -476,12 +591,25 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         }
 
         newClip = {...clip, loopEnd: start}
-        const index = clips.findIndex(c => c.id === newClip!.id)
+        const index = clips.findIndex((c: Clip) => c.id === newClip!.id)
 
         clips[index] = newClip
 
         if (endToPosWidth % width !== 0) {
-          clips.push({id: v4(), start, end, startLimit, endLimit, loopEnd, muted: clip.muted})
+          const secondClip = {id: v4(), start, end, startLimit, endLimit, loopEnd, muted: clip.muted};
+
+          if ((newClip as AudioClip).audio) {
+            const audioClip = newClip as AudioClip;
+            const interval = TimelinePosition.toInterval(clip.start, repStart, timelinePosOptions);
+  
+            (secondClip as AudioClip).audio = {
+              ...audioClip.audio,
+              start: audioClip.audio.start.add(interval.measures, interval.beats, interval.fraction, false, timelinePosOptions),
+              end: audioClip.audio.end.add(interval.measures, interval.beats, interval.fraction, false, timelinePosOptions)
+            }
+          }
+
+          clips.push(secondClip);
         }
 
         addExtraClip = repetition < Math.ceil(loopWidth / width)
@@ -505,7 +633,20 @@ export const WorkstationProvider: React.FC = ({ children }) => {
           endLimit = clip.endLimit.add(interval.measures, interval.beats, interval.fraction, false, timelinePosOptions)
         }
 
-        clips.push({id: v4(), start, end, startLimit, endLimit, loopEnd, muted: clip.muted})
+        newClip = {...clip, id: v4(), start, end, startLimit, endLimit, loopEnd, muted: clip.muted}
+
+        if ((newClip as AudioClip).audio) {
+          const audioClip = newClip as AudioClip;
+          const interval = TimelinePosition.toInterval(clip.start, start, timelinePosOptions);
+
+          (newClip as AudioClip).audio = {
+            ...audioClip.audio,
+            start: audioClip.audio.start.add(interval.measures, interval.beats, interval.fraction, false, timelinePosOptions),
+            end: audioClip.audio.end.add(interval.measures, interval.beats, interval.fraction, false, timelinePosOptions)
+          }
+        }
+
+        clips.push(newClip);
       }
 
       setTrack({...track, clips})
@@ -517,12 +658,12 @@ export const WorkstationProvider: React.FC = ({ children }) => {
   }
 
   const toggleMuteClip = (clip : Clip) => {
-    const track = tracks.find(t => t.clips.find(c => c.id === clip.id));
+    const track = tracks.find(t => t.clips.find((c: Clip) => c.id === clip.id));
 
     if (track) {
       const newClip = {...clip, muted: !clip.muted};
 
-      setTrack({...track, clips: track.clips.map(c => c.id === clip.id ? newClip : c)});
+      setTrack({...track, clips: track.clips.map((c: Clip) => c.id === clip.id ? newClip : c)});
 
       if (clip.id === selectedClip?.id)
         setSelectedClip(newClip);
@@ -534,6 +675,8 @@ export const WorkstationProvider: React.FC = ({ children }) => {
       value={{ 
         addNodeToLane,
         autoSnap,
+        consolidateAudioClip,
+        consolidateClip,
         createClipFromTrackRegion,
         cursorPos,
         deleteClip,
@@ -551,6 +694,7 @@ export const WorkstationProvider: React.FC = ({ children }) => {
         onNodeClickAway,
         pasteClip,
         pasteNode,
+        prevTimelinePosOptions,
         selectedClip,
         selectedNode,
         setAutoSnap,

@@ -2,20 +2,13 @@ import { Popover } from "@mui/material";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
+import { AutomationLane, AutomationNode } from "renderer/types/types";
 import channels from "renderer/utils/channels";
-import { clamp, inverseLerp, lerp } from "renderer/utils/helpers";
+import { clamp, inverseLerp, lerp } from "renderer/utils/general";
 import { ipcRenderer } from "renderer/utils/utils";
 import { DNR, GuideLine } from ".";
-import { AutomationLane } from "./AutomationLaneTrack";
 import { DNRData } from "./DNR";
 import { ConfirmationInput, Tooltip } from "./ui";
-
-export interface AutomationNode {
-  id : string
-  pos : TimelinePosition
-  value : number
-}
-
 
 interface IProps {
   color : string
@@ -211,9 +204,10 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
             anchorEl={this.state.anchorEl} 
             onClose={() => this.setState({anchorEl: null})} 
             open={Boolean(this.state.anchorEl)}
+            PaperProps={{style: {transform: "translate(10px, -50%)", backgroundColor: "var(--bg9)"}}}
             transformOrigin={{horizontal: "left", vertical: "top"}}
           >
-            <div>
+            <div style={{padding: 4}}>
               <ConfirmationInput
                 onChange={e => this.setState({inputValue: e.target.value})} 
                 onConfirm={this.onSubmit}

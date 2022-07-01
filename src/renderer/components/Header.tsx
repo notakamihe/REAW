@@ -6,10 +6,9 @@ import TimelinePosition from "renderer/types/TimelinePosition";
 import Holdable from "./Holdable";
 import styled from "styled-components"
 import { NumberInput, SelectSpinBox } from "./ui";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMagnet } from "@fortawesome/free-solid-svg-icons";
 import Metronome from "./Metronome";
 import { SnapGridSizeOption } from "renderer/types/types";
+import {FaMagnet} from "react-icons/fa"
 
 const PlaybackControlButton = styled(IconButton)`
 background-color: #0000;
@@ -226,7 +225,7 @@ export default class Header extends React.Component<IProps, IState> {
             <div 
               onClick={() => this.setState({showTime: !this.state.showTime})}
               className="d-flex justify-content-center align-items-center" 
-              style={{flex: 1, cursor: "pointer", borderRight: "1px solid var(--border1)", backgroundColor: "var(--bg7)"}}
+              style={{flex: 1, cursor: "pointer", borderRight: "1px solid var(--border1)", backgroundColor: "var(--bg7)", width: 128}}
             >
               <h1 className="p-0 m-0" style={{fontSize: 18, textAlign: "center", fontWeight: 100, color: "var(--fg1)"}}>
                 {
@@ -261,12 +260,12 @@ export default class Header extends React.Component<IProps, IState> {
                 <PlaybackControlButton onClick={() => {}}> 
                   <SkipNext style={{fontSize: 17, color: "var(--fg1)"}} />
                 </PlaybackControlButton>
-                <Holdable timeout={500} interval={250} onMouseDown={this.fastForward} onHold={this.fastForward}>
+                <Holdable delay={500} interval={250} onMouseDown={this.fastForward} onHold={this.fastForward}>
                   <PlaybackControlButton> 
                     <FastForward style={{fontSize: 17, color: "var(--fg1)"}} />
                   </PlaybackControlButton>
                 </Holdable>
-                <Holdable timeout={500} interval={250} onMouseDown={this.fastRewind} onHold={this.fastRewind}>
+                <Holdable delay={500} interval={250} onMouseDown={this.fastRewind} onHold={this.fastRewind}>
                   <PlaybackControlButton> 
                     <FastRewind style={{fontSize: 17, color: "var(--fg1)"}} />
                   </PlaybackControlButton>
@@ -278,7 +277,7 @@ export default class Header extends React.Component<IProps, IState> {
         <div className="p-2 d-flex align-items-center" style={{width: 275, height: "100%"}}>
           <SelectSpinBox
             classes={{container: "rb-spin-buttons rounded"}}
-            icon={<FontAwesomeIcon icon={faMagnet} style={{fontSize: 10, transform: "translateY(1px)", color: "var(--fg2)"}} />}
+            icon={<FaMagnet style={{fontSize: 10, transform: "translateY(1px)", color: "var(--fg2)"}} />}
             onChange={(val : string | number) => this.context!.setSnapGridSizeOption(Number(val) as SnapGridSizeOption)}
             style={{
               container: {height: 25, width: 130, padding: 2, border: "1px solid var(--border7)", backgroundColor: "#0000"},

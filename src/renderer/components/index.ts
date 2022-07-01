@@ -1,3 +1,4 @@
+import AudioClipComponent from "./AudioClipComponent";
 import AutomationLaneComponent from "./AutomationLaneComponent";
 import AutomationLaneTrack from "./AutomationLaneTrack";
 import AutomationNodeComponent from "./AutomationNodeComponent";
@@ -8,6 +9,7 @@ import FXComponent from "./FXComponent";
 import GuideLine from "./GuideLine";
 import Header from "./Header";
 import Holdable from "./Holdable";
+import HorizontalScrollListener from "./HorizontalScrollListener";
 import KeyListener from "./KeyListener";
 import Lane from "./Lane";
 import Mixer from "./Mixer";
@@ -16,8 +18,10 @@ import RegionComponent from "./RegionComponent";
 import ResizablePane from "./ResizablePane";
 import TimelineComponent from "./TimelineComponent";
 import TrackComponent from "./TrackComponent";
+import ZoomControls from "./ZoomControls";
 
 export {
+  AudioClipComponent,
   AutomationLaneComponent,
   AutomationLaneTrack,
   AutomationNodeComponent,
@@ -28,6 +32,7 @@ export {
   GuideLine,
   Header, 
   Holdable, 
+  HorizontalScrollListener,
   KeyListener,
   Lane,
   Mixer,
@@ -35,5 +40,6 @@ export {
   RegionComponent,
   ResizablePane,
   TimelineComponent, 
-  TrackComponent 
+  TrackComponent,
+  ZoomControls
 }

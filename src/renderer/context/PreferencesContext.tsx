@@ -1,9 +1,5 @@
 import React from "react";
-
-interface Preferences {
-  color: string;
-  theme: string;
-}
+import { Preferences } from "renderer/types/types";
 
 export interface PreferencesContextType {
   preferences: Preferences;
@@ -14,7 +10,7 @@ export interface PreferencesContextType {
 
 export const PreferencesContext = React.createContext<PreferencesContextType | undefined>(undefined);
 
-export const PreferencesProvider : React.FC = ({children}) => {
+export const PreferencesProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
   const [preferences, setPreferences] = React.useState<Preferences>(
     localStorage.getItem("preferences") ? JSON.parse(localStorage.getItem("preferences")!) :
     {

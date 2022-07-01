@@ -2,18 +2,11 @@ import { Add, ArrowDropDown, ArrowDropUp, Delete, MoreHoriz, PowerSettingsNew, S
 import { IconButton, DialogContent } from "@mui/material";
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
-import { ID } from "renderer/types/types";
+import { Effect, FX, FXChain, ID } from "renderer/types/types";
 import channels from "renderer/utils/channels";
 import { ipcRenderer } from "renderer/utils/utils";
 import { v4 } from "uuid";
-import { Effect, FX } from "./TrackComponent";
 import { Dialog, SelectSpinBox } from "./ui";
-
-export interface FXChain {
-  id : ID
-  name : string
-  effects : Effect[]
-}
 
 interface FXStyle {
   add? : React.CSSProperties

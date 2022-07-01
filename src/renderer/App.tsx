@@ -3,7 +3,7 @@ import './styles/colors.css';
 import './styles/App.css';
 import { ClipboardProvider } from './context/ClipboardContext';
 import { WorkstationProvider } from './context/WorkstationContext';
-import Workstation from './pages/Workstation';
+import Workstation from './screens/Workstation';
 import { PreferencesProvider } from './context/PreferencesContext';
 import PreferencesComponent from './components/PreferencesComponent';
 

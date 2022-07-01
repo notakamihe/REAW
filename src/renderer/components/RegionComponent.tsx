@@ -1,14 +1,10 @@
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
 import TimelinePosition from "renderer/types/TimelinePosition";
+import { Region } from "renderer/types/types";
 import { marginToPos } from "renderer/utils/utils";
 import { DNR } from ".";
 import { DNRData, ResizeDirection } from "./DNR";
-
-export interface Region {
-  start : TimelinePosition
-  end : TimelinePosition
-}
 
 interface IProps {
   children? : JSX.Element

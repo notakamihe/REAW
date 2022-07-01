@@ -1,7 +1,5 @@
 import React from "react";
-import { AutomationNode } from "renderer/components/AutomationNodeComponent";
-import { Clip } from "renderer/components/ClipComponent";
-import { ID } from "renderer/types/types";
+import { AutomationNode, Clip, ID } from "renderer/types/types";
 
 export interface ClipboardContextType {
   clipboardItem : ClipboardItem | null;
@@ -19,7 +17,7 @@ interface ClipboardItem {
 
 export const ClipboardContext = React.createContext<ClipboardContextType | undefined>(undefined);
 
-export const ClipboardProvider: React.FC = ({ children }) => {
+export const ClipboardProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
   const [clipboardItem, setClipboardItem] = React.useState<ClipboardItem | null>(null);
 
   const clear = () => {

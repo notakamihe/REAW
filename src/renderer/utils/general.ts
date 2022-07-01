@@ -1,5 +1,4 @@
-import { AutomationLane } from "../components/AutomationLaneTrack";
-import { AutomationNode } from "../components/AutomationNodeComponent";
+import { AutomationLane } from "renderer/types/types";
 
 export function addAlpha(color: string, opacity: number): string {
   const a = Math.round(Math.min(Math.max(opacity || 1, 0), 1) * 255);
@@ -26,6 +25,20 @@ export function colorInterpolate(color1 : string, color2 : string, t : number) :
   const hex = (parseInt(String(((r2 - r1) * t + r1))) << 16 | parseInt(String(((g2 - g1) * t + g1))) << 8 | parseInt(String(((b2 - b1) * t) + b1))).toString(16)
 
   return `#${hex.padStart(6, "0")}`;
+}
+
+export const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null
+
+  const debounced = (...args: Parameters<F>) => {
+    if (timeout !== null) {
+      clearTimeout(timeout)
+      timeout = null
+    }
+    timeout = setTimeout(() => func(...args), waitFor)
+  }
+
+  return debounced as (...args: Parameters<F>) => ReturnType<F>
 }
 
 export function degreeToRad(degree: number) {
@@ -66,10 +79,6 @@ export function hueFromHex(hex : string) {
 export function inverseLerp(value: number, min: number, max: number) {
     const t = (value - min) / (max - min);
     return clamp(t, 0, 1);
-}
-
-export function laneContainsNode(lane : AutomationLane, node : AutomationNode | null) {
-  return lane.nodes.findIndex(n => n.id === node?.id) !== -1
 }
 
 export function lerp(t: number, min: number, max: number) {

@@ -1,7 +1,7 @@
-import { BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from "electron";
+import { BrowserWindow, dialog, ipcMain, Menu, MenuItemConstructorOptions } from "electron";
 import channels from "./../renderer/utils/channels"
-import { Clip } from "./../renderer/components/ClipComponent";
-import { AutomationLane } from "renderer/components/AutomationLaneTrack";
+import { AudioClip, AutomationLane, Clip, Track, TrackType } from "./../renderer/types/types";
+import * as fs from "fs"
   
 export default class ContextMenuBuilder {
   mainWindow : BrowserWindow;
@@ -39,8 +39,8 @@ export default class ContextMenuBuilder {
       });
     })
    
-    ipcMain.on(channels.OPEN_LANE_CONTEXT_MENU, () => {
-      Menu.buildFromTemplate(this.buildLaneContextMenu()).popup({
+    ipcMain.on(channels.OPEN_LANE_CONTEXT_MENU, (e, track : Track) => {
+      Menu.buildFromTemplate(this.buildLaneContextMenu(track)).popup({
         window: this.mainWindow,
         callback: () => this.mainWindow.webContents.send(channels.CLOSE_LANE_CONTEXT_MENU)
       });
@@ -151,6 +151,27 @@ export default class ContextMenuBuilder {
           this.mainWindow.webContents.send(channels.SET_SONG_REGION_TO_CLIP);
         }
       },
+      {
+        label: "Consolidate",
+        accelerator: "CmdOrCtrl+Shift+C",
+        registerAccelerator: false,
+        click: () => {
+          this.mainWindow.webContents.send(channels.CONSOLIDATE_CLIP);
+        }
+      },
+      {type: "separator", visible: Boolean((clip as AudioClip).audio)},
+      {
+        label: "Effects",
+        visible: Boolean((clip as AudioClip).audio),
+        submenu: [
+          {
+            label: "Reverse",
+            click: () => {
+              this.mainWindow.webContents.send(channels.REVERSE_AUDIO);
+            }
+          }
+        ]
+      },
       {type: "separator"},
       {
         label: clip.muted ? "Unmute" : "Mute",
@@ -198,8 +219,38 @@ export default class ContextMenuBuilder {
     return menu;
   }
 
-  buildLaneContextMenu() : MenuItemConstructorOptions[] {
-    const menu : MenuItemConstructorOptions[] = [
+  buildLaneContextMenu(track : Track) : MenuItemConstructorOptions[] {
+    const menu : MenuItemConstructorOptions[] = [];
+
+    if (track.type === TrackType.Audio) {
+      menu.push(
+        {
+          label: "Insert Audio File...",
+          click: () => {
+            const filePaths = dialog.showOpenDialogSync(this.mainWindow, {
+              properties: ["openFile"], 
+              filters: [
+                {name: "Audio", extensions: ["wav", "mp3", "ogg", "flac", "aiff", "wma"]}
+              ]
+            });
+
+            if (filePaths) {
+              const files = filePaths.map(p => {
+                const buffer = fs.readFileSync(p);
+                return {buffer, src: buffer.toString("base64"), extension: p.split(".").pop()};
+              });
+              
+              this.mainWindow.webContents.send(channels.INSERT_AUDIO_FILE, files);
+            } else {
+              this.mainWindow.webContents.send(channels.INSERT_AUDIO_FILE, undefined);
+            }
+          }
+        },
+        {type: "separator"}
+      )
+    }
+
+    menu.push(
       {
         label: "Paste At Cursor",
         click: () => {
@@ -212,7 +263,7 @@ export default class ContextMenuBuilder {
           this.mainWindow.webContents.send(channels.PASTE_ON_LANE);
         }
       }
-    ]
+    )
 
     return menu;
   }

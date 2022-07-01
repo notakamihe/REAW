@@ -1,32 +1,26 @@
 import React from "react";
 import { WorkstationContext } from "renderer/context/WorkstationContext";
+import TimelinePosition from "renderer/types/TimelinePosition";
+import { AudioClip, Clip, Track, TrackType } from "renderer/types/types";
 import channels from "renderer/utils/channels";
-import { getLaneColor } from "renderer/utils/helpers";
+import { getLaneColor } from "renderer/utils/general";
 import { ipcRenderer, marginToPos } from "renderer/utils/utils";
+import { v4 } from "uuid";
 import { ClipComponent, RegionComponent } from ".";
+import AudioClipComponent from "./AudioClipComponent";
 import AutomationLaneComponent from "./AutomationLaneComponent";
-import { Clip } from "./ClipComponent";
-import { Track } from "./TrackComponent";
  
 interface IProps {
   track : Track
   style? : React.CSSProperties
 }
  
-interface IState {
-  regionAnchorEl : HTMLElement | null
-}
- 
-class Lane extends React.Component<IProps, IState> {
+class Lane extends React.Component<IProps> {
   static contextType = WorkstationContext
   context : React.ContextType<typeof WorkstationContext>
  
   constructor(props : IProps) {
     super(props)
- 
-    this.state = {
-      regionAnchorEl: null
-    }
  
     this.changeLane = this.changeLane.bind(this)
     this.onLaneContextMenu = this.onLaneContextMenu.bind(this)
@@ -47,7 +41,7 @@ class Lane extends React.Component<IProps, IState> {
    
     for (let i = 0; i < tracks.length; i++) {
       if (i === trackIndex) {
-        const clipIndex = tracks[i].clips.findIndex(c => c.id === clip.id)
+        const clipIndex = tracks[i].clips.findIndex((c : Clip) => c.id === clip.id)
         
         if (clipIndex > -1) {
           if (changeAbove) {
@@ -71,7 +65,42 @@ class Lane extends React.Component<IProps, IState> {
   onLaneContextMenu(e : React.MouseEvent) {
     e.stopPropagation()
 
-    ipcRenderer.send(channels.OPEN_LANE_CONTEXT_MENU)
+    ipcRenderer.send(channels.OPEN_LANE_CONTEXT_MENU, this.props.track)
+
+    ipcRenderer.on(channels.INSERT_AUDIO_FILE, (files: {buffer: Buffer, src: string, extension: string}[] | undefined) => {
+      if (files) {
+        const file = files[0];
+
+        const audio = new Audio();
+        audio.src = `data:audio/${file.extension};base64,${file.src}`;
+
+        audio.addEventListener("loadedmetadata", () => {
+          const {measures, beats, fraction} = TimelinePosition.fromDuration(audio.duration, this.context!.timelinePosOptions);
+
+          const clip : AudioClip = {
+            end: this.context!.cursorPos.add(measures, beats, fraction, false, this.context!.timelinePosOptions),
+            endLimit: null,
+            id: v4(),
+            loopEnd: null,
+            muted: false,
+            start: this.context!.cursorPos,
+            startLimit: this.context!.cursorPos,
+            audio: {
+              buffer: file.buffer,
+              duration: audio.duration,
+              end: this.context!.cursorPos.add(measures, beats, fraction, false, this.context!.timelinePosOptions),
+              src: {extension: file.extension, data: file.src},
+              start: this.context!.cursorPos
+            }
+          };
+
+          this.addClip(clip);
+          audio.remove();
+
+          ipcRenderer.removeAllListeners(channels.INSERT_AUDIO_FILE);
+        }, false);
+      }
+    })
 
     ipcRenderer.on(channels.PASTE_AT_CURSOR_ON_LANE, () => {
       this.context!.pasteClip(this.context!.cursorPos, this.props.track)
@@ -138,22 +167,36 @@ class Lane extends React.Component<IProps, IState> {
               width: "100%",
               height: 100 * verticalScale,
               position: "relative",
-              cursor: "text",
+              cursor: (this.props.track.isMaster || this.props.track.type === TrackType.Audio) ? "default" : "text",
               pointerEvents: this.props.track.isMaster ? "none" : "auto",
               ...this.props.style
             }}
           >
-            <RegionComponent 
-              containerStyle={{position: "absolute", inset: 0}}
-              onContainerMouseDown={() => {if (!trackRegion || trackRegion.track.id !== this.props.track.id) setTrackRegion(null)}}
-              onContextMenu={this.onTrackRegionContextMenu}
-              onDelete={() => setTrackRegion(null)}
-              onSetRegion={region => setTrackRegion(region ? {region, track: this.props.track} : null)}
-              region={!trackRegion || trackRegion.track.id !== this.props.track.id ? null : trackRegion.region}
-              regionStyle={{backgroundColor: "#fff3", borderColor: "var(--bg4)", borderStyle: "solid", borderWidth: "0 1px"}}
-            />
+            {
+              this.props.track.type !== TrackType.Audio &&
+              <RegionComponent 
+                containerStyle={{position: "absolute", inset: 0}}
+                onContainerMouseDown={() => {if (!trackRegion || trackRegion.track.id !== this.props.track.id) setTrackRegion(null)}}
+                onContextMenu={this.onTrackRegionContextMenu}
+                onDelete={() => setTrackRegion(null)}
+                onSetRegion={region => setTrackRegion(region ? {region, track: this.props.track} : null)}
+                region={!trackRegion || trackRegion.track.id !== this.props.track.id ? null : trackRegion.region}
+                regionStyle={{backgroundColor: "#fff3", borderColor: "var(--bg4)", borderStyle: "solid", borderWidth: "0 1px"}}
+              />
+            }
             {
               this.props.track.clips.map(clip => (
+                (clip as AudioClip).audio ?
+                <AudioClipComponent
+                  key={clip.id}
+                  clip={clip as AudioClip}
+                  track={this.props.track}
+                  isSelected={selectedClip?.id === clip.id}
+                  onSelect={setSelectedClip}
+                  onClickAway={onClipClickAway}
+                  onChangeLane={this.changeLane}
+                  setClip={this.setClip}
+                /> :
                 <ClipComponent
                   key={clip.id}
                   clip={clip}
