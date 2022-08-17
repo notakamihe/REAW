@@ -38,7 +38,7 @@ function ZoomButton(props : {vertical: boolean, decrease: boolean, onZoom: () =>
   )
 }
 
-const ZoomControls = (props: {onZoom?: (vertical: boolean) => void}) => {
+const ZoomControls = (props: {disabled?: boolean, onZoom?: (vertical: boolean) => void}) => {
   const {horizontalScale, setHorizontalScale, setVerticalScale, verticalScale} = React.useContext(WorkstationContext)!;
   const [hScale, setHScale] = useState(horizontalScale);
   const [vScale, setVScale] = useState(verticalScale);
@@ -64,7 +64,7 @@ const ZoomControls = (props: {onZoom?: (vertical: boolean) => void}) => {
   }
 
   return (
-    <div style={{position: "absolute", right: 16, bottom: 16}}>
+    <div style={{position: "absolute", right: 16, bottom: 16, pointerEvents: props.disabled ? "none" : "auto"}}>
       <div style={{display: "flex", flexDirection: "column", alignItems: "flex-end", marginBottom: 8}}>
         <ZoomButton decrease={false} onZoom={() => zoom(true, 0.2)} vertical />
         <Slider

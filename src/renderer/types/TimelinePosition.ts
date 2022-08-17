@@ -153,7 +153,7 @@ export default class TimelinePosition {
     if (fraction < 0)
       fraction = 0
 
-    this.setPos(TimelinePosition.start)
+    this.set(TimelinePosition.start)
     this.add(measure - 1, beat - 1, fraction, true, options)
 
     return this
@@ -175,7 +175,7 @@ export default class TimelinePosition {
     return pos
   }
 
-  setPos(pos : TimelinePosition) {
+  set(pos : TimelinePosition) {
     this.measure = pos.measure
     this.beat = pos.beat
     this.fraction = pos.fraction
@@ -191,7 +191,7 @@ export default class TimelinePosition {
         snapSizeFraction * Math.round(posFraction / snapSizeFraction);
       const newSpan = TimelinePosition.fromFraction(newFraction, options);
   
-      this.setPos(new TimelinePosition(newSpan.measures + 1, newSpan.beats + 1, newSpan.fraction));
+      this.set(new TimelinePosition(newSpan.measures + 1, newSpan.beats + 1, newSpan.fraction));
     }
   }
 

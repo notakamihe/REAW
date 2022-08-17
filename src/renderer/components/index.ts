@@ -9,7 +9,7 @@ import FXComponent from "./FXComponent";
 import GuideLine from "./GuideLine";
 import Header from "./Header";
 import Holdable from "./Holdable";
-import HorizontalScrollListener from "./HorizontalScrollListener";
+import DirectionalScrollListener from "./DirectionalScrollListener";
 import KeyListener from "./KeyListener";
 import Lane from "./Lane";
 import Mixer from "./Mixer";
@@ -19,6 +19,7 @@ import ResizablePane from "./ResizablePane";
 import TimelineComponent from "./TimelineComponent";
 import TrackComponent from "./TrackComponent";
 import ZoomControls from "./ZoomControls";
+import StickyTitle from "./StickyTitle";
 
 export {
   AudioClipComponent,
@@ -27,18 +28,19 @@ export {
   AutomationNodeComponent,
   ClipComponent, 
   Cursor,
+  DirectionalScrollListener,
   DNR,
   FXComponent,
   GuideLine,
   Header, 
   Holdable, 
-  HorizontalScrollListener,
   KeyListener,
   Lane,
   Mixer,
   MouseDownAwayListener,
   RegionComponent,
   ResizablePane,
+  StickyTitle,
   TimelineComponent, 
   TrackComponent,
   ZoomControls

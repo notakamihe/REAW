@@ -155,7 +155,7 @@ function ResizeHandle(props : IResizeHandleProps) {
 }
 
 
-interface IProps {
+export interface DNRProps {
   allowAnyClick? : boolean
   className? : string
   children? : React.ReactNode
@@ -179,6 +179,8 @@ interface IProps {
   onDragStart? : (e : React.MouseEvent, data: DNRData) => void
   onDragStop? : (e : MouseEvent, data: DNRData) => void
   onMouseDown? : (e : React.MouseEvent) => void
+  onMouseEnter?: (e: React.MouseEvent) => void;
+  onMouseLeave? : (e : React.MouseEvent) => void
   onMouseOver? : (e : React.MouseEvent) => void
   onMouseOut? : (e : React.MouseEvent) => void
   onResize? : (e : MouseEvent, dir : ResizeDirection, ref : HTMLElement, data: DNRData) => void
@@ -190,6 +192,7 @@ interface IProps {
   snapGridSize?: {horizontal?: number, vertical?: number}
   snapThreshold?: {horizontal?: number, vertical?: number}
   style? : React.CSSProperties
+  title?: string;
 }
 
 interface IState {
@@ -214,7 +217,7 @@ const enableAll = {
 
 //react-rnd but better and not broken
 
-export default class DNR extends React.Component<IProps, IState> {
+export default class DNR extends React.Component<DNRProps, IState> {
   static defaultProps = {
     constrainToParent: {horizontal: true, vertical: true},
     default: {startX: 0, startY: 0, endX: 100, endY: 100},
@@ -228,7 +231,7 @@ export default class DNR extends React.Component<IProps, IState> {
 
   ref : React.RefObject<HTMLDivElement>;
 
-  constructor(props : IProps) {
+  constructor(props : DNRProps) {
     super(props);
 
     this.ref = React.createRef();
@@ -255,7 +258,7 @@ export default class DNR extends React.Component<IProps, IState> {
     document.addEventListener("mousedown", this.onOutsideMouseDown)
   }
 
-  componentDidUpdate(prevProps : IProps, prevState : IState) {
+  componentDidUpdate(prevProps : DNRProps, prevState : IState) {
     if (JSON.stringify(prevProps.coords) !== JSON.stringify(this.props.coords) && this.props.coords) {
       this.setState({coords: this.props.coords, temp: this.props.coords})
     }
@@ -627,18 +630,21 @@ export default class DNR extends React.Component<IProps, IState> {
         onDoubleClick={this.props.onDoubleClick}
         onDragStart={e => e.preventDefault()}
         onMouseDown={this.onMouseDownDrag}
+        onMouseEnter={this.props.onMouseEnter}
+        onMouseLeave={this.props.onMouseLeave}
         onMouseOver={this.props.onMouseOver}
         onMouseOut={this.props.onMouseOut}
         ref={this.ref} 
         style={{
+          cursor: this.props.disableDragging ? "default" : "move",
           ...this.props.style,
           width: this.getSize().width, 
           height: this.getSize().height, 
           position: "absolute",
           left: this.state.coords.startX,
           top: this.state.coords.startY,
-          cursor: this.props.disableDragging ? "default" : "move",
         }}
+        title={this.props.title}
       >
         <ResizeHandle
           className={this.props.resizeHandleClasses?.left}

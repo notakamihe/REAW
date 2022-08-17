@@ -92,12 +92,12 @@ object {
 }
 
 .clip {
-  border-radius: 5px;
+  border-radius: 0px;
   border: 1px solid var(--border3);
 }
 
 .clip-loop {
-  border-radius: 5px;
+  border-radius: 0px;
   border-color: var(--border3);
   border-style: solid;
   border-width: 1px 1px 1px 0;
@@ -107,6 +107,10 @@ object {
   position: absolute;
   inset: -1px -1px 0px auto !important;
   transform: translate(100%, 0%) !important;
+}
+
+.clip-title:hover {
+  color: #0009!important;
 }
 
 .disable-highlighting {
@@ -141,6 +145,20 @@ object {
 
 .h-btn1:hover {
   background-color: var(--bg7)!important;
+}
+
+.invalid-track-type {
+  cursor: not-allowed!important;
+  opacity: 0.25;
+  filter: brightness(0.95);
+}
+
+.invalid-track-type * {
+  cursor: not-allowed!important;
+}
+
+.muted-track > * {
+  opacity: 0.25;
 }
 
 .muted-placeholder::placeholder {

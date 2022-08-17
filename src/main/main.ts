@@ -15,6 +15,7 @@ import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 import ContextMenuBuilder from './contextMenu';
+import buildHandlers from './handlers';
 
 export default class AppUpdater {
   constructor() {
@@ -105,6 +106,8 @@ const createWindow = async () => {
 
   const contextMenuBuilder = new ContextMenuBuilder(mainWindow);
   contextMenuBuilder.buildContextMenus();
+
+  buildHandlers(mainWindow);
 
   // Open urls in the user's browser
   mainWindow.webContents.setWindowOpenHandler((edata) => {

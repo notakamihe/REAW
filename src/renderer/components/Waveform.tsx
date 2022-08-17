@@ -14,7 +14,7 @@ export const WaveformContainer: React.FC = ({children}) => {
   const copyFromHost = (el: HTMLCanvasElement) => {
     const ctx = el.getContext("2d")!;
     ctx.clearRect(0, 0, el.width, el.height);
-    ctx.drawImage(hostWaveform.current!, 0, 0);
+    ctx.drawImage(hostWaveform.current!, 0, 0, el.width, el.height);
   }
 
   const registerHost = (el: HTMLCanvasElement | null) => {
@@ -37,13 +37,14 @@ interface IProps {
   buffer: AudioBuffer | null;
   host?: boolean;
   height: number;
+  loading?: boolean;
   offset: number;
   width: number;
 }
 
 const CHUNK_SIZE = 2500;
 
-const Waveform: React.FC<IProps> = ({buffer, host, height, offset, width}) => {
+const Waveform: React.FC<IProps> = ({buffer, host, height, loading, offset, width}) => {
   const {copyFromHost, registerHost, unregisterHost} = useContext(WaveformContext)!;
 
   const ref = useRef<HTMLCanvasElement>(null);
@@ -71,7 +72,7 @@ const Waveform: React.FC<IProps> = ({buffer, host, height, offset, width}) => {
   }, [width])
   
   useEffect(() => {
-    document.addEventListener("on-editor-window-scroll", checkChunks);
+    document.addEventListener("on-editor-window-scroll", onScroll)
     
     const editorWindow = document.getElementById("timeline-editor-window");
     const containerEl = containerRef.current
@@ -85,7 +86,7 @@ const Waveform: React.FC<IProps> = ({buffer, host, height, offset, width}) => {
         checkChunks();
 
         drawWaveform(ref.current, CHUNK_SIZE * chunk.current);
-        drawWaveform(auxiliaryRef.current, CHUNK_SIZE * (chunk.current + 1));
+        drawWaveform(auxiliaryRef.current, CHUNK_SIZE * (chunk.current + auxiliaryChunkOffset.current));
       } else {
         isInWindow.current = false;
 
@@ -99,7 +100,7 @@ const Waveform: React.FC<IProps> = ({buffer, host, height, offset, width}) => {
       mutations.forEach((mutation) => {
         if (mutation.type === "attributes" && mutation.attributeName === "data-theme") {
           drawWaveform(ref.current, CHUNK_SIZE * chunk.current);
-          drawWaveform(auxiliaryRef.current, CHUNK_SIZE * (chunk.current + 1));
+          drawWaveform(auxiliaryRef.current, CHUNK_SIZE * (chunk.current + auxiliaryChunkOffset.current));
         }
       });
     });
@@ -107,7 +108,7 @@ const Waveform: React.FC<IProps> = ({buffer, host, height, offset, width}) => {
     observer.observe(document.body, {attributes: true});
 
     return () => {
-      document.removeEventListener("on-editor-window-scroll", checkChunks);
+      document.removeEventListener("on-editor-window-scroll", onScroll);
       observer.disconnect();
     };
   }, [width, height, buffer]);
@@ -122,6 +123,7 @@ const Waveform: React.FC<IProps> = ({buffer, host, height, offset, width}) => {
       const leftDiff = containerEl.getBoundingClientRect().left - editorWindow.getBoundingClientRect().left;
       
       if (leftDiff < editorWindow.clientWidth && leftDiff > -containerEl.clientWidth) {
+        const numChunksInWidth = Math.ceil(width / CHUNK_SIZE);
         const offset = parseFloat(canvasEl.parentElement!.style.left);
         const left = -Math.max(Math.min(0, leftDiff + offset), -width);
         let newChunk = Math.floor(left / CHUNK_SIZE);
@@ -130,11 +132,17 @@ const Waveform: React.FC<IProps> = ({buffer, host, height, offset, width}) => {
         canvasEl.style.left = `${CHUNK_SIZE * newChunk}px`;
         
         if (width > CHUNK_SIZE) {
-          if (Math.floor((left + editorWindow.clientWidth) / CHUNK_SIZE) > newChunk) {
+          if (
+            Math.floor((left + editorWindow.clientWidth) / CHUNK_SIZE) > newChunk && 
+            Math.floor((left + editorWindow.clientWidth) / CHUNK_SIZE) < numChunksInWidth
+          ) {
             auxiliaryCanvasEl.style.display = "block";
             auxiliaryCanvasEl.style.left = `${CHUNK_SIZE * (newChunk + 1)}px`;
             newAxiliaryChunkOffset = 1;
-          } else if (Math.floor((left - editorWindow.clientWidth) / CHUNK_SIZE) < newChunk) {
+          } else if (
+            Math.floor((left - editorWindow.clientWidth) / CHUNK_SIZE) < newChunk &&
+            Math.floor((left - editorWindow.clientWidth) / CHUNK_SIZE) >= 0
+          ) {
             auxiliaryCanvasEl.style.display = "block";
             auxiliaryCanvasEl.style.left = `${CHUNK_SIZE * (newChunk - 1)}px`;
             newAxiliaryChunkOffset = -1;
@@ -201,11 +209,20 @@ const Waveform: React.FC<IProps> = ({buffer, host, height, offset, width}) => {
     }
   }
 
+  const onScroll = (e: Event) => {
+    if ((e as CustomEvent).detail["horizontal"])
+      checkChunks();
+  }
+
   const numChannels = useMemo(() => buffer?.numberOfChannels, [buffer])
 
   return (
-    <div ref={containerRef} style={{position: "absolute", inset: 0, overflow: "hidden", display: "flex", flexDirection: "column"}}>
-      <div style={{position: "absolute", left: offset, width: width, height}}>
+    <div 
+      className="position-absolute overflow-hidden d-flex pe-none"
+      ref={containerRef} 
+      style={{inset: 0, flexDirection: "column"}}
+    >
+      <div style={{position: "absolute", left: offset, width: width, height, display: loading ? "none" : "initial"}}>
         <canvas height={height} ref={ref} style={{position: "absolute", top: 0}}></canvas>
         <canvas height={height} ref={auxiliaryRef} style={{position: "absolute", top: 0, display: "none"}}></canvas>
       </div>

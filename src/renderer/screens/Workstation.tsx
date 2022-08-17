@@ -1,17 +1,21 @@
 import React from "react"
-import {Cursor, Header, HorizontalScrollListener, KeyListener, Lane, Mixer, RegionComponent, ResizablePane, TimelineComponent, TrackComponent, ZoomControls} from "renderer/components"
+import {Cursor, Header, DirectionalScrollListener, KeyListener, Lane, Mixer, RegionComponent, ResizablePane, TimelineComponent, TrackComponent, ZoomControls} from "renderer/components"
 import {SyncScroll, SyncScrollPane} from "../components/SyncScroll"
 import IconButton from "@mui/material/IconButton"
 import { GraphicEq, Piano } from "@mui/icons-material"
 import { WorkstationContext } from "renderer/context/WorkstationContext"
-import { getBaseTrack, ipcRenderer } from "renderer/utils/utils"
+import { getBaseTrack, ipcRenderer, marginToPos } from "renderer/utils/utils"
 import ResizeDetector from "react-resize-detector"
-import { TimeSignature, Track, TrackType } from "renderer/types/types"
+import { Clip, Track, TrackType } from "renderer/types/types"
 import channels from "renderer/utils/channels"
 import { CursorIcon, StepSequencerIcon } from "renderer/components/icons"
 import { PreferencesContext } from "renderer/context/PreferencesContext"
 import { SpeedDial } from "renderer/components/ui"
 import { SpeedDialIcon } from "@mui/material"
+import TimelinePosition from "renderer/types/TimelinePosition"
+import { LanesContext, LanesProvider } from "renderer/context/LanesContext"
+import { v4 } from "uuid"
+import {Buffer} from "buffer"
 
 const MenuListener = (props : {children : React.ReactNode}) => {
   const wc = React.useContext(WorkstationContext)
@@ -34,50 +38,66 @@ interface IProps {
 }
 
 interface IState {
-  editorWindowWidth: number
-  horizontalScale : number
-  timeSignature : TimeSignature | null,
-  tracksLength : number
+  draggingValidFiles: boolean;
+  dropzoneActive: boolean;
+  editorWindowWidth: number;
+  horizontalScale: number;
+  prevTracks: Track[];
+  tracksHeight: number;
 }
 
 export default class Workstation extends React.Component<IProps, IState> {
   static contextType = WorkstationContext
   context : React.ContextType<typeof WorkstationContext>
 
-  private centerOnCursorRef : React.MutableRefObject<boolean>
-  private cursorRef : React.RefObject<HTMLDivElement>
-  private event: Event;
-  private editorRef : React.RefObject<HTMLDivElement>
-  private editorWindowRef : React.RefObject<HTMLDivElement>
-  private timelineRef : React.RefObject<TimelineComponent>
-  private timeSignatureChangedRef : React.MutableRefObject<boolean>
+  private cursorRef : React.RefObject<HTMLDivElement>;
+  private editorRef : React.RefObject<HTMLDivElement>;
+  private editorWindowRef : React.RefObject<HTMLDivElement>;
+  newClipStartMarkerRef: React.RefObject<HTMLDivElement>;
+  private timelineRef : React.RefObject<TimelineComponent>;
+  
+  counter = 0;
+  cursorInWindow = false;
+  droppingFile = false;
+  preventHide = false;
   
   constructor(props : any) {
     super(props)
 
-    this.centerOnCursorRef = React.createRef() as React.MutableRefObject<boolean>
-    this.cursorRef = React.createRef()
-    this.event = new Event("on-editor-window-scroll");
-    this.editorRef = React.createRef()
-    this.editorWindowRef = React.createRef()
-    this.timelineRef = React.createRef()
-    this.timeSignatureChangedRef = React.createRef() as React.MutableRefObject<boolean>
+    this.cursorRef = React.createRef();
+    this.editorRef = React.createRef();
+    this.editorWindowRef = React.createRef();
+    this.newClipStartMarkerRef = React.createRef();
+    this.timelineRef = React.createRef();
     
     this.state = {
+      draggingValidFiles: false,
+      dropzoneActive: false,
       editorWindowWidth: 0,
       horizontalScale: 1,
-      timeSignature: null,
-      tracksLength: 0
+      prevTracks: [],
+      tracksHeight: 0
     }
 
-    this.addTrack = this.addTrack.bind(this)
-    this.centerOnCursor = this.centerOnCursor.bind(this)
-    this.onEditorWindowHorizontalScroll = this.onEditorWindowHorizontalScroll.bind(this)
-    this.onWheel = this.onWheel.bind(this)
-    this.onZoom = this.onZoom.bind(this)
+    this.addTrack = this.addTrack.bind(this);
+    this.centerOnCursor = this.centerOnCursor.bind(this);
+    this.handleDragEnter = this.handleDragEnter.bind(this);
+    this.handleDragLeave = this.handleDragLeave.bind(this);
+    this.handleDrop = this.handleDrop.bind(this);
+    this.handleDropzoneDragEnter = this.handleDropzoneDragEnter.bind(this);
+    this.handleDropzoneDragLeave = this.handleDropzoneDragLeave.bind(this);
+    this.handleDropzoneDragOver = this.handleDropzoneDragOver.bind(this);
+    this.handleDropzoneDrop = this.handleDropzoneDrop.bind(this);
+    this.onEditorWindowHorizontalScroll = this.onEditorWindowHorizontalScroll.bind(this);
+    this.onWheel = this.onWheel.bind(this);
+    this.onZoom = this.onZoom.bind(this);
   }
 
   componentDidMount() {
+    document.body.addEventListener("dragenter", this.handleDragEnter);
+    document.body.addEventListener("dragleave", this.handleDragLeave);
+    document.body.addEventListener("drop", this.handleDrop);
+
     var observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === "attributes" && mutation.attributeName === "data-theme") {
@@ -87,36 +107,37 @@ export default class Workstation extends React.Component<IProps, IState> {
     });
     
     observer.observe(document.body, {attributes: true});
-
-    this.setState({tracksLength: this.context!.tracks.length})
   }
 
-  componentDidUpdate(prevProps : IProps) {
-    if (this.editorRef.current && this.context!.trackLanesWindowHeight !== this.editorRef.current.clientHeight) {
-      this.context!.setTrackLanesWindowHeight(this.editorRef.current.clientHeight)
-    }
-
-    if (this.state.horizontalScale != this.context!.horizontalScale) {
-      this.setState({horizontalScale: this.context!.horizontalScale}, () => {
-        if (this.centerOnCursorRef.current) {
-          this.centerOnCursor()
-          this.centerOnCursorRef.current = false
-        }
-      })
-    }
-
-    if (this.state.timeSignature !== this.context!.timeSignature) {
-      this.setState({timeSignature: this.context!.timeSignature})
-      this.timeSignatureChangedRef.current = true
-    }
-
-    if (this.context!.tracks.length !== this.state.tracksLength) {
-      this.setState({tracksLength: this.context!.tracks.length})
-
-      if (this.context!.tracks.length > this.state.tracksLength) {
-        this.editorWindowRef.current!.scrollTop = this.editorWindowRef.current!.scrollHeight
+  componentDidUpdate(prevProps : IProps, prevState: IState) {
+    if (this.state.horizontalScale != this.context!.timelinePosOptions.horizontalScale) {
+      if (this.cursorInWindow) {
+        this.centerOnCursor();
+        this.cursorInWindow = false;
       }
+
+      this.setState({horizontalScale: this.context!.timelinePosOptions.horizontalScale});
     }
+
+    if (this.context!.tracks !== this.state.prevTracks) {
+      if (this.context!.tracks.length > this.state.prevTracks.length) {
+        this.editorWindowRef.current!.scrollTop = this.editorWindowRef.current!.scrollHeight;
+      }
+
+      if (this.droppingFile) {
+        this.droppingFile = false;
+        this.counter = 0;
+        this.setState({dropzoneActive: false, draggingValidFiles: false});
+      }
+
+      this.setState({prevTracks: this.context!.tracks});
+    }
+  }
+  
+  componentWillUnmount() {
+    document.body.removeEventListener("dragenter", this.handleDragEnter);
+    document.body.removeEventListener("dragleave", this.handleDragLeave);
+    document.body.removeEventListener("drop", this.handleDrop);
   }
 
   addTrack(type: TrackType) {
@@ -133,20 +154,125 @@ export default class Workstation extends React.Component<IProps, IState> {
     const editorWindowEl = this.editorWindowRef.current
 
     if (editorWindowEl && cursorEl) {
-      editorWindowEl.scroll({left: cursorEl.offsetLeft - editorWindowEl.clientWidth * 0.5})
+      editorWindowEl.scrollLeft = cursorEl.offsetLeft - editorWindowEl.clientWidth * 0.5;
     }
   }
 
-  onEditorWindowHorizontalScroll(e: React.UIEvent, prevScrollLeft: number) {
-    this.timelineRef.current?.drawTimeline();
-    document.dispatchEvent(this.event);
-
-    if (this.timeSignatureChangedRef.current) {
-      if (this.editorWindowRef.current)
-        this.editorWindowRef.current.scrollLeft = prevScrollLeft;
-
-      this.timeSignatureChangedRef.current = false;
+  handleDragEnter(e: DragEvent) {
+    if (this.counter++ === 0) {
+      if (e.dataTransfer) {
+        const editorWindowEl = this.editorWindowRef.current!;
+        const atBottom = editorWindowEl.scrollHeight - editorWindowEl.scrollTop === editorWindowEl.clientHeight;
+        const items = Array.from(e.dataTransfer.items).filter(i => i.type.split("/")[0] === "audio");
+        
+        this.setState({draggingValidFiles: items.length > 0}, () => {
+           if (atBottom)
+            editorWindowEl.scrollTop = editorWindowEl.scrollHeight;
+        });
+      }
     }
+  }
+
+  handleDragLeave(e: DragEvent) {
+    if (--this.counter === 0) {
+      this.setState({draggingValidFiles: false});
+    }
+  }
+
+  handleDrop(e: DragEvent) {
+    if (!this.droppingFile) {
+      this.droppingFile = true;
+    }
+  }
+
+  handleDropzoneDragEnter(e: React.DragEvent) {
+    if (this.state.dropzoneActive)
+      this.preventHide = true;
+
+    this.setState({dropzoneActive: this.state.draggingValidFiles});
+  }
+
+  handleDropzoneDragLeave(e: React.DragEvent) {
+    if (!this.preventHide)
+      this.setState({dropzoneActive: false});
+    else
+      this.preventHide = false;
+  }
+
+  handleDropzoneDragOver(e: React.DragEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (this.state.dropzoneActive) {
+      e.dataTransfer.dropEffect = "copy";
+  
+      const snapWidth = TimelinePosition.fromInterval(this.context!.snapGridSize).toMargin(this.context!.timelinePosOptions) || 0.00001;
+      let newMargin;
+
+      if (e.nativeEvent.x > this.editorWindowRef.current!.getBoundingClientRect().left) {
+        newMargin = snapWidth * Math.round((e.clientX - e.currentTarget.getBoundingClientRect().left) / snapWidth);
+      } else {
+        newMargin = 0;
+      }
+
+      this.newClipStartMarkerRef.current!.style.left = `${newMargin}px`;
+    } else {
+      e.dataTransfer.dropEffect = "none";
+    }
+  }
+
+  async handleDropzoneDrop(e: React.DragEvent) {
+    const markerEl = this.newClipStartMarkerRef.current!;
+    const pos = marginToPos(markerEl.offsetLeft, this.context!.timelinePosOptions);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.split("/")[0] === "audio");
+
+    if (files) {
+      for (let i = 0; i < files.length; i++) {
+        const extension = files[i].type.split("/")[1];
+        const name = files[i].name.split(".")[0];
+        const ab = await files[i].arrayBuffer();
+        const buffer = Buffer.from(ab);
+        const data = buffer.toString("base64");
+
+        const audio = new Audio();
+        audio.src = `data:audio/${extension};base64,${data}`;
+
+        audio.addEventListener("loadedmetadata", () => {
+          const {measures, beats, fraction} = TimelinePosition.fromDuration(audio.duration, this.context!.timelinePosOptions);
+
+          const track: Track = getBaseTrack();
+
+          track.name = name;
+          track.clips = [
+            {
+              end: pos.add(measures, beats, fraction, false, this.context!.timelinePosOptions),
+              endLimit: null,
+              id: v4(),
+              loopEnd: null,
+              muted: false,
+              name,
+              start: pos,
+              startLimit: pos,
+              audio: {
+                buffer: buffer,
+                duration: audio.duration,
+                end: pos.add(measures, beats, fraction, false, this.context!.timelinePosOptions),
+                src: {extension, data},
+                start: pos
+              }
+            } as Clip
+          ]
+    
+          this.context!.setTracks([...this.context!.tracks, track]);
+          audio.remove();
+        })
+      }
+    }
+  }
+
+  onEditorWindowHorizontalScroll(e: React.UIEvent, horizontal: boolean, prevScrollLeft: number) {
+    this.timelineRef.current?.drawTimeline();
+    document.dispatchEvent(new CustomEvent("on-editor-window-scroll", {detail: {horizontal}}));
   }
 
   onWheel(e : React.WheelEvent) {
@@ -168,12 +294,12 @@ export default class Workstation extends React.Component<IProps, IState> {
     if (!vertical) {
       const cursorEl = this.cursorRef.current
       const editorWindowEl = this.editorWindowRef.current
-  
+
       if (editorWindowEl && cursorEl) {
         const cursorRect = cursorEl.getBoundingClientRect()
         const editorWindowRect = editorWindowEl.getBoundingClientRect()
-  
-        this.centerOnCursorRef.current = cursorRect.left >= editorWindowRect.left && cursorRect.right <= editorWindowRect.right
+
+        this.cursorInWindow = cursorRect.left >= editorWindowRect.left && cursorRect.right <= editorWindowRect.right;
       }
     }
   }
@@ -191,8 +317,8 @@ export default class Workstation extends React.Component<IProps, IState> {
       isLooping,
       timelinePosOptions,
       timeSignature,
-      trackLanesWindowHeight, 
       tracks, 
+      verticalScale
     } = this.context!
 
     const editorWindowHeight = this.editorWindowRef.current?.clientHeight || 0
@@ -200,7 +326,11 @@ export default class Workstation extends React.Component<IProps, IState> {
     const measureWidth = beatWidth * timeSignature.beats
     const editorWidth = measureWidth * numMeasures
 
-    const masterTrack = tracks.find(t => t.isMaster)
+    const cursorHeight = Math.max(editorWindowHeight - 12, this.state.tracksHeight);
+    const dropzoneHeight = Math.max(editorWindowHeight - this.state.tracksHeight - 33, 100 * verticalScale);
+
+    const masterTrack = tracks.find(t => t.isMaster);
+    const dropzoneTrack: Track = {...getBaseTrack(), name: "", color: "var(--bg11)"};
 
     return (
       <MenuListener>
@@ -209,7 +339,10 @@ export default class Workstation extends React.Component<IProps, IState> {
             <Header />
             <div style={{flex: 1, height: "calc(100vh - 45px)", display: "flex", flexDirection: "column"}}>
               <SyncScroll>
-                <div onWheel={this.onWheel} style={{flex:1,backgroundColor:"var(--bg1)",display:"flex",overflow:"hidden"}}>
+                <div 
+                  onWheel={this.onWheel} 
+                  style={{flex: 1, backgroundColor: "var(--bg1)",display: "flex",overflow: "hidden", position: "relative"}}
+                >
                   <SyncScrollPane>
                     <div
                       className="hide-vertical-scrollbar scrollbar" 
@@ -264,24 +397,41 @@ export default class Workstation extends React.Component<IProps, IState> {
                           </IconButton>
                         </div>
                       </div>
-                      <div style={{width: "100%"}}>
+                      <div style={{width: "100%", minHeight: "calc(100% - 33px)"}}>
                         {masterTrack && <TrackComponent track={masterTrack} />}
                         {tracks.filter(t => !t.isMaster).map((t, i) => <TrackComponent key={t.id} order={i + 1} track={t} />)}
+                        {
+                          this.state.draggingValidFiles &&
+                          <div 
+                            onDragEnter={this.handleDropzoneDragEnter}
+                            onDragOver={this.handleDropzoneDragOver}
+                            onDragLeave={this.handleDropzoneDragLeave}
+                            onDrop={this.handleDropzoneDrop}
+                            style={{width: "100%", minHeight: dropzoneHeight}}
+                          >
+                            {
+                              this.state.dropzoneActive &&
+                              <div style={{pointerEvents: "none"}}>
+                                <TrackComponent className="muted-track" track={dropzoneTrack} />
+                              </div>
+                            }
+                          </div>
+                        }
                       </div>
                     </div>
                   </SyncScrollPane>
                   <ResizeDetector handleWidth onResize={(w, h) => this.setState({editorWindowWidth: w || 0})}>
                     <div style={{flex: 1, position: "relative", overflow: "hidden", height: "100%"}}>
                       <SyncScrollPane>
-                        <HorizontalScrollListener onScroll={this.onEditorWindowHorizontalScroll}>
+                        <DirectionalScrollListener onScroll={this.onEditorWindowHorizontalScroll}>
                           <div 
                             id="timeline-editor-window"
-                            className="scrollbar thin-thumb2" 
+                            className="scrollbar thin-thumb2"
                             ref={this.editorWindowRef}
                             style={{width: "100%", height: "100%", overflow: "scroll"}}
                           >
                             <div 
-                              id="timeline-editor" 
+                              id="timeline-editor"
                               ref={this.editorRef} 
                               style={{width: editorWidth, minWidth: "100%", position: "relative"}}
                             >
@@ -289,14 +439,14 @@ export default class Workstation extends React.Component<IProps, IState> {
                                 <div style={{width: "100%", height: 12, backgroundColor: "#0000", borderBottom: "1px solid var(--border1)"}}>
                                   <RegionComponent 
                                     highlight
-                                    highlightStyle={{height: trackLanesWindowHeight - 12, backgroundColor: "#fff", opacity: 0.15}}
+                                    highlightStyle={{height: cursorHeight, backgroundColor: "var(--bg11)"}}
                                     onDelete={() => setSongRegion(null)} 
                                     onSetRegion={(region) => setSongRegion(region)} 
                                     region={songRegion} 
                                     regionStyle={{backgroundColor: isLooping ? "var(--color1)" : "var(--bg8)"}}
                                   />
                                 </div>
-                                <Cursor ref={this.cursorRef} pos={cursorPos} height={Math.max(editorWindowHeight - 12, trackLanesWindowHeight - 12)} /> 
+                                <Cursor ref={this.cursorRef} pos={cursorPos} height={cursorHeight} /> 
                                 <TimelineComponent 
                                   gridHeight={editorWindowHeight - 33}
                                   ref={this.timelineRef} 
@@ -305,18 +455,55 @@ export default class Workstation extends React.Component<IProps, IState> {
                                   window={this.editorWindowRef.current}
                                 />
                               </div>
-                              <div style={{width: "100%", minHeight: editorWindowHeight - 45}}>
-                                {
-                                  tracks.map((track, idx) => (
-                                    <Lane key={idx} style={{backgroundColor: "var(--bg5)", borderBottom: "1px solid var(--border2)"}} track={track} />
-                                  ))
-                                }
+                              <ResizeDetector handleHeight onResize={(w, h) => this.setState({tracksHeight: h || 0})}>
+                                <LanesProvider>
+                                  <LanesContext.Consumer>
+                                    {
+                                      (value) => (
+                                        <div style={{width: "100%"}}>
+                                          {
+                                            tracks.map((track, idx) => (
+                                              <Lane ctx={value!} key={idx} track={track} />
+                                            ))
+                                          }
+                                        </div>
+                                      )
+                                    }
+                                  </LanesContext.Consumer>
+                                </LanesProvider>
+                              </ResizeDetector>
+                              <div 
+                                onDragEnter={this.handleDropzoneDragEnter}
+                                onDragOver={this.handleDropzoneDragOver}
+                                onDragLeave={this.handleDropzoneDragLeave}
+                                onDrop={this.handleDropzoneDrop}
+                                style={{
+                                  width: "100%", 
+                                  minHeight: dropzoneHeight,
+                                  display: this.state.draggingValidFiles ? "block" : "none"
+                                }}
+                              >
+                                <div
+                                  className="pe-none position-relative col-12"
+                                  style={{
+                                    height: 100 * verticalScale,
+                                    backgroundColor: "var(--bg5)", 
+                                    borderBottom: "1px solid var(--border2)",
+                                    display: this.state.dropzoneActive ? "block" : "none"
+                                  }}
+                                >
+                                  <div
+                                    className="position-absolute"
+                                    ref={this.newClipStartMarkerRef}
+                                    style={{backgroundColor: "var(--color1)", height: "100%", width: 1}}
+                                  ></div>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </HorizontalScrollListener>
+                        </DirectionalScrollListener>
                       </SyncScrollPane>
-                      <ZoomControls onZoom={this.onZoom} />
+                      <ZoomControls disabled={this.state.draggingValidFiles} onZoom={this.onZoom} />
                     </div>
                   </ResizeDetector>
                 </div>

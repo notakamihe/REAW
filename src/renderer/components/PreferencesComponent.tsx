@@ -181,15 +181,14 @@ export default class PreferencesComponent extends React.Component<IProps, IState
               </div>
             </DialogContent>
             <DialogActions style={{borderTop: "1px solid var(--border1)"}}>
-              <div style={{borderRadius: 4}}>
-                <button className="p-1 px-2 br-inherit-l btn2" onClick={this.cancel} style={{marginRight: 6}} type="button">
+              <div>
+                <button className="p-1 px-2 btn2" onClick={this.cancel} style={{marginRight: 6}} type="button">
                   Cancel
                 </button>
                 <button className="p-1 px-2 btn2" onClick={this.apply} style={{marginRight: 6}} type="button">
                   Apply
                 </button>
                 <button 
-                  className="br-inherit-r"
                   style={{fontSize: 13, backgroundColor: "var(--color1)", color: "var(--bg9)", padding: "5px 8px"}}
                 >
                   OK
@@ -203,13 +202,15 @@ export default class PreferencesComponent extends React.Component<IProps, IState
           autoHideDuration={3000} 
           open={this.state.saved} 
           onClose={() => this.setState({saved: false})}
+          style={{bottom: 16}}
         >
-          <Alert 
-            icon={<Settings style={{color: "var(--bg9)"}} />} 
-            sx={{width: '100%', backgroundColor: "var(--color1)", color: "var(--bg9)"}}
+          <div 
+            className="d-flex justify-content-center align-items-center"
+            style={{backgroundColor: "var(--color1)", borderRadius: 32, padding: "4px 12px"}}
           >
-            Changes saved
-          </Alert>
+            <Settings style={{color: "var(--bg9)", marginRight: 6, fontSize: 16}} />
+            <p style={{fontSize: 15, fontWeight: "bold", margin: 0, color: "var(--bg9)"}}>Changes saved</p>
+          </div>
         </Snackbar>
       </React.Fragment>
     )

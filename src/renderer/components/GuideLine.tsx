@@ -1,37 +1,34 @@
-import React, { useContext } from "react";
+import React, { useRef } from "react";
 import ReactDOM from "react-dom";
-import { WorkstationContext } from "renderer/context/WorkstationContext";
 
 interface IProps {
   margin : number;
 }
 
 export default function GuideLine(props : IProps) {
-  const {trackLanesWindowHeight} = useContext(WorkstationContext)!
-  const [loaded, setLoaded] = React.useState(false);
+  const timelineEditorWindowRef = useRef<HTMLElement | null>(null);
 
   React.useEffect(() => {
-    if (document.readyState === "complete")
-      setLoaded(true)
-  }, [document.readyState])
+    timelineEditorWindowRef.current = document.getElementById("timeline-editor-window");
+  }, [])
 
   return (
     <React.Fragment>
       {
-        loaded &&
+        timelineEditorWindowRef.current &&
         ReactDOM.createPortal(
           <div 
             style={{
               position: "absolute", 
               top: 0, 
-              height: trackLanesWindowHeight, 
-              left: props.margin, 
+              height: "100%", 
+              left: props.margin - timelineEditorWindowRef.current.scrollLeft, 
               borderRight: "1px dashed var(--border14)",
               minHeight: "100%",
               zIndex: 25
             }}
           ></div>,
-          document.getElementById("timeline-editor")!
+          timelineEditorWindowRef.current
         )
       }
     </React.Fragment>

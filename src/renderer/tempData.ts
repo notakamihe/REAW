@@ -16,7 +16,8 @@ const data : Track[] = [
         startLimit: new TimelinePosition(1, 2, 0),
         endLimit: new TimelinePosition(4, 2, 0),
         loopEnd: new TimelinePosition(3, 2, 900),
-        muted: false
+        muted: false,
+        name: "my_clip"
       },
       {
         id: uuidv4(),
@@ -25,7 +26,8 @@ const data : Track[] = [
         startLimit: null,
         endLimit: null,
         loopEnd: new TimelinePosition(5, 2, 500),
-        muted: false
+        muted: false,
+        name: "my_clip"
       }
     ],
     fx: {

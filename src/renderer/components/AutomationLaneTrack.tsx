@@ -296,8 +296,7 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
                               valid: e.target.value === "" || TimelinePosition.isStringValid(e.target.value)
                             }})}
                             placeholder="0.0.000"
-                            style={{
-                              borderRadius: 2, 
+                            style={{ 
                               border: `1px solid ${this.state.pos.valid ? "var(--border7)" : "#f00"}`,
                               color: this.state.pos.valid ? "var(--border7)" : "#f00",
                               outline: "none",
@@ -313,8 +312,7 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
                             value={this.state.value.value}
                             onChange={e => this.setState({value: {value: e.target.value, valid: !isNaN(Number(e.target.value))}})}
                             placeholder="Val"
-                            style={{
-                              borderRadius: 2, 
+                            style={{ 
                               border: `1px solid ${this.state.value.valid ? "var(--border7)" : "#f00"}`,
                               color: this.state.value.valid ? "var(--border7)" : "#f00",
                               outline: "none",
@@ -327,7 +325,7 @@ class AutomationLaneTrack extends React.Component<IProps, IState> {
                         </div>
                         <input 
                           className="px-1 py-1 col-12 no-borders"
-                          style={{color: "var(--bg9)", backgroundColor: "var(--color1)", fontSize: 14, borderRadius: 2}} 
+                          style={{color: "var(--bg9)", backgroundColor: "var(--color1)", fontSize: 14}} 
                           type="submit" 
                           value="Add" 
                         />

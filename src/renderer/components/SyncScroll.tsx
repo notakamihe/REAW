@@ -2,7 +2,6 @@ import { Component, ContextType, createContext, ReactNode, useRef } from "react"
 import ReactDOM from "react-dom";
 
 interface ScrollSyncContextType {
-  panes: HTMLElement[];
   registerPane: (pane: HTMLElement | null) => void;
   unregisterPane: (pane: HTMLElement | null) => void;
 }
@@ -10,38 +9,47 @@ interface ScrollSyncContextType {
 const ScrollSyncContext = createContext<ScrollSyncContextType | undefined>(undefined);
 
 export const SyncScroll: React.FC<{children: ReactNode}> = ({children}) => { // react-scroll-sync but better
-  const panes = useRef<HTMLElement[]>([])
+  const panes = useRef<{el: HTMLElement, syncing: boolean}[]>([]);
 
   const onScrollPane = (e: Event) => {
-    const el = e.target as HTMLElement;
-    const scrollTopPercentage = el.scrollTop / el.scrollHeight;
-    const scrollLeftPercentage = el.scrollLeft / el.scrollWidth;
+    const pane = panes.current.find(p => p.el === e.target as HTMLElement);
 
-    for (let i = 0; i < panes.current.length; i++) {
-      if (el.scrollWidth > el.clientWidth)
-        panes.current[i].scrollLeft = scrollLeftPercentage * panes.current[i].scrollWidth;
+    if (pane) {
+      const scrollTopPercentage = pane.el.scrollTop / pane.el.scrollHeight;
+      const scrollLeftPercentage = pane.el.scrollLeft / pane.el.scrollWidth;
+  
+      if (!pane.syncing) {
+        if (pane.el.scrollWidth > pane.el.clientWidth || pane.el.scrollHeight > pane.el.clientHeight) {
+          for (let i = 0; i < panes.current.length; i++) {
+            if (panes.current[i].el !== pane.el) {
+              panes.current[i].syncing = true;
+              panes.current[i].el.scrollLeft = scrollLeftPercentage * panes.current[i].el.scrollWidth;
+              panes.current[i].el.scrollTop = scrollTopPercentage * panes.current[i].el.scrollHeight;
+            }
+          }
+        }
+      }
 
-      if (el.scrollHeight > el.clientHeight)
-        panes.current[i].scrollTop = scrollTopPercentage * panes.current[i].scrollHeight;
+      panes.current[panes.current.findIndex(p => p === pane)].syncing = false;
     }
   }
   
   const registerPane = (pane: HTMLElement | null) => {
     if (pane) {
-      panes.current.push(pane);
+      panes.current.push({el: pane, syncing: false});
       pane.addEventListener("scroll", onScrollPane);
     }
   }
 
   const unregisterPane = (pane: HTMLElement | null) => {
     if (pane) {
-      panes.current.splice(panes.current.indexOf(pane), 1);
+      panes.current = panes.current.filter(p => p.el !== pane);
       pane.removeEventListener("scroll", onScrollPane);
     }
   }
 
   return (
-    <ScrollSyncContext.Provider value={{panes: panes.current, registerPane, unregisterPane}}>
+    <ScrollSyncContext.Provider value={{registerPane, unregisterPane}}>
       {children}
     </ScrollSyncContext.Provider>
   )

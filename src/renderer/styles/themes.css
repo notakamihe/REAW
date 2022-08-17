@@ -7,8 +7,9 @@
   --bg6: #dfdfdf;
   --bg7: var(--color1-muted);
   --bg8: #00000018;
-  --bg9: #fff;
+  --bg9: #f7f7f7;
   --bg10: #0005;
+  --bg11: #00000008;
   --border1: #777;
   --border2: #999;
   --border3: #0007;
@@ -24,7 +25,7 @@
   --border13: #0001;
   --border14: #0004;
   --fg1: #000;
-  --fg2: #333;
+  --fg2: #000;
 }
 
 [data-theme="dark"] {
@@ -38,6 +39,7 @@
   --bg8: #fff4;
   --bg9: #000;
   --bg10: #0008;
+  --bg11: #fff1;
   --border1: #666;
   --border2: #777;
   --border3: #222;

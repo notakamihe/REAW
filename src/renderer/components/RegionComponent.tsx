@@ -152,7 +152,15 @@ export default class RegionComponent extends React.Component<IProps, IState> {
       >
         {
           this.state.isCreatingNewRegion &&
-          <div style={{...this.props.regionStyle, position: "absolute", top: 0, left, width: Math.abs(end - start), height: "100%"}}>
+          <div style={{
+            ...this.props.regionStyle, 
+            position: "absolute", 
+            top: 0, 
+            left, 
+            width: Math.abs(end - start), 
+            height: "100%",
+            zIndex: 13
+          }}>
             {
               this.props.highlight &&
               <div
@@ -180,7 +188,7 @@ export default class RegionComponent extends React.Component<IProps, IState> {
             onMouseDown={e => e.stopPropagation()}
             onResizeStop={this.onResizeStop}
             snapGridSize={{horizontal: snapWidth || 0.00001}}
-            style={this.props.regionStyle}
+            style={{...this.props.regionStyle, zIndex: 13}}
           >
             {
               this.props.highlight &&

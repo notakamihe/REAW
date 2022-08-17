@@ -81,7 +81,7 @@ export default function StepSequencerIcon(props : SVGIconStyleProps) {
           </svg>                
         `
       }}
-      style={{transform: "translateY(-2px)", ...props.style}}
+      style={{display: "flex", justifyContent: "center", alignItems: "center", ...props.style}}
     ></div>
   )
 }

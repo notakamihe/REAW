@@ -130,7 +130,7 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
   onContextMenu(e : React.MouseEvent) {
     e.preventDefault();
 
-    ipcRenderer.send(channels.OPEN_LANE_CONTEXT_MENU)
+    ipcRenderer.send(channels.OPEN_AUTOMATION_LANE_CONTEXT_MENU, this.props.track);
 
     ipcRenderer.on(channels.PASTE_AT_CURSOR_ON_LANE, () => {
       this.context!.pasteNode(this.context!.cursorPos, this.props.lane)
@@ -144,10 +144,10 @@ export default class AutomationLaneComponent extends React.Component<IProps, ISt
       this.context!.pasteNode(marginToPos(margin, this.context!.timelinePosOptions), this.props.lane)
     })
 
-    ipcRenderer.on(channels.CLOSE_LANE_CONTEXT_MENU, () => {
+    ipcRenderer.on(channels.CLOSE_AUTOMATION_LANE_CONTEXT_MENU, () => {
       ipcRenderer.removeAllListeners(channels.PASTE_AT_CURSOR_ON_LANE)
       ipcRenderer.removeAllListeners(channels.PASTE_ON_LANE)
-      ipcRenderer.removeAllListeners(channels.CLOSE_LANE_CONTEXT_MENU)
+      ipcRenderer.removeAllListeners(channels.CLOSE_AUTOMATION_LANE_CONTEXT_MENU)
     })
   }
 

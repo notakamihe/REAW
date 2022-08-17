@@ -25,16 +25,15 @@ export interface Clip extends Region {
   id : ID;
   loopEnd : TimelinePosition | null;
   muted : boolean;
+  name: string;
   start : TimelinePosition;
   startLimit : TimelinePosition | null;
 }
 
-export interface ClipAudio {
+export interface ClipAudio extends Region {
   buffer: Buffer;
   duration: number;
-  end: TimelinePosition;
   src: {extension: string, data: string};
-  start: TimelinePosition;
 }
 
 export interface AudioClip extends Clip {
@@ -136,7 +135,8 @@ export interface Track {
   volume : number;
 };
 
-export enum TrackType {Audio, Midi, StepSequencer};
+
+export enum TrackType {Audio, Midi, StepSequencer, Master};
 
 export interface ValidatedInput {
   value : string,

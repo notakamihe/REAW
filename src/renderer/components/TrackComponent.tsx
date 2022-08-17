@@ -13,8 +13,10 @@ import ButtonGroup from "./ui/ButtonGroup"
 import TimelinePosition from "renderer/types/TimelinePosition"
 
 interface IProps {
-  order? : number
-  track : Track
+  className?: string;
+  order? : number;
+  track : Track;
+  style?: React.CSSProperties;
 }
 
 type IState = {
@@ -222,7 +224,7 @@ class TrackComponent extends React.Component<IProps, IState> {
       return (
         <React.Fragment>
           <div
-            className="p-0 disable-highlighting d-flex"
+            className={`p-0 disable-highlighting d-flex ${this.props.className}`}
             onContextMenu={this.onContextMenu}
             style={{
               width: 200, 
@@ -231,7 +233,8 @@ class TrackComponent extends React.Component<IProps, IState> {
               overflow: "hidden",
               position: "relative",
               flexDirection: verticalFlex ? "column" : "row",
-              borderBottom: "1px solid #0004"
+              borderBottom: "1px solid var(--border2)",
+              ...this.props.style
             }} 
           >
             {
@@ -244,7 +247,15 @@ class TrackComponent extends React.Component<IProps, IState> {
                     onFocus={() => this.setState({trackNameInputFocused: true})}
                     onBlur={() => {this.setState({trackNameInputFocused: false}); this.setTrackName()}}
                     readOnly={this.props.track.isMaster}
-                    style={{backgroundColor: "#0000", fontSize: 14, fontWeight: "bold", outline: "none", border: "none", height: "100%"}}
+                    style={{
+                      backgroundColor: "#0000", 
+                      fontSize: 14, 
+                      fontWeight: "bold", 
+                      outline: "none", 
+                      border: "none", 
+                      height: "100%",
+                      borderBottom: "1px solid #0009"
+                    }}
                     value={this.state.name}
                   />
                 </form>
@@ -261,20 +272,21 @@ class TrackComponent extends React.Component<IProps, IState> {
                       fontSize: 14, 
                       fontWeight: "bold", 
                       outline: "none", 
-                      border: "none", 
                       transform: "translateY(17px) rotate(-90deg)", 
                       transformOrigin: "left top",
                       bottom: 0,
                       left: 0,
                       width: 100 * verticalScale,
-                      height: 18
+                      height: 18,
+                      border: "1px solid #0009",
+                      borderWidth: "0 0 1px 0"
                     }}
                     value={this.state.name}
                   />
                 </form>
               </div>
             }
-            <div className="mx-1 position-relative" style={{alignItems: "center", marginTop: verticalFlex ? 3 : 4, flex: 1}}>
+            <div className="mx-1 position-relative" style={{alignItems: "center", marginTop: verticalFlex ? 5 : 6, flex: 1}}>
               <FXComponent 
                 compact={verticalScale < 1.1} 
                 effectId={this.state.effectId}

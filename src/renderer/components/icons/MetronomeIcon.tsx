@@ -143,7 +143,7 @@ export default function MetronomeIcon(props : SVGIconStyleProps) {
           </svg>                
         `
       }}
-      style={{transform: "translateY(-3px)", ...props.style}}
+      style={{display: "flex", justifyContent: "center", alignItems: "center", transform: "translateY(-1px)", ...props.style}}
     ></span>
   )
 }

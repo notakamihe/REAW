@@ -1,7 +1,6 @@
-import { BrowserWindow, dialog, ipcMain, Menu, MenuItemConstructorOptions } from "electron";
+import { BrowserWindow  , ipcMain, Menu, MenuItemConstructorOptions } from "electron";
 import channels from "./../renderer/utils/channels"
 import { AudioClip, AutomationLane, Clip, Track, TrackType } from "./../renderer/types/types";
-import * as fs from "fs"
   
 export default class ContextMenuBuilder {
   mainWindow : BrowserWindow;
@@ -17,6 +16,13 @@ export default class ContextMenuBuilder {
         callback: () => this.mainWindow.webContents.send(channels.CLOSE_ADD_AUTOMATION_CONTEXT_MENU)
       });
     })
+
+    ipcMain.on(channels.OPEN_AUTOMATION_LANE_CONTEXT_MENU, () => {
+      Menu.buildFromTemplate(this.buildAutomationLaneContextMenu()).popup({
+        window: this.mainWindow,
+        callback: () => this.mainWindow.webContents.send(channels.CLOSE_AUTOMATION_LANE_CONTEXT_MENU)
+      });
+    });
       
     ipcMain.on(channels.OPEN_AUTOMATION_TRACK_CONTEXT_MENU, (e, lanes : AutomationLane[]) => {
       Menu.buildFromTemplate(this.buildAutomationTrackContextMenu(lanes)).popup({
@@ -84,6 +90,25 @@ export default class ContextMenuBuilder {
     return menu;
   }
 
+  buildAutomationLaneContextMenu(): MenuItemConstructorOptions[] {
+    const menu: MenuItemConstructorOptions[] = [
+      {
+        label: "Paste At Cursor",
+        click: () => {
+          this.mainWindow.webContents.send(channels.PASTE_AT_CURSOR_ON_LANE);
+        }
+      },
+      {
+        label: "Paste",
+        click: () => {
+          this.mainWindow.webContents.send(channels.PASTE_ON_LANE);
+        }
+      }
+    ]
+
+    return menu;
+  }
+
   buildAutomationTrackContextMenu(lanes : AutomationLane[]) : MenuItemConstructorOptions[] {
     const menu : MenuItemConstructorOptions[] = [
       {
@@ -126,6 +151,15 @@ export default class ContextMenuBuilder {
         registerAccelerator: false,
         click: () => {
           this.mainWindow.webContents.send(channels.DELETE_CLIP);
+        }
+      },
+      {type: "separator"},
+      {
+        label: "Rename",
+        accelerator: "F2",
+        registerAccelerator: false,
+        click: () => {
+          this.mainWindow.webContents.send(channels.RENAME_CLIP);
         }
       },
       {type: "separator"},
@@ -227,23 +261,7 @@ export default class ContextMenuBuilder {
         {
           label: "Insert Audio File...",
           click: () => {
-            const filePaths = dialog.showOpenDialogSync(this.mainWindow, {
-              properties: ["openFile"], 
-              filters: [
-                {name: "Audio", extensions: ["wav", "mp3", "ogg", "flac", "aiff", "wma"]}
-              ]
-            });
-
-            if (filePaths) {
-              const files = filePaths.map(p => {
-                const buffer = fs.readFileSync(p);
-                return {buffer, src: buffer.toString("base64"), extension: p.split(".").pop()};
-              });
-              
-              this.mainWindow.webContents.send(channels.INSERT_AUDIO_FILE, files);
-            } else {
-              this.mainWindow.webContents.send(channels.INSERT_AUDIO_FILE, undefined);
-            }
+            this.mainWindow.webContents.send(channels.INSERT_AUDIO_FILE);
           }
         },
         {type: "separator"}

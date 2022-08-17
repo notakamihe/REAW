@@ -56,7 +56,7 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
     this.onDrag = this.onDrag.bind(this)
     this.onDragStart = this.onDragStart.bind(this)
     this.onDragStop = this.onDragStop.bind(this)
-    this.onSubmit = this.onSubmit.bind(this)
+    this.confirm = this.confirm.bind(this)
   }
 
   componentDidMount() {
@@ -72,6 +72,23 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
 
     if (parentEl && this.state.height !== parentEl.clientHeight - 8) {
       this.setState({height: parentEl.clientHeight - 8})
+    }
+  }
+
+  confirm(e : React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    
+    const inputValue = parseFloat(this.state.inputValue)
+
+    if (!Number.isNaN(inputValue)) {
+      const value = Number(clamp(inputValue, this.props.lane.minValue, this.props.lane.maxValue).toFixed(2))
+      const newTempNode = {...this.props.node, value}
+
+      this.setState({anchorEl: null, tempNode: newTempNode})
+      this.props.setNode({...this.props.node, value})
+      this.props.onMove && this.props.onMove(newTempNode)
+    } else {
+      this.setState({anchorEl: null})
     }
   }
 
@@ -139,23 +156,6 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
     }
   }
 
-  onSubmit(e : React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    
-    const inputValue = parseFloat(this.state.inputValue)
-
-    if (!Number.isNaN(inputValue)) {
-      const value = Number(clamp(inputValue, this.props.lane.minValue, this.props.lane.maxValue).toFixed(2))
-      const newTempNode = {...this.props.node, value}
-
-      this.setState({tempNode: newTempNode})
-      this.props.setNode({...this.props.node, value})
-      this.props.onMove && this.props.onMove(newTempNode)
-    }
-
-    this.setState({anchorEl: null})
-  }
-
   valueToY() {
     const percentage = inverseLerp(this.props.node.value, this.props.lane.minValue, this.props.lane.maxValue)
     return (this.state.height - this.state.height * percentage)
@@ -210,7 +210,7 @@ class AutomationNodeComponent extends React.Component<IProps, IState> {
             <div style={{padding: 4}}>
               <ConfirmationInput
                 onChange={e => this.setState({inputValue: e.target.value})} 
-                onConfirm={this.onSubmit}
+                onConfirm={this.confirm}
                 value={this.state.inputValue} 
               />
             </div>
