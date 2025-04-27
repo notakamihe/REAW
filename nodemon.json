@@ -1,0 +1,5 @@
+{
+  "exec": "tsc -p electron/tsconfig.json && ELECTRON_DISABLE_SECURITY_WARNINGS=true electron .",
+  "ext": "ts,js",
+  "watch": ["electron"]
+}

@@ -1,0 +1,39 @@
+:root {
+  --color1: #ff6db8;
+  --color1-muted: #ffecf6;
+}
+
+[data-color="azure"] {
+  --color1: #00b0ff;
+  --color1-muted: #e6f5ff;
+}
+
+[data-color="aqua"] {
+  --color1: #00cca3;
+  --color1-muted: #e5fffa;
+}
+
+[data-color="crimson"] {
+  --color1: #ff1c5c;
+  --color1-muted: #fbe9e7;
+}
+
+[data-color="olive"] {
+  --color1: #9da800;
+  --color1-muted: #e0e3ce;
+}
+
+[data-color="violet"] {
+  --color1: #8e5be8;
+  --color1-muted: #dedbff;
+}
+
+[data-color="citrus"] {
+  --color1: #fa9200;
+  --color1-muted: #fff2e6;
+}
+
+[data-color="mono"] {
+  --color1: #777;
+  --color1-muted: #ddd;
+}
