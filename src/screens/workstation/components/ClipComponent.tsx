@@ -1,11 +1,12 @@
-import React, { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import DNR, { DNRData, ResizeDirection } from "src/components/DNR";
-import { WorkstationContext } from "src/contexts";
-import { openContextMenu } from "src/services/electron/utils";
-import { AutomationLane, BaseClipComponentProps, ContextMenuType, TimelinePosition, Track } from "src/services/types/types";
-import { shadeColor } from "src/services/utils/general";
-import { BASE_HEIGHT, clipAtPos, scrollToAndAlign, timelineEditorWindowScrollThresholds, waitForScrollWheelStop } from "src/services/utils/utils";
+import React, { memo, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal, flushSync } from "react-dom";
+import DNR, { DNRData, ResizeDNRData } from "@/components/DNR";
+import { WorkstationContext } from "@/contexts";
+import { openContextMenu } from "@/services/electron/utils";
+import { AutomationLane, BaseClipComponentProps, ContextMenuType, TimelinePosition, Track } from "@/services/types/types";
+import { shadeColor } from "@/services/utils/general";
+import { BASE_HEIGHT, clipAtPos, scrollToAndAlign, timelineEditorWindowScrollThresholds, waitForScrollWheelStop } from "@/services/utils/utils";
+import useClickAway from "@/services/hooks/useClickAway";
 
 interface IProps extends BaseClipComponentProps {
   automationSprite?: (height: number) => React.ReactNode;
@@ -14,12 +15,12 @@ interface IProps extends BaseClipComponentProps {
   onDrag?: (data: DNRData) => void;
   onDragStart?: (e: React.MouseEvent, data: DNRData) => void;
   onDragStop?: (e: MouseEvent, data: DNRData) => void;
-  onLoop?: (dir: ResizeDirection, data: DNRData) => void;
-  onLoopStart?: (e: React.MouseEvent, dir: ResizeDirection, data: DNRData) => void;
-  onLoopStop?: (e: MouseEvent, dir: ResizeDirection, data: DNRData) => void;
-  onResize?: (dir: ResizeDirection, data: DNRData) => void;
-  onResizeStart?: (e: React.MouseEvent, dir: ResizeDirection, data: DNRData) => void;
-  onResizeStop?: (e: MouseEvent, dir: ResizeDirection, data: DNRData) => void;
+  onLoop?: (data: ResizeDNRData) => void;
+  onLoopStart?: (e: React.MouseEvent, data: ResizeDNRData) => void;
+  onLoopStop?: (e: MouseEvent, data: ResizeDNRData) => void;
+  onResize?: (data: ResizeDNRData) => void;
+  onResizeStart?: (e: React.MouseEvent, data: ResizeDNRData) => void;
+  onResizeStop?: (e: MouseEvent, data: ResizeDNRData) => void;
   sprite?: (height: number) => React.ReactNode;
 }
 
@@ -30,7 +31,6 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
     consolidateClip,
     deleteClip,
     duplicateClip,
-    maxPos,
     playheadPos,
     scrollToItem,
     selectedClipId,
@@ -62,19 +62,23 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
   const laneRef = useRef<HTMLElement | null>(null);
   const loopRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const prevHorizontalScale = useRef<number>();
-  const ref = useRef<HTMLDivElement>(null);
+  const prevHorizontalScale = useRef<number>(undefined);
+  const timelineEditorWindowInner = useRef<HTMLElement>(null);
+
+  const handleClickAway = useCallback(() => {
+    if (selectedClipId === clip.id && !looping)
+      setSelectedClipId(null);
+  }, [selectedClipId, clip.id, looping])
+
+  const ref = useClickAway<HTMLDivElement>(handleClickAway);
 
   useEffect(() => {
+    timelineEditorWindowInner.current = document.getElementById("timeline-editor-window");
+
     if (ref.current)
       laneRef.current = ref.current.closest<HTMLElement>(".lane");
 
-    return () => {
-      document.body.classList.remove("cursor-loop");
-      document.body.classList.remove("cursor-move");
-      document.body.classList.remove("cursor-resize-h");
-      setAllowMenuAndShortcuts(true);
-    }
+    return () => setAllowMenuAndShortcuts(true);
   }, [])
 
   useEffect(() => {
@@ -201,11 +205,6 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
     onSetClip({ ...clip, name });
   }
 
-  function handleClickAway() {
-    if (selectedClipId === clip.id && !looping)
-      setSelectedClipId(null);
-  }
-
   function handleContextMenu(e: React.MouseEvent) {
     e.stopPropagation();
 
@@ -245,14 +244,12 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
   function handleDrag(data: DNRData) {
     const loopX = data.coords.endX + loopWidth;
 
-    setCoords({ ...data.coords });
+    flushSync(() => setCoords({ ...data.coords }));
     adjustNumMeasures(TimelinePosition.fromMargin(Math.max(loopX, data.coords.endX)));
     rest.onDrag?.(data);
   }
 
   function handleDragStart(e: React.MouseEvent, data: DNRData) {
-    document.body.classList.add("cursor-move");
-
     setDragging(true);
     setShowGuidelines([true, true, loopWidth > 0]);
 
@@ -261,7 +258,6 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
   }
 
   function handleDragStop(e: MouseEvent, data: DNRData) {
-    document.body.classList.remove("cursor-move");
     enteredLane?.classList.remove("invalid-track-type");
 
     setDragging(false);
@@ -280,27 +276,23 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
     rest.onDragStop?.(e, data);
   }
 
-  function handleLoop(dir: ResizeDirection, data: DNRData) {
-    setLoopWidth(data.width);
+  function handleLoop(data: ResizeDNRData) {
+    flushSync(() => setLoopWidth(data.width));
     adjustNumMeasures(TimelinePosition.fromMargin(coords.endX + data.width));
-    rest.onLoop?.(dir, data);
+    rest.onLoop?.(data);
   }
 
-  function handleLoopStart(e: React.MouseEvent, dir: ResizeDirection, data: DNRData) {
-    document.body.classList.add("cursor-loop");
-
+  function handleLoopStart(e: React.MouseEvent, data: ResizeDNRData) {
     setLooping(true);
     setShowGuidelines([false, false, true]);
 
     setTrackRegion(null);
     setSelectedClipId(clip.id);
     setAllowMenuAndShortcuts(false);
-    rest.onLoopStart?.(e, dir, data);
+    rest.onLoopStart?.(e, data);
   }
 
-  function handleLoopStop(e: MouseEvent, dir: ResizeDirection, data: DNRData) {
-    document.body.classList.remove("cursor-loop");
-
+  function handleLoopStop(e: MouseEvent, data: ResizeDNRData) {
     setLooping(false);
     setShowGuidelines([false, false, false]);
 
@@ -309,33 +301,43 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
       loopEnd: loopWidth > 0 ? TimelinePosition.fromMargin(coords.endX + loopWidth) : null
     });
     setAllowMenuAndShortcuts(true);
-    rest.onLoopStop?.(e, dir, data);
+    rest.onLoopStop?.(e, data);
   }
 
-  function handleResize(dir: ResizeDirection, data: DNRData) {
-    if (dir === ResizeDirection.Right)
+  function handleResize(data: ResizeDNRData) {
+    const newCoords = { ...data.coords };
+
+    if (clip.startLimit) {
+      const startLimitX = clip.startLimit.toMargin();
+      if (newCoords.startX < startLimitX)
+        newCoords.startX = startLimitX;
+    }
+
+    if (clip.endLimit) {
+      const endLimitX = clip.endLimit.toMargin();
+      if (newCoords.endX > endLimitX)
+        newCoords.endX = endLimitX;
+    }
+
+    if (data.edge.x === "right")
       if (loopWidth > 0)
-        setLoopWidth(Math.max(0, loopWidth - (data.coords.endX - coords.endX)));
+        setLoopWidth(Math.max(0, loopWidth - (newCoords.endX - coords.endX)));
 
-    setCoords({ ...data.coords });
-    adjustNumMeasures(TimelinePosition.fromMargin(data.coords.endX));
-    rest.onResize?.(dir, data);
+    flushSync(() => setCoords(newCoords));
+    adjustNumMeasures(TimelinePosition.fromMargin(newCoords.endX));
+    rest.onResize?.(data);
   }
 
-  function handleResizeStart(e: React.MouseEvent, dir: ResizeDirection, data: DNRData) {
-    document.body.classList.add("cursor-resize-h");
-
-    setShowGuidelines([dir === ResizeDirection.Left, dir === ResizeDirection.Right, false]);
+  function handleResizeStart(e: React.MouseEvent, data: ResizeDNRData) {
+    setShowGuidelines([data.edge.x === "left", data.edge.x === "right", false]);
     setAllowMenuAndShortcuts(false);
-    rest.onResizeStart?.(e, dir, data);
+    rest.onResizeStart?.(e, data);
   }
 
-  function handleResizeStop(e: MouseEvent, dir: ResizeDirection, data: DNRData) {
-    document.body.classList.remove("cursor-resize-h");
-
+  function handleResizeStop(e: MouseEvent, data: ResizeDNRData) {
     setShowGuidelines([false, false, false]);
 
-    if (data.delta.width != 0)
+    if (data.delta.x != 0)
       onSetClip({
         ...clip,
         start: TimelinePosition.fromMargin(coords.startX),
@@ -344,22 +346,8 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
       });
 
     setAllowMenuAndShortcuts(true);
-    rest.onResizeStop?.(e, dir, data);
+    rest.onResizeStop?.(e, data);
   }
-
-  const bounds = useMemo(() => {
-    let bounds: any = { left: undefined, right: maxPos.toMargin() };
-
-    if (dragging) {
-      bounds.right -= loopWidth
-    } else {
-      bounds.left = clip.startLimit?.toMargin();
-      if (clip.endLimit)
-        bounds.right = Math.min(bounds.right, clip.endLimit.toMargin());
-    }
-
-    return bounds;
-  }, [clip, dragging, loopWidth, maxPos, timelineSettings]);
 
   const selected = selectedClipId === clip.id;
   const width = coords.endX - coords.startX;
@@ -440,12 +428,11 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
     <>
       <DNR
         autoScroll={{ thresholds: timelineEditorWindowScrollThresholds }}
-        bounds={bounds}
+        bounds={{ right: dragging ? loopWidth : undefined }}
         coords={{ ...coords, startY: offset - 1, endY: offset + height }}
-        disableDragging={renaming}
+        drag={!renaming}
         dragAxis="x"
-        enableResizing={{ left: true, right: true }}
-        onClickAway={handleClickAway}
+        minWidth={10}
         onContextMenu={handleContextMenu}
         onDrag={handleDrag}
         onDragStart={handleDragStart}
@@ -455,9 +442,10 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
         onResizeStart={handleResizeStart}
         onResizeStop={handleResizeStop}
         ref={ref}
+        resize={{ left: true, right: true }}
         resizeHandles={{ left: { style: { zIndex: selected ? 15 : 14 } }, right: { style: style.resizeRight } }}
-        restrict={{ horizontal: true, vertical: false }}
-        snapGridSize={{ horizontal: snapWidth }}
+        restrictToContainerBounds={{ x: true, y: false }}
+        snapGridSize={{ x: snapWidth }}
         style={{ borderRadius: "0 0 10px 10px" }}
       >
         <div className="position-relative m-0" style={style.clipNameContainer}>
@@ -517,24 +505,21 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
       </DNR>
       <DNR
         autoScroll={{ thresholds: timelineEditorWindowScrollThresholds }}
-        bounds={{ right: maxPos.toMargin() }}
         coords={{
           startX: coords.endX,
           startY: offset,
           endX: coords.endX + loopWidth,
           endY: offset + (loopWidth > 10 ? height : 10)
         }}
-        disableDragging
-        enableResizing={{ right: true }}
-        minWidth={0}
+        drag={false}
         onResizeStart={handleLoopStart}
         onResize={handleLoop}
         onResizeStop={handleLoopStop}
         ref={loopRef}
+        resize={{ right: true }}
         resizeHandles={{ right: { style: { zIndex: renaming ? 11 : selected ? 15 : 14, cursor: "e-resize" } } }}
-        restrict={{ horizontal: false, vertical: false }}
-        snapGridSize={{ horizontal: snapWidth }}
-        style={{ cursor: undefined }}
+        restrictToContainerBounds={{ x: true, y: false }}
+        snapGridSize={{ x: snapWidth }}
       >
         <div className="position-absolute d-flex overflow-hidden" style={style.loopContainer}>
           {width > 0 && Array.from({ length: Math.ceil(repetitions) }, (_, i) => (
@@ -547,7 +532,7 @@ function ClipComponent({ clip, listeners, onChangeLane, onSetClip, track, ...res
       {[coords.startX, coords.endX, coords.endX + loopWidth].map((m, idx) => {
         return showGuidelines[idx] && createPortal(
           <div key={idx} className="guideline" style={{ left: m - 1 }} />,
-          document.getElementById("timeline-editor-window")!.firstElementChild as HTMLElement
+          timelineEditorWindowInner.current!
         )
       })}
     </>

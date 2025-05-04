@@ -2,16 +2,16 @@ import React, { HTMLAttributes, useContext, useEffect, useMemo, useRef, useState
 import { Buffer } from "buffer"
 import { IconButton, SpeedDial, SpeedDialAction, SpeedDialIcon } from "@mui/material";
 import { useResizeDetector } from "react-resize-detector";
-import { SyncScroll, SyncScrollPane, Scrollbar, WindowAutoScroll } from "src/components";
+import { SyncScroll, SyncScrollPane, Scrollbar, WindowAutoScroll } from "@/components";
 import { TrackComponent, RegionComponent, TimelineRulerGrid, Lane, ZoomControls } from "./components";
-import { Playhead as PlayheadIcon, TrackIcon } from "src/components/icons";
-import { SortableList, SortableListItem } from "src/components/widgets";
-import { WorkstationContext } from "src/contexts";
-import { Clip, ContextMenuType, TimelinePosition, Track, TrackType } from "src/services/types/types";
-import { BASE_BEAT_WIDTH, BASE_HEIGHT, getBaseTrack, isValidAudioTrackFileFormat, isValidTrackFileFormat, scrollToAndAlign, timelineEditorWindowScrollThresholds, waitForScrollWheelStop } from "src/services/utils/utils";
-import { SortData } from "src/components/widgets/SortableList";
-import { clamp, cmdOrCtrl, isMacOS } from "src/services/utils/general";
-import { openContextMenu } from "src/services/electron/utils";
+import { Playhead as PlayheadIcon, TrackIcon } from "@/components/icons";
+import { SortableList, SortableListItem } from "@/components/widgets";
+import { WorkstationContext } from "@/contexts";
+import { Clip, ContextMenuType, TimelinePosition, Track, TrackType } from "@/services/types/types";
+import { BASE_BEAT_WIDTH, BASE_HEIGHT, getBaseTrack, isValidAudioTrackFileFormat, isValidTrackFileFormat, scrollToAndAlign, timelineEditorWindowScrollThresholds, waitForScrollWheelStop } from "@/services/utils/utils";
+import { SortData } from "@/components/widgets/SortableList";
+import { clamp, cmdOrCtrl, isMacOS } from "@/services/utils/general";
+import { openContextMenu } from "@/services/electron/utils";
 import { debounce } from "lodash"
 
 export interface EditorDragData {
@@ -431,7 +431,8 @@ export default function Editor() {
   const { horizontalScale, timeSignature } = timelineSettings;
   const beatWidth = BASE_BEAT_WIDTH * horizontalScale * (4 / timeSignature.noteValue);
   const measureWidth = beatWidth * timeSignature.beats;
-  const editorWidth = measureWidth * numMeasures + 11;
+  const editorWidth = measureWidth * numMeasures;
+  const maxEditorWidth = maxPos.toMargin();
 
   const placeholderDragTargetHeight = BASE_HEIGHT * verticalScale * dragData.items.length;
 
@@ -457,7 +458,7 @@ export default function Editor() {
       flex: 1, 
       overflow: lockScrolling ? "hidden" : "scroll"
     },
-    timelineEditorWindowInner: { display: "flex", width: editorWidth, minWidth: "100%", minHeight: "100%" },
+    timelineEditorWindowInner: { width: editorWidth + 11, minWidth: "100%", minHeight: "100%" },
     timelineRegionContainer: { 
       position: "sticky",
       top: 0,
@@ -467,6 +468,7 @@ export default function Editor() {
       zIndex: 19
     },
     timelineRulerContainer: { position: "sticky", top: 12, zIndex: 17, height: 21, backgroundColor: "var(--bg2)" },
+    placeholderLaneContainer: { maxWidth: maxEditorWidth, flex: 1, minHeight: placeholderDragTargetHeight },
     playhead: {
       width: 2,
       top: 12, 
@@ -511,7 +513,7 @@ export default function Editor() {
               <SpeedDial 
                 ariaLabel="Add track button"
                 direction="right"
-                icon={<SpeedDialIcon style={{ color: "var(--bg6)", transform: "translate(0, -2px)" }} />}
+                icon={<SpeedDialIcon style={{ color: "var(--bg6)", transform: "translate(0, -1.5px)" }} />}
                 slotProps={{ transition: { style: style.speedDial } }}
                 sx={{
                   flex: 1,
@@ -592,19 +594,21 @@ export default function Editor() {
             ref={timelineEditorWindowRef}
             style={style.timelineEditorWindow}
           >
-            <div className="flex-column position-relative" style={style.timelineEditorWindowInner}>
+            <div className="d-flex flex-column position-relative" style={style.timelineEditorWindowInner}>
               <div className="col-12" style={style.timelineRegionContainer}>
-                <RegionComponent
-                  onContextMenu={handleSongRegionContextMenu}
-                  onSetRegion={(region) => setSongRegion(region)}
-                  region={songRegion}
-                  style={{ zIndex: 13, background: "var(--color1)", borderBlock: "3px solid var(--bg1)" }}
-                >
-                  <div className="position-absolute col-12 pe-none" style={style.songRegionOverlay} />
-                </RegionComponent>
+                <div style={{ width: "100%", height: "100%", position: "relative", maxWidth: maxEditorWidth }}>
+                  <RegionComponent
+                    onContextMenu={handleSongRegionContextMenu}
+                    onSetRegion={(region) => setSongRegion(region)}
+                    region={songRegion}
+                    style={{ zIndex: 13, background: "var(--color1)", borderBlock: "3px solid var(--bg1)" }}
+                  >
+                    <div className="position-absolute col-12 pe-none" style={style.songRegionOverlay} />
+                  </RegionComponent>
+                </div>
               </div>
               <div onMouseDown={changePlayheadPos} style={style.timelineRulerContainer} />
-              <div style={{ width: "100%", position: "relative" }}>
+              <div style={{ maxWidth: maxEditorWidth, position: "relative" }}>
                 {masterTrack && (
                   <div {...dropzoneProps(masterTrack)}>
                     <Lane dragDataTarget={dragData.target} track={masterTrack} />
@@ -619,7 +623,7 @@ export default function Editor() {
                 </div> 
               </div>
               {dragData.items.length > 0 && (
-                <div {...dropzoneProps(null)} style={{ flex: 1, minHeight: placeholderDragTargetHeight }}>
+                <div {...dropzoneProps(null)} style={style.placeholderLaneContainer}>
                   {dropzonePlaceholderTracks.map((track, idx) => (
                     <Lane
                       dragDataTarget={dragData.target}

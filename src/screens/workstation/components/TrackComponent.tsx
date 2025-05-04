@@ -1,11 +1,11 @@
 import React, { CSSProperties, memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { WorkstationContext } from "src/contexts"
-import { AutomationLaneEnvelope, ContextMenuType, Track } from "src/services/types/types"
-import { Knob, HueInput, Dialog, Meter } from "src/components/widgets"
+import { WorkstationContext } from "@/contexts"
+import { AutomationLaneEnvelope, ContextMenuType, Track } from "@/services/types/types"
+import { Knob, HueInput, Dialog, Meter } from "@/components/widgets"
 import { IconButton, DialogContent } from "@mui/material"
 import { Add, Check, FiberManualRecord } from "@mui/icons-material"
-import { AutomationLaneTrack, FXComponent } from "src/screens/workstation/components"
-import { getCSSVarValue, hslToHex, hueFromHex, normalizeHex } from "src/services/utils/general"
+import { AutomationLaneTrack, FXComponent } from "@/screens/workstation/components"
+import { getCSSVarValue, hslToHex, hueFromHex, normalizeHex } from "@/services/utils/general"
 import { 
   BASE_HEIGHT, 
   formatPanning, 
@@ -15,9 +15,9 @@ import {
   volumeToNormalized, 
   scrollToAndAlign,
   waitForScrollWheelStop
-} from "src/services/utils/utils"
-import { Automation, TrackIcon } from "src/components/icons"
-import { openContextMenu } from "src/services/electron/utils"
+} from "@/services/utils/utils"
+import { Automation, TrackIcon } from "@/components/icons"
+import { openContextMenu } from "@/services/electron/utils"
 
 interface IProps {
   className?: string;
@@ -223,7 +223,8 @@ function TrackComponent({ className, colorless, order, track, style }: IProps) {
       letterSpacing: -0.4,
       textTransform: "uppercase",
       backgroundColor: "#0000"
-    }
+    },
+    addAutomationButtonIcon: { color: "var(--border6)", transform: "translate(-0.5px, 0.5px)" }
   } as const;
 
   if (showMaster || !isMaster) {
@@ -374,8 +375,8 @@ function TrackComponent({ className, colorless, order, track, style }: IProps) {
                     onMouseDown={handleAddAutomationLaneContextMenu}
                     style={{borderRadius: 0, border: "1px solid var(--border6)", width: "100%"}}
                   >
-                    <Add style={{color: "var(--border6)", fontSize: 15, marginLeft: -1}} />
-                    <Automation size={13} style={{ color: "var(--border6)" }} />
+                    <Add style={{ fontSize: 15, ...styles.addAutomationButtonIcon }} />
+                    <Automation size={13} style={styles.addAutomationButtonIcon} />
                   </IconButton>
                 )}
               </div>

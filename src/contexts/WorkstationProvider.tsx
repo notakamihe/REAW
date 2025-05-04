@@ -1,4 +1,4 @@
-import { PropsWithChildren, ReactNode, useContext, useEffect, useMemo, useState } from "react"
+import { PropsWithChildren, useContext, useEffect, useMemo, useState } from "react"
 import {
   AutomationLane,
   AutomationLaneEnvelope,
@@ -11,12 +11,13 @@ import {
   SnapGridSizeOption,
   TimelinePosition,
   TimelineSettings,
+  TimeSignature,
   Track,
   TrackType,
   WorkstationAudioInputFile
-} from "src/services/types/types";
-import data from "src/tempData";
-import { ClipboardContext, ClipboardItemType, PreferencesContext, ScrollToItem, WorkstationContext } from "src/contexts";
+} from "@/services/types/types";
+import data from "@/tempData";
+import { ClipboardContext, ClipboardItemType, PreferencesContext, ScrollToItem, WorkstationContext } from "@/contexts";
 import { v4 } from "uuid";
 import {
   clipAtPos,
@@ -35,13 +36,13 @@ import {
   copyClip,
   automatedValueAtPos,
   GRID_MIN_INTERVAL_WIDTH
-} from "src/services/utils/utils";
-import { audioBufferToBuffer, audioContext, concatAudioBuffer } from "src/services/utils/audio";
-import { electronAPI, openContextMenu } from "src/services/electron/utils";
-import { clamp, cmdOrCtrl, inverseLerp, isMacOS, lerp } from "src/services/utils/general";
-import { TOGGLE_MASTER_TRACK, TOGGLE_MIXER, ADD_TRACK, OPEN_PREFERENCES } from "src/services/electron/channels";
+} from "@/services/utils/utils";
+import { audioBufferToBuffer, audioContext, concatAudioBuffer } from "@/services/utils/audio";
+import { electronAPI, openContextMenu } from "@/services/electron/utils";
+import { clamp, cmdOrCtrl, inverseLerp, isMacOS, lerp } from "@/services/utils/general";
+import { TOGGLE_MASTER_TRACK, TOGGLE_MIXER, ADD_TRACK, OPEN_PREFERENCES } from "@/services/electron/channels";
 
-export function WorkstationProvider({ children }: PropsWithChildren<ReactNode>) {
+export function WorkstationProvider({ children }: PropsWithChildren) {
   const { clipboardItem, copy } = useContext(ClipboardContext)!;
   const { setShowPreferences } = useContext(PreferencesContext)!;
 
@@ -68,17 +69,14 @@ export function WorkstationProvider({ children }: PropsWithChildren<ReactNode>) 
   const [snapGridSize, setSnapGridSize] = useState({ measures: 0, beats: 0, fraction: 0 });
   const [snapGridSizeOption, setSnapGridSizeOption] = useState<SnapGridSizeOption>(SnapGridSizeOption.Auto);
   const [stretchAudio, setStretchAudio] = useState(false);
-  const [timeSignature, setTimeSignature] = useState({ beats: 4, noteValue: 4 });
   const [trackRegion, setTrackRegion] = useState<{ region: Region, trackId: string } | null>(null);
   const [tracks, setTracks] = useState(data);
   const [verticalScale, setVerticalScale] = useState(1);
   const [timelineSettings, setTimelineSettings] = useState<TimelineSettings>({
     horizontalScale: 1, 
-    timeSignature,
+    timeSignature: { beats: 4, noteValue: 4 },
     tempo: 120
   });
-
-  const [marginsPreserved, setMarginsPreserved] = useState(false);
 
   const allTracks = useMemo(() => [masterTrack, ...tracks], [masterTrack, tracks])
 
@@ -110,9 +108,9 @@ export function WorkstationProvider({ children }: PropsWithChildren<ReactNode>) 
   }, [timelineSettings.horizontalScale, timelineSettings.timeSignature])
 
   const maxPos = useMemo(() => {
-    const maxMeasures = getMaxMeasures(timeSignature);
+    const maxMeasures = getMaxMeasures(timelineSettings.timeSignature);
     return new TimelinePosition(maxMeasures + 1, 1, 0);
-  }, [timeSignature])
+  }, [timelineSettings.timeSignature])
 
   const farthestPositions = useMemo(() => {
     let editorFarthestPos = TimelinePosition.start;
@@ -372,17 +370,6 @@ export function WorkstationProvider({ children }: PropsWithChildren<ReactNode>) 
     }
   }, [tracks, allowMenuAndShortcuts])
 
-  useEffect(() => {
-    preserveMargins({ ...timelineSettings, timeSignature });
-  }, [timeSignature]);
-  
-  useEffect(() => {
-    if (marginsPreserved) {
-      updateTimelineSettings({ ...timelineSettings, timeSignature });
-      setMarginsPreserved(false);
-    }
-  }, [marginsPreserved])
-
   useEffect(() => adjustNumMeasures(), [farthestPositions.farthestPos])
 
   useEffect(() => localStorage.setItem("fx-chain-presets", JSON.stringify(fxChainPresets)), [fxChainPresets])
@@ -471,10 +458,10 @@ export function WorkstationProvider({ children }: PropsWithChildren<ReactNode>) 
   function calculateNumMeasures(pos: TimelinePosition) {
     const BASE_CHUNK_MEASURES = 100;
     
-    const { noteValue, beats } = timeSignature;
+    const { noteValue, beats } = timelineSettings.timeSignature;
     const measureUnitSize = Math.ceil(BASE_CHUNK_MEASURES / (4 / noteValue) * (4 / beats));
     const measures = measureUnitSize * Math.max(1, Math.ceil((pos.measure) / (measureUnitSize * 0.94)));
-    const maxMeasures = getMaxMeasures(timeSignature);
+    const maxMeasures = getMaxMeasures(timelineSettings.timeSignature);
 
     return Math.min(measures, maxMeasures);
   }
@@ -789,51 +776,6 @@ export function WorkstationProvider({ children }: PropsWithChildren<ReactNode>) 
       }
     })
   }
-
-  function preserveMargins(settings: TimelineSettings) {
-    setMasterTrack(preserveTrackMargins(masterTrack, settings));
-    setTracks(tracks.map(track => preserveTrackMargins(track, settings)));
-    setPlayheadPos(preservePosMargin(playheadPos, settings));
-    
-    if (songRegion) {
-      const newSongRegion = {
-        start: preservePosMargin(songRegion.start, settings),
-        end: preservePosMargin(songRegion.end, settings)
-      };
-
-      setSongRegion(newSongRegion.end.compareTo(newSongRegion.start) > 0 ? newSongRegion : null);
-    }
-
-    if (trackRegion) {
-      const newTrackRegion = {
-        start: preservePosMargin(trackRegion.region.start, settings),
-        end: preservePosMargin(trackRegion.region.end, settings)
-      };
-
-      setTrackRegion(
-        newTrackRegion.end.compareTo(newTrackRegion.start) > 0 
-          ? { ...trackRegion, region: newTrackRegion }
-          : null
-      );
-    }
-
-    
-    if (clipboardItem) {
-      const { item, type } = clipboardItem;
-
-      switch (type) {
-        case ClipboardItemType.Clip:
-          copy({ ...clipboardItem, item: preserveClipMargins(item, settings) });
-          break;
-        case ClipboardItemType.Node:
-          const node = { ...item.node, pos: preservePosMargin(item.node.pos, settings) }; 
-          copy({ ...clipboardItem, item: { ...item, node } })
-          break;
-      }
-    }
-
-    setMarginsPreserved(true);
-  }
   
   function setLane(track: Track, lane: AutomationLane) {
     const automationLanes = track.automationLanes.slice();
@@ -843,6 +785,52 @@ export function WorkstationProvider({ children }: PropsWithChildren<ReactNode>) 
       automationLanes[index] = lane;
       setTrack({ ...track, automationLanes });
     }
+  }
+
+  function setTimeSignature(timeSignature: TimeSignature) {
+    const newTimelineSettings = { ...timelineSettings, timeSignature };
+
+    setMasterTrack(preserveTrackMargins(masterTrack, newTimelineSettings));
+    setTracks(tracks.map(track => preserveTrackMargins(track, newTimelineSettings)));
+    setPlayheadPos(preservePosMargin(playheadPos, newTimelineSettings));
+    
+    if (songRegion) {
+      const newSongRegion = {
+        start: preservePosMargin(songRegion.start, newTimelineSettings),
+        end: preservePosMargin(songRegion.end, newTimelineSettings)
+      };
+
+      setSongRegion(newSongRegion.end.compareTo(newSongRegion.start) > 0 ? newSongRegion : null);
+    }
+
+    if (trackRegion) {
+      const newTrackRegion = {
+        start: preservePosMargin(trackRegion.region.start, newTimelineSettings),
+        end: preservePosMargin(trackRegion.region.end, newTimelineSettings)
+      };
+
+      setTrackRegion(
+        newTrackRegion.end.compareTo(newTrackRegion.start) > 0 
+          ? { ...trackRegion, region: newTrackRegion }
+          : null
+      );
+    }
+    
+    if (clipboardItem) {
+      const { item, type } = clipboardItem;
+
+      switch (type) {
+        case ClipboardItemType.Clip:
+          copy({ ...clipboardItem, item: preserveClipMargins(item, newTimelineSettings) });
+          break;
+        case ClipboardItemType.Node:
+          const node = { ...item.node, pos: preservePosMargin(item.node.pos, newTimelineSettings) }; 
+          copy({ ...clipboardItem, item: { ...item, node } })
+          break;
+      }
+    }
+
+    updateTimelineSettings(newTimelineSettings);
   }
 
   function setTrack(track: Track) {
@@ -961,7 +949,6 @@ export function WorkstationProvider({ children }: PropsWithChildren<ReactNode>) 
         stretchAudio,
         trackRegion,
         timelineSettings,
-        timeSignature,
         toggleMuteClip,
         tracks,
         updateTimelineSettings,

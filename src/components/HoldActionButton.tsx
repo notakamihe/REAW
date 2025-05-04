@@ -13,7 +13,7 @@ export default function HoldActionButton(props: Props) {
   const [hold, setHold] = useState({ isHolding: false, eventType: "none" });
   const [triggerHoldAction, setTriggerHoldAction] = useState(false);
 
-  const timeout = useRef<ReturnType<typeof setTimeout>>();
+  const timeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     if (triggerHoldAction) {

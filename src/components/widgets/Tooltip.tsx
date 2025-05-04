@@ -1,6 +1,6 @@
 import { CSSProperties, JSX, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { getScrollParent } from "src/services/utils/general";
+import { getScrollParent } from "@/services/utils/general";
 
 type TooltipContainer = string | HTMLElement;
 

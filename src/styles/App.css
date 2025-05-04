@@ -80,38 +80,6 @@ input, button, textarea, :focus {
   color: #0008!important;
 }
 
-.cursor-loop {
-  cursor: e-resize!important;
-}
-
-.cursor-loop * {
-  cursor: e-resize!important;
-}
-
-.cursor-move {
-  cursor: move!important;
-}
-
-.cursor-move * {
-  cursor: move!important;
-}
-
-.cursor-resize {
-  cursor: ns-resize!important;
-}
-
-.cursor-resize * {
-  cursor: ns-resize!important;
-}
-
-.cursor-resize-h {
-  cursor: ew-resize!important;
-}
-
-.cursor-resize-h * {
-  cursor: ew-resize!important;
-}
-
 .disabled {
   pointer-events: none;
   opacity: 0.4;
@@ -133,6 +101,10 @@ input, button, textarea, :focus {
 
 .font-bold {
   font-weight: bold;
+}
+
+.force-cursor * {
+  cursor: inherit!important;
 }
 
 .guideline {

@@ -1,11 +1,11 @@
 import React, { CSSProperties, memo, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardContext, ClipboardItemType, WorkstationContext } from "src/contexts";
-import { AutomationLane, Clip, ContextMenuType, TimelinePosition, Track, TrackType, WorkstationAudioInputFile } from "src/services/types/types";
-import { BASE_HEIGHT, getLaneColor, removeAllClipOverlap, timelineEditorWindowScrollThresholds } from "src/services/utils/utils";
-import { AudioClipComponent, AutomationLaneComponent, ClipComponent, RegionComponent } from "src/screens/workstation/components";
-import { electronAPI, openContextMenu } from "src/services/electron/utils";
-import { TRACK_FILE_UPLOAD } from "src/services/electron/channels";
-import { getCSSVarValue, normalizeHex } from "src/services/utils/general";
+import { ClipboardContext, ClipboardItemType, WorkstationContext } from "@/contexts";
+import { AutomationLane, Clip, ContextMenuType, TimelinePosition, Track, TrackType, WorkstationAudioInputFile } from "@/services/types/types";
+import { BASE_HEIGHT, getLaneColor, removeAllClipOverlap, timelineEditorWindowScrollThresholds } from "@/services/utils/utils";
+import { AudioClipComponent, AutomationLaneComponent, ClipComponent, RegionComponent } from "@/screens/workstation/components";
+import { electronAPI, openContextMenu } from "@/services/electron/utils";
+import { TRACK_FILE_UPLOAD } from "@/services/electron/channels";
+import { getCSSVarValue, normalizeHex } from "@/services/utils/general";
 
 interface IProps {
   className?: string;
@@ -186,6 +186,7 @@ function Lane({ className, dragDataTarget, style, track }: IProps) {
 
   const styles = {
     innerContainer: {
+      width: "100%",
       height: laneHeight,
       cursor: (isMaster || track.type === TrackType.Audio) ? "default" : "text",
       backgroundColor: "var(--bg3)", 
@@ -227,11 +228,7 @@ function Lane({ className, dragDataTarget, style, track }: IProps) {
         ref={ref}
         style={style}
       >
-        <div
-          className="w-100 position-relative"
-          onContextMenu={onLaneContextMenu}
-          style={styles.innerContainer}
-        >
+        <div className="position-relative" onContextMenu={onLaneContextMenu} style={styles.innerContainer}>
           {track.type !== TrackType.Audio && (
             <RegionComponent 
               autoScroll={{ thresholds: timelineEditorWindowScrollThresholds }}
@@ -242,18 +239,10 @@ function Lane({ className, dragDataTarget, style, track }: IProps) {
             />
           )}
           {track.clips.map(clip => {
-            const props = { 
-              clip, 
-              height: laneHeight, 
-              key: clip.id, 
-              onChangeLane: changeLane, 
-              onSetClip: setClip, 
-              track 
-            };
-
+            const props = { clip, height: laneHeight, onChangeLane: changeLane, onSetClip: setClip, track };
             return clip.type === TrackType.Audio && clip.audio 
-              ? <AudioClipComponent {...props} /> 
-              : <ClipComponent {...props} />;
+              ? <AudioClipComponent {...props} key={clip.id} /> 
+              : <ClipComponent {...props} key={clip.id} />;
           })}
         </div>
         <div>

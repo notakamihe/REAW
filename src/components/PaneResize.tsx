@@ -1,4 +1,5 @@
 import { HTMLAttributes, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 export interface InputPane extends HTMLAttributes<HTMLDivElement> {
   fixed?: boolean;
@@ -192,14 +193,19 @@ export default function PaneResize(props: IProps) {
         newTempPanes[idx] = { ...newTempPanes[idx], size: tempNewSize };
         newPanes[idx] = { ...newPanes[idx], size: newSize };
 
-        setTempPanes(newTempPanes);
-        setPanes(newPanes);
+        flushSync(() => {
+          setTempPanes(newTempPanes);
+          setPanes(newPanes);
+        });
         onPaneResize?.({ active: newPanes[idx], activeNext: newPanes[nextIdx], panes: newPanes });
       }
     }
 
     function handleResizeStop(e: MouseEvent) {
       if (e.button === 0) {
+        document.body.style.cursor = "";
+        document.body.classList.remove("force-cursor");
+
         onPaneResizeStop?.({ 
           active: panes[activePaneData.idx], 
           activeNext: panes[activePaneData.idx + 1], 
@@ -276,6 +282,9 @@ export default function PaneResize(props: IProps) {
 
   function handleResizeStart(e: React.MouseEvent<HTMLDivElement>) {
     if (e.button === 0) {
+      document.body.style.cursor = direction === "vertical" ? "ns-resize" : "ew-resize";
+      document.body.classList.add("force-cursor");
+
       const containerEl = containerRef.current!;
       const containerSize = direction === "vertical" ? containerEl.clientHeight : containerEl.clientWidth;
       const data = { idx: -1, nextIdx: -1, availableSize: containerSize };
@@ -349,13 +358,13 @@ export default function PaneResize(props: IProps) {
       }}
     >
       {panes.map((pane, index) => {
-        const { auto, children, fixed, handle, min, max, size, ...rest } = pane;
+        const { auto, children, fixed, handle, key, min, max, size, ...rest } = pane;
         const style = direction === "vertical" ?
           { width: "100%", ...rest.style, height: size } :
           { height: "100%", ...rest.style, width: size };
 
         return (
-          <div {...rest} data-key={rest.key} style={{ position: "relative", ...style }}>
+          <div {...rest} data-key={key} key={key} style={{ position: "relative", ...style }}>
             {children}
             {index < panes.length - 1 && (
               <div

@@ -1,10 +1,10 @@
 import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { WorkstationContext } from "src/contexts";
-import { BaseClipComponentProps, TimelinePosition } from "src/services/types/types";
-import { ClipComponent, Waveform } from "src/screens/workstation/components";
-import { audioBufferToBuffer, audioContext, reverseAudio } from "src/services/utils/audio";
-import { DNRData, ResizeDirection } from "src/components/DNR";
+import { WorkstationContext } from "@/contexts";
+import { BaseClipComponentProps, TimelinePosition } from "@/services/types/types";
+import { ClipComponent, Waveform } from "@/screens/workstation/components";
+import { audioBufferToBuffer, audioContext, reverseAudio } from "@/services/utils/audio";
 import { CHUNK_SIZE as WAVEFORM_CHUNK_SIZE, WaveformProps } from "./Waveform";
+import { ResizeDNRData } from "@/components/DNR";
 
 interface AudioClipWaveformProps extends WaveformProps {
   copyFrom?: { canvas: HTMLCanvasElement };
@@ -163,8 +163,8 @@ function AudioClipComponent({ clip, height, onChangeLane, onSetClip, track }: Ba
     }
   }
 
-  function onResize(dir: ResizeDirection, data: DNRData) {
-    if (dir === ResizeDirection.Left)
+  function onResize(data: ResizeDNRData) {
+    if (data.edge.x === "left")
       updateSpriteOffset(TimelinePosition.fromMargin(data.coords.startX));
   }
 

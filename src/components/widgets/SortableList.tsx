@@ -36,7 +36,7 @@ interface IState {
 
 export class SortableList extends React.Component<IProps, IState> {
   items: HTMLElement[] = [];
-  ref: React.RefObject<HTMLDivElement>;
+  ref: React.RefObject<HTMLDivElement | null>;
 
   constructor(props: IProps) {
     super(props);

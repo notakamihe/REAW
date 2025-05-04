@@ -1,6 +1,6 @@
 import { CSSProperties } from "react";
 import { GraphicEq, Piano } from "@mui/icons-material";
-import { TrackType } from "src/services/types/types";
+import { TrackType } from "@/services/types/types";
 import { Sequencer } from ".";
 
 export default function TrackIcon(props: { color?: string, size?: number, style?: CSSProperties, type: TrackType }) {

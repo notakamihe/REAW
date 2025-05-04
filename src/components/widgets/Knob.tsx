@@ -1,7 +1,7 @@
 import React, { CSSProperties } from "react"
 import { Popover } from "@mui/material"
-import Tooltip, { TooltipProps } from "src/components/widgets/Tooltip"
-import { clamp, inverseLerp, lerp } from "src/services/utils/general"
+import Tooltip, { TooltipProps } from "@/components/widgets/Tooltip"
+import { clamp, inverseLerp, lerp } from "@/services/utils/general"
 
 interface MeterStyle {
   bgColor?: string;
@@ -43,7 +43,7 @@ interface IState {
 export default class Knob extends React.Component<IProps, IState> {
   static defaultProps: Partial<IProps> = { degrees: 270 };
 
-  ref: React.RefObject<HTMLDivElement>;
+  ref: React.RefObject<HTMLDivElement | null>;
   timeout: ReturnType<typeof setTimeout> | undefined;
 
   constructor(props: IProps) {
@@ -78,6 +78,11 @@ export default class Knob extends React.Component<IProps, IState> {
   }
 
   componentWillUnmount() {
+    document.removeEventListener("mousemove", this.onMouseMove);
+    document.removeEventListener("mouseup", this.onMouseUp);
+    document.body.style.cursor = "";
+    document.body.classList.remove("force-cursor");
+    
     this.ref.current?.removeEventListener("wheel", this.onWheel);
   }
 
@@ -160,24 +165,26 @@ export default class Knob extends React.Component<IProps, IState> {
     if (!this.props.disabled && e.button === 0 && !this.state.anchorEl) {
       document.addEventListener("mousemove", this.onMouseMove);
       document.addEventListener("mouseup", this.onMouseUp);
-      document.body.classList.add("cursor-resize");
+      document.body.style.cursor = "ns-resize";
+      document.body.classList.add("force-cursor");
   
       this.setState({active: true});
     }
   }
 
   onMouseMove(e: MouseEvent) {
-    const t = clamp(this.valueToNormalized(this.state.value) - 0.005 * e.movementY, 0, 1);
-    const value = +this.normalizedToValue(t).toPrecision(12);
+    const normalized = clamp(this.valueToNormalized(this.state.value) - 0.005 * e.movementY, 0, 1);
+    const value = Math.round(+this.normalizedToValue(normalized) * 10) / 10;
 
-    this.props.onInput?.(Math.round(value * 10) / 10);
-    this.setState({ value: Math.round(value * 10) / 10 });
+    this.props.onInput?.(value);
+    this.setState({ value });
   }
 
   onMouseUp(e: MouseEvent) {
     document.removeEventListener("mousemove", this.onMouseMove);
     document.removeEventListener("mouseup", this.onMouseUp);
-    document.body.classList.remove("cursor-resize");
+    document.body.style.cursor = "";
+    document.body.classList.remove("force-cursor");
 
     this.setState({active: false});
     this.props.onChange?.(this.state.value);
@@ -194,16 +201,16 @@ export default class Knob extends React.Component<IProps, IState> {
         this.setState({active: true, wheel: true});
     
         const delta = Math.max(-10, Math.min(e.deltaY, 10));
-        const t = clamp(this.valueToNormalized(this.state.value) - 0.00125 * delta, 0, 1);
-        const value = +this.normalizedToValue(t).toPrecision(12);
+        const normalized = clamp(this.valueToNormalized(this.state.value) - 0.00125 * delta, 0, 1);
+        const value = Math.round(+this.normalizedToValue(normalized) * 10) / 10;
     
-        this.props.onInput?.(Math.round(value * 10) / 10);
-        this.setState({ value: Math.round(value * 10) / 10 });
+        this.props.onInput?.(value);
+        this.setState({ value });
     
         this.timeout = setTimeout(() => {
           this.setState({active: false, wheel: false});
           this.props.onChange?.(this.state.value);
-        }, 250);
+        }, 400);
       }
     }
   }
@@ -241,7 +248,7 @@ export default class Knob extends React.Component<IProps, IState> {
               backgroundColor: "white",
               opacity: this.props.disabled ? 0.5 : 1,
               position: "relative",
-              cursor: this.props.disabled ? "unset" : this.state.wheel ? "none" : "ns-resize",
+              cursor: this.props.disabled ? undefined : this.state.wheel ? "none" : "ns-resize",
               ...this.props.style?.knob
             }}
             title={this.state.wheel ? undefined : this.props.title} 

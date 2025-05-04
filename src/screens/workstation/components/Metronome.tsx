@@ -1,9 +1,9 @@
 import { useContext, useEffect, useRef } from "react";
 import { IconButton } from "@mui/material";
-import { WorkstationContext } from "src/contexts";
-import { Metronome as MetronomeIcon } from "src/components/icons";
-import metronomeTick from "src/assets/audio/metronome-tick.wav";
-import metronomeTickAccentuated from "src/assets/audio/metronome-tick-accentuated.wav";
+import { WorkstationContext } from "@/contexts";
+import { Metronome as MetronomeIcon } from "@/components/icons";
+import metronomeTick from "@/assets/audio/metronome-tick.wav";
+import metronomeTickAccentuated from "@/assets/audio/metronome-tick-accentuated.wav";
 
 const accentuatedTickAudio = new Audio(metronomeTickAccentuated);
 const tickAudio = new Audio(metronomeTick);
@@ -14,7 +14,7 @@ export default function Metronome() {
   const playStartTime = useRef(-1);
   const speed = useRef(-1);
   const tickCount = useRef(0);
-  const timeout = useRef<ReturnType<typeof setTimeout> | null>();
+  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   useEffect(() => {
     if (metronome && isPlaying) {

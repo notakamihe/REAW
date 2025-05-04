@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { getScrollParent } from "src/services/utils/general";
+import { getScrollParent } from "@/services/utils/general";
 
 type AutoScrollTarget = HTMLElement | null | string;
 
@@ -28,10 +28,10 @@ export default function WindowAutoScroll(props: WindowAutoScrollProps) {
   })
 
   const coords = useRef({ x: 0, y: 0 });
-  const hInterval = useRef<ReturnType<typeof setTimeout>>();
+  const hInterval = useRef<ReturnType<typeof setTimeout>>(undefined);
   const ref = useRef<HTMLDivElement>(null);
   const onScrollCallbackRef = useRef(onScroll);
-  const vInterval = useRef<ReturnType<typeof setTimeout>>();
+  const vInterval = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     return () => clearIntervals();
@@ -179,6 +179,8 @@ export default function WindowAutoScroll(props: WindowAutoScrollProps) {
       vInterval.current = setInterval(callback, 25);
     else 
       hInterval.current = setInterval(callback, 25);
+
+    callback();
   }
 
   return <div ref={ref} style={{ display: "none" }} />;

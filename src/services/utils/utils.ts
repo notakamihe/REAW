@@ -238,12 +238,9 @@ export function preserveClipMargins(clip: Clip, settings: TimelineSettings) : Cl
     end: preservePosMargin(clip.end, settings),
     startLimit: clip.startLimit ? preservePosMargin(clip.startLimit, settings, false) : null,
     endLimit: clip.endLimit ? preservePosMargin(clip.endLimit, settings, false) : null,
-    loopEnd: clip.loopEnd ? preservePosMargin(clip.loopEnd, settings) : null,
-  }
-
-  if (newClip.loopEnd && newClip.loopEnd.compareTo(newClip.end) <= 0)
-    newClip.loopEnd = null;
-
+    loopEnd: clip.loopEnd ? preservePosMargin(clip.loopEnd, settings) : null
+  };
+  
   if (newClip.type === TrackType.Audio && newClip.audio) {
     newClip.audio = {
       ...newClip.audio,
@@ -251,6 +248,14 @@ export function preserveClipMargins(clip: Clip, settings: TimelineSettings) : Cl
       end: preservePosMargin(newClip.audio.end, settings, false)
     }
   }
+
+  const temp = TimelinePosition.timelineSettings;
+  TimelinePosition.timelineSettings = settings;
+
+  if (newClip.loopEnd && newClip.loopEnd.compareTo(newClip.end) <= 0)
+    newClip.loopEnd = null;
+
+  TimelinePosition.timelineSettings = temp;
 
   return newClip;
 }
@@ -268,18 +273,20 @@ export function preserveTrackMargins(track: Track, settings: TimelineSettings) {
 
 export function preservePosMargin(pos: TimelinePosition, settings: TimelineSettings, restrict = true) {
   const margin = pos.toMargin();
-  const originalTimelineSettings = TimelinePosition.timelineSettings;
-
-  TimelinePosition.timelineSettings = settings;
-  const newPos = TimelinePosition.fromMargin(margin);
-  TimelinePosition.timelineSettings = originalTimelineSettings;
   
+  const temp = TimelinePosition.timelineSettings;
+  TimelinePosition.timelineSettings = settings;
+  let newPos = TimelinePosition.fromMargin(margin);
+
   if (restrict) {
     const maxMeasures = getMaxMeasures(settings.timeSignature);
     const maxPos = new TimelinePosition(maxMeasures + 1, 1, 0);
-    return TimelinePosition.min(newPos, maxPos); 
+
+    if (newPos.compareTo(maxPos) > 0)
+      newPos = maxPos.copy();
   }
 
+  TimelinePosition.timelineSettings = temp;
   return newPos;
 }
 

@@ -1,4 +1,4 @@
-import { createContext, forwardRef, HTMLAttributes, PropsWithChildren, ReactNode, useContext, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { createContext, forwardRef, HTMLAttributes, PropsWithChildren, useContext, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 
 interface ScrollSyncContextType {
   registerPane: (pane: HTMLElement) => void;
@@ -7,7 +7,7 @@ interface ScrollSyncContextType {
 
 const ScrollSyncContext = createContext<ScrollSyncContextType | undefined>(undefined);
 
-export function SyncScroll({ children }: PropsWithChildren<ReactNode>) { // react-scroll-sync but better
+export function SyncScroll({ children }: PropsWithChildren) { // react-scroll-sync but better
   const panes = useRef<HTMLElement[]>([]);
 
   const observer = useMemo(() => {
@@ -23,7 +23,7 @@ export function SyncScroll({ children }: PropsWithChildren<ReactNode>) { // reac
   }, [])
 
   function onScrollPane(e: Event) {
-    window.requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
       const pane = panes.current.find(p => p === e.target as HTMLElement);
       if (pane) 
         syncScrollPositions(pane);
@@ -54,7 +54,7 @@ export function SyncScroll({ children }: PropsWithChildren<ReactNode>) { // reac
     }
 
     for (const p of otherPanes)
-      window.requestAnimationFrame(() => { p.onscroll = onScrollPane; });
+      requestAnimationFrame(() => { p.onscroll = onScrollPane; });
   }
 
   function unregisterPane(pane: HTMLElement) {

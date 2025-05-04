@@ -1,9 +1,9 @@
 import { useContext, useMemo } from "react"
 import Editor from "./Editor"
 import { Header, Mixer } from "./components"
-import { PaneResize } from "src/components"
-import { WorkstationContext } from "src/contexts"
-import { InputPane, PaneResizeData } from "src/components/PaneResize"
+import { PaneResize } from "@/components"
+import { WorkstationContext } from "@/contexts"
+import { InputPane, PaneResizeData } from "@/components/PaneResize"
 
 export default function Workstation() {
   const { mixerHeight, setAllowMenuAndShortcuts, setMixerHeight, showMixer } = useContext(WorkstationContext)!;
@@ -21,7 +21,7 @@ export default function Workstation() {
       panes.push({
         key: "1", 
         max: 450, 
-        min: 227, 
+        min: 229, 
         children: <Mixer />, 
         fixed: true, 
         size: mixerHeight 

@@ -15,25 +15,41 @@ interface ScrollbarProps {
 export default function Scrollbar(props: ScrollbarProps) {
   const { auto, axis, className, showNativeScrollbar, style, targetEl, thumbClass, thumbStyle } = props;
 
-  const { ref } = useResizeDetector({ onResize: updateThumb });
+  const { ref } = useResizeDetector({ onResize: syncThumbWithTarget });
 
-  const [tempThumbOffset, setTempThumbOffset] = useState(0);
-  const [targetSizes, setTargetSizes] = useState({ client: 0, scroll: 0 });
+  const [targetSize, setTargetSize] = useState({ client: 0, scroll: 0 });
   const [thumb, setThumb] = useState({ offset: 0, size: 0 });
+  const [thumbDragStartData, setThumbDragStartData] = useState<{ offset: number; mousePos: number; } | null>(null);
 
   const attractingThumb = useRef(false);
-  const draggingThumb = useRef(false);
+  const mousePos = useRef(0);
+  const preventSyncThumb = useRef(false);
   const thumbRef = useRef({ offset: 0, size: 0 });
-  const thumbElRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleScroll() {
-      if (!draggingThumb.current)
-        updateThumb();
+    function handleTargetResize() {
+      if (targetEl) {
+        setTargetSize(prev => {
+          const clientSize = axis === "x" ? targetEl.clientWidth : targetEl.clientHeight;
+          const scrollSize = axis === "x" ? targetEl.scrollWidth : targetEl.scrollHeight;
+  
+          if (prev.client !== clientSize || prev.scroll !== scrollSize)
+            return { client: clientSize, scroll: scrollSize };
+  
+          return prev;
+        });
+      }
     }
 
-    const resizeObserver = new ResizeObserver(checkTargetSizeChange);
-    const mutationObserver = new MutationObserver(checkTargetSizeChange);
+    function handleScroll() {
+      if (preventSyncThumb.current)
+        preventSyncThumb.current = false;
+      else
+        requestAnimationFrame(syncThumbWithTarget);
+    }
+
+    const resizeObserver = new ResizeObserver(handleTargetResize);
+    const mutationObserver = new MutationObserver(handleTargetResize);
 
     if (targetEl) {
       targetEl.addEventListener("scroll", handleScroll);
@@ -48,7 +64,31 @@ export default function Scrollbar(props: ScrollbarProps) {
       targetEl?.removeEventListener("scroll", handleScroll);
       resizeObserver.disconnect();
     }
-  }, [targetEl])
+  }, [targetEl, thumbDragStartData])
+
+  useEffect(() => {
+    function handleThumbMouseMove(e: MouseEvent) {
+      if (thumbDragStartData) {
+        mousePos.current = axis === "x" ? e.clientX : e.clientY;
+        const delta = mousePos.current - thumbDragStartData.mousePos; 
+        setThumbOffset(thumbDragStartData.offset + delta);  
+      }
+    }
+  
+    function handleThumbMouseUp() {
+      setThumbDragStartData(null);
+    }
+
+    if (thumbDragStartData) {
+      document.addEventListener("mousemove", handleThumbMouseMove);
+      document.addEventListener("mouseup", handleThumbMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleThumbMouseMove);
+      document.removeEventListener("mouseup", handleThumbMouseUp);
+    }
+  }, [thumbDragStartData])
 
   useEffect(() => {
     if (!showNativeScrollbar)
@@ -57,32 +97,18 @@ export default function Scrollbar(props: ScrollbarProps) {
     return () => targetEl?.classList.remove("hide-scrollbar");
   }, [targetEl, showNativeScrollbar])
 
-  useEffect(() => updateThumb(), [targetSizes])
+  useEffect(() => syncThumbWithTarget(), [targetSize])
 
   useEffect(() => { thumbRef.current = thumb; }, [thumb])
 
   function attractThumb(targetOffset: number) {
-    const { offset, size } = thumbRef.current;
-    
+    let { offset, size } = thumbRef.current;
+
     if (!(offset <= targetOffset && targetOffset <= offset + size) && attractingThumb.current) {
-      const distance = targetOffset < offset ? offset - targetOffset : targetOffset - (offset + size);
-      const moveBy = Math.min(20, distance <= 10 ? 10 : Infinity);
-      moveThumb(targetOffset < offset ? -moveBy : moveBy);
+      const offsetDiff = targetOffset < offset ? offset - targetOffset: targetOffset - (offset + size);
+      const moveBy = offsetDiff <= 10 ? 10 : 20;
+      setThumbOffset(targetOffset < offset ? offset - moveBy : offset + moveBy);
       requestAnimationFrame(() => attractThumb(targetOffset));
-    }
-  }
-
-  function checkTargetSizeChange() {
-    if (targetEl) {
-      setTargetSizes(prev => {
-        const clientSize = axis === "x" ? targetEl.clientWidth : targetEl.clientHeight;
-        const scrollSize = axis === "x" ? targetEl.scrollWidth : targetEl.scrollHeight;
-
-        if (prev.client !== clientSize || prev.scroll !== scrollSize)
-          return { client: clientSize, scroll: scrollSize };
-
-        return prev;
-      });
     }
   }
 
@@ -94,60 +120,42 @@ export default function Scrollbar(props: ScrollbarProps) {
 
   function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
     if (e.button === 0) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      
       attractingThumb.current = true;
-  
-      setTempThumbOffset(thumb.offset);
+      const rect = e.currentTarget.getBoundingClientRect();
       attractThumb(axis === "x" ? e.clientX - rect.left : e.clientY - rect.top);
     }
   }
 
   function handleThumbMouseDown(e: React.MouseEvent) {
-    function handleThumbMouseMove(e: MouseEvent) {
-      moveThumb(axis === "x" ? e.movementX : e.movementY);
-    }
-  
-    function handleThumbMouseUp() {
-      document.removeEventListener("mousemove", handleThumbMouseMove);
-      document.removeEventListener("mouseup", handleThumbMouseUp);
-      draggingThumb.current = false;
-    }
-
     if (e.button === 0) {
       e.stopPropagation();
-  
-      document.addEventListener("mousemove", handleThumbMouseMove);
-      document.addEventListener("mouseup", handleThumbMouseUp);
-  
-      draggingThumb.current = true;
-      setTempThumbOffset(thumb.offset);
+      mousePos.current = axis === "x" ? e.clientX : e.clientY;
+      setThumbDragStartData({ offset: thumb.offset, mousePos: mousePos.current });
     }
   }
 
-  function moveThumb(by: number) {
-    const el = ref.current;
+  function setThumbOffset(offset: number) {
+    const trackEl = ref.current;
+    const maxOffset = (axis === "x" ? trackEl.clientWidth : trackEl.clientHeight) - thumb.size;
+    
+    if (offset < 0)
+      offset = 0;
+    if (offset > maxOffset)
+      offset = maxOffset;
 
-    if (targetEl && el) {
-      let offset: number;
-      
-      setTempThumbOffset(prev => {
-        const temp = prev + by;        
-        const maxOffset = (axis === "x" ? el.clientWidth : el.clientHeight) - thumb.size;
-        offset = Math.min(maxOffset, Math.max(0, temp));
-  
-        if (axis === "x")
-          targetEl.scrollLeft = (offset / maxOffset) * (targetEl.scrollWidth - targetEl.clientWidth);
-        else
-          targetEl.scrollTop = (offset / maxOffset) * (targetEl.scrollHeight - targetEl.clientHeight);
-  
-        return temp;
-      });
-      setThumb(prev => ({ ...prev, offset }));
+    preventSyncThumb.current = true;
+
+    if (targetEl) {
+      if (axis === "x")
+        targetEl.scrollLeft = (offset / maxOffset) * (targetEl.scrollWidth - targetEl.clientWidth);
+      else
+        targetEl.scrollTop = (offset / maxOffset) * (targetEl.scrollHeight - targetEl.clientHeight);        
     }
+
+    setThumb({ ...thumb, offset });
   }
 
-  function updateThumb() {
+  function syncThumbWithTarget() {
     const el = ref.current;
     
     if (el && targetEl) {
@@ -159,18 +167,21 @@ export default function Scrollbar(props: ScrollbarProps) {
         const scrollbarSize = axis === "x" ? el.clientWidth : el.clientHeight;
         const maxScrollPos = scrollSize - clientSize;
         
-        const thumbSize = Math.max(10, (clientSize / scrollSize) * scrollbarSize);
-        const thumbOffset = (scrollPos / maxScrollPos) * (scrollbarSize - thumbSize);
+        const size = Math.max(10, (clientSize / scrollSize) * scrollbarSize);
+        const offset = (scrollPos / maxScrollPos) * (scrollbarSize - size);
 
-        setThumb({ offset: thumbOffset, size: thumbSize });
+        setThumb({ offset, size });
+
+        if (thumbDragStartData)
+          setThumbDragStartData({ offset: offset, mousePos: mousePos.current });
       }
     }
   }
 
-  const canScroll = useMemo(() => targetSizes.scroll > targetSizes.client, [targetSizes]);
+  const canScroll = useMemo(() => targetSize.scroll > targetSize.client, [targetSize]);
 
-  const width = axis === "x" ? targetSizes.client : 12;
-  const height = axis === "x" ? 12 : targetSizes.client;
+  const width = axis === "x" ? targetSize.client : 12;
+  const height = axis === "x" ? 12 : targetSize.client;
   const display = !auto || canScroll ? "block" : "none";
 
   return (
@@ -187,7 +198,6 @@ export default function Scrollbar(props: ScrollbarProps) {
             className={thumbClass}
             onDragStart={e => e.preventDefault()}
             onMouseDown={handleThumbMouseDown}
-            ref={thumbElRef}
             style={{
               backgroundColor: "#0007",
               transform: `translate(${axis === "x" ? 0 : "calc(-50%)"}, ${axis === "x" ? "-50%" : 0})`,

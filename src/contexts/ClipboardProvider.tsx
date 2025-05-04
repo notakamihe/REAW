@@ -1,7 +1,7 @@
-import { ClipboardContext, ClipboardItem } from "src/contexts";
-import React, { PropsWithChildren, ReactNode } from "react";
+import { ClipboardContext, ClipboardItem } from "@/contexts";
+import React, { PropsWithChildren } from "react";
 
-export function ClipboardProvider({ children }: PropsWithChildren<ReactNode>) {
+export function ClipboardProvider({ children }: PropsWithChildren) {
   const [clipboardItem, setClipboardItem] = React.useState<ClipboardItem | null>(null);
 
   const clear = () => {

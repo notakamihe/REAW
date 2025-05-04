@@ -1,99 +1,6 @@
 import React, { Component, createRef, CSSProperties, ForwardedRef, forwardRef, ReactNode, RefObject } from "react";
 import WindowAutoScroll, { WindowAutoScrollProps } from "./WindowAutoScroll";
-
-export enum ResizeDirection {
-  None,
-  Top,
-  Bottom,
-  Left,
-  Right,
-  TopLeft,
-  TopRight,
-  BottomLeft,
-  BottomRight
-}
-
-interface IResizeHandleProps {
-  className?: string;
-  children?: ReactNode;
-  dir: ResizeDirection;
-  onMouseDown: (e : React.MouseEvent, dir: ResizeDirection) => void;
-  show: boolean;
-  style?: React.CSSProperties | undefined;
-}
-
-const ResizeHandle = ({ className, dir, onMouseDown, show, style, ...rest }: IResizeHandleProps) => {
-  const getCornerHandleStyle = (horizontal : boolean) : React.CSSProperties => {
-    let style: React.CSSProperties = {minWidth: 10, minHeight: 10};
-
-    switch (dir) {
-      case ResizeDirection.TopLeft:
-        style = {...style, inset: "-5px auto auto -5px", cursor: "nwse-resize"};
-        break;
-      case ResizeDirection.TopRight:
-        style = {...style, inset: "-5px -5px auto auto", cursor: "nesw-resize"};
-        break;
-      case ResizeDirection.BottomLeft:
-        style = {...style, inset: "auto auto -5px -5px", cursor: "nesw-resize"};
-        break;
-      case ResizeDirection.BottomRight:
-        style = {...style, inset: "auto -5px -5px auto", cursor: "nwse-resize"};
-        break;
-    }
-
-    if (horizontal)
-      return {...style, width: "12%", maxWidth: 30};
-    else
-      return {...style, height: "12%", maxHeight: 30};
-  }
-
-  const getHandleStyles = () : React.CSSProperties => {
-    switch (dir) {
-      case ResizeDirection.Top:
-        return {inset:"-5px 0 auto 0", height: 10, cursor: "ns-resize"}
-      case ResizeDirection.Bottom:
-        return {inset:"auto 0 -5px 0", height: 10, cursor: "ns-resize"}
-      case ResizeDirection.Left:
-        return {inset:"0 auto 0 -5px", width: 10, cursor: "ew-resize"}
-      case ResizeDirection.Right:
-        return {inset:"0 -5px 0 auto", width: 10, cursor: "ew-resize"}
-      default:
-        return {}
-    }
-  }
-
-  if (show) {
-    return dir > 4 ? (
-      <React.Fragment>
-        <div
-          className="dnr-resize-handle"
-          onMouseDown={e => onMouseDown(e, dir)}
-          style={{position: "absolute", ...getCornerHandleStyle(true), ...style}}
-        />
-        <div
-          className="dnr-resize-handle"
-          onMouseDown={e => onMouseDown(e, dir)}
-          style={{position: "absolute", ...getCornerHandleStyle(false), ...style}}
-        />
-        <div
-          {...rest}
-          className={`dnr-resize-handle ${className}`}
-          onMouseDown={e => onMouseDown(e, dir)}
-          style={{position: "absolute", ...getCornerHandleStyle(false), width: 10, height: 10, ...style}}
-        />
-      </React.Fragment>
-    ) : (
-      <div
-        {...rest}
-        className={`dnr-resize-handle ${className}`}
-        onMouseDown={e => onMouseDown(e, dir)}
-        style={{position: "absolute", ...getHandleStyles(), ...style}}
-      />
-    )
-  }
-
-  return null;
-}
+import { flushSync } from "react-dom";
 
 export interface Coords {
   startX: number;
@@ -102,22 +9,11 @@ export interface Coords {
   endY: number;
 }
 
-export interface Directions<T> {
-  top?: T;
-  right?: T;
-  bottom?: T;
-  left?: T;
-  topRight?: T;
-  bottomRight?: T;
-  bottomLeft?: T;
-  topLeft?: T;
-}
-
 export interface DNRData {
   coords: Coords;
   width: number;
   height: number;
-  delta: { x: number; y: number; width: number; height: number; };
+  delta: { x: number; y: number; };
 }
 
 export interface DNRProps {
@@ -125,18 +21,15 @@ export interface DNRProps {
   autoScroll?: Partial<WindowAutoScrollProps>;
   className?: string;
   children?: React.ReactNode;
-  bounds?: {left?: number | undefined, top?: number | undefined, right?: number | undefined, bottom?: number | undefined};
+  bounds?: { left?: number, top?: number, right?: number, bottom?: number };
   coords: Coords;
-  disableDragging?: boolean;
-  disableResizing?: boolean;
+  drag?: boolean;
   dragAxis?: "x" | "y" | "both";
-  enableResizing?: Directions<boolean>;
   maxHeight?: number;
   maxWidth?: number;
   minHeight?: number;
   minWidth?: number;
   onClick?: (e: React.MouseEvent) => void;
-  onClickAway?: (e: MouseEvent | TouchEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
   onDrag?: (data: DNRData) => void;
@@ -148,29 +41,109 @@ export interface DNRProps {
   onMouseLeave?: (e: React.MouseEvent) => void;
   onMouseOver?: (e: React.MouseEvent) => void;
   onMouseOut?: (e: React.MouseEvent) => void;
-  onResize?: (dir: ResizeDirection, data: DNRData) => void;
-  onResizeMouseMove?:(e: MouseEvent, dir: ResizeDirection, data: DNRData) => void;
-  onResizeStart?: (e: React.MouseEvent, dir: ResizeDirection, data: DNRData) => void;
-  onResizeStop?: (e: MouseEvent, dir: ResizeDirection, data: DNRData) => void;
-  resizeHandles?: Directions<{ className?: string, children?: ReactNode, style?: CSSProperties }>;
-  restrict?: {horizontal: boolean, vertical: boolean};
-  snapGridSize?: {horizontal?: number, vertical?: number};
+  onResize?: (data: ResizeDNRData) => void;
+  onResizeMouseMove?:(e: MouseEvent, data: ResizeDNRData) => void;
+  onResizeStart?: (e: React.MouseEvent, data: ResizeDNRData) => void;
+  onResizeStop?: (e: MouseEvent, data: ResizeDNRData) => void;
+  resize?: boolean | Edges<boolean>;
+  resizeHandles?: Edges<{ className?: string, children?: ReactNode, style?: CSSProperties }>;
+  restrictToContainerBounds?: { x: boolean, y: boolean };
+  snapGridSize?: { x?: number, y?: number };
   style?: React.CSSProperties;
   title?: string;
 }
 
-type DNRPropsWithForwardedRef = DNRProps & { innerRef: ForwardedRef<HTMLDivElement>; }
+type DNRPropsWithForwardedRef = DNRProps & { outerRef: ForwardedRef<HTMLDivElement>; }
 
-interface IState {
-  dir: ResizeDirection;
+interface DNRState {
   dragging: boolean;
-  resizing: boolean;
-  startCoords: Coords;
+  resizeEdge: ResizeEdge | null;
+  startCoords: Coords | null;
   temp: Coords;
 }
 
-class DNR extends Component<DNRPropsWithForwardedRef, IState> { //react-rnd but better and not broken
-  ref: RefObject<HTMLDivElement>;
+export interface Edges<T> {
+  top?: T;
+  right?: T;
+  bottom?: T;
+  left?: T;
+  topRight?: T;
+  bottomRight?: T;
+  bottomLeft?: T;
+  topLeft?: T;
+}
+
+export interface ResizeDNRData extends DNRData {
+  edge: ResizeEdge;
+}
+
+export interface ResizeEdge {
+  x: "right" | "none" | "left";
+  y: "top" | "none" | "bottom";
+}
+
+interface ResizeHandleProps {
+  className?: string;
+  children?: ReactNode;
+  edge: ResizeEdge;
+  onMouseDown: (e: React.MouseEvent<HTMLDivElement>, edge: ResizeEdge) => void;
+  show: boolean;
+  style?: React.CSSProperties | undefined;
+}
+
+function getEdgeCursor(edge: ResizeEdge) {
+  if (edge.x === "right" && edge.y === "top" || edge.x === "left" && edge.y === "bottom")
+    return "nesw-resize";
+  else if (edge.x === "left" && edge.y === "top" || edge.x === "right" && edge.y === "bottom")
+    return "nwse-resize";
+  else if (edge.x === "right" || edge.x === "left")
+    return "ew-resize";
+  else if (edge.y === "top" || edge.y === "bottom")
+    return "ns-resize"
+  return "";
+}
+
+function ResizeHandle({ edge, onMouseDown, show, ...rest }: ResizeHandleProps) {
+  let style: CSSProperties = { display: "flex", justifyContent: "center", alignItems: "center" };
+
+  switch (edge.x) {
+    case "right":
+      style = { ...style, right: -5, width: 10, height: "100%", top: 0 };
+      break;
+    case "left":
+      style = { ...style, left: -5, width: 10, height: "100%", top: 0 };
+      break;
+  }
+
+  switch (edge.y) {
+    case "top":
+      style = { ...style, top: -5, height: 10 };
+
+      if (edge.x === "none")
+        style = { ...style, width: "100%", left: 0 };
+
+      break;
+    case "bottom":
+      style = { ...style, bottom: -5, height: 10, top: undefined };
+
+      if (edge.x === "none")
+        style = { ...style, width: "100%", left: 0 };
+
+      break;
+  }
+
+  return show ? (
+    <div 
+      {...rest}
+      className={"dnr-resize-handle " + rest.className}
+      onMouseDown={e => onMouseDown(e, edge)}
+      style={{ ...style, cursor: getEdgeCursor(edge), ...rest.style, position: "absolute" }}
+    />
+  ) : null;
+}
+
+class DNR extends Component<DNRPropsWithForwardedRef, DNRState> { // react-rnd but better
+  ref: RefObject<HTMLDivElement | null>;
 
   constructor(props: DNRPropsWithForwardedRef) {
     super(props);
@@ -178,403 +151,284 @@ class DNR extends Component<DNRPropsWithForwardedRef, IState> { //react-rnd but 
     this.ref = createRef<HTMLDivElement>();
 
     this.state = {
-      startCoords: this.props.coords,
-      dir: ResizeDirection.None,
+      startCoords: null,
       dragging: false,
-      resizing: false,
+      resizeEdge: null,
       temp: this.props.coords
     }
 
-    this.handleMouseDown = this.handleMouseDown.bind(this);
-    this.onClickAway = this.onClickAway.bind(this);
-    this.onMouseDownDrag = this.onMouseDownDrag.bind(this);
-    this.onMouseDownResize = this.onMouseDownResize.bind(this);
-    this.onMouseMoveDrag = this.onMouseMoveDrag.bind(this);
-    this.onMouseMoveResize = this.onMouseMoveResize.bind(this);
-    this.onMouseUpDrag = this.onMouseUpDrag.bind(this);
-    this.onMouseUpResize = this.onMouseUpResize.bind(this);
-    this.onWindowScroll = this.onWindowScroll.bind(this);
-
-    document.addEventListener("mousedown", this.handleMouseDown);
+    this.handleMouseDownDrag = this.handleMouseDownDrag.bind(this);
+    this.handleMouseDownResize = this.handleMouseDownResize.bind(this);
+    this.handleMouseMoveDrag = this.handleMouseMoveDrag.bind(this);
+    this.handleMouseMoveResize = this.handleMouseMoveResize.bind(this);
+    this.handleMouseUpDrag = this.handleMouseUpDrag.bind(this);
+    this.handleMouseUpResize = this.handleMouseUpResize.bind(this);
+    this.handleAutoScroll = this.handleAutoScroll.bind(this);
   }
 
   componentDidMount() {
-    this.setInnerRef();
+    this.setOuterRef();
   }
   
   componentDidUpdate(prevProps: DNRPropsWithForwardedRef) {
-    const coordsChanged = (
+    if (
       prevProps.coords?.startX !== this.props.coords.startX ||
       prevProps.coords?.endX !== this.props.coords.endX ||
       prevProps.coords?.startY !== this.props.coords.startY ||
       prevProps.coords?.endY !== this.props.coords.endY
-    );
-
-    if (this.props.coords && coordsChanged)
+    )
       this.setState({ temp: this.props.coords });
 
-    this.setInnerRef();
+    this.setOuterRef();
   }
 
   componentWillUnmount() {
-    document.removeEventListener("mousedown", this.handleMouseDown);
-    document.removeEventListener("mousemove", this.onMouseMoveDrag);
-    document.removeEventListener("mousemove", this.onMouseMoveResize);
-    document.removeEventListener("mouseup", this.onMouseUpDrag);
-    document.removeEventListener("mouseup", this.onMouseUpResize);
+    document.removeEventListener("mousemove", this.handleMouseMoveDrag);
+    document.removeEventListener("mousemove", this.handleMouseMoveResize);
+    document.removeEventListener("mouseup", this.handleMouseUpDrag);
+    document.removeEventListener("mouseup", this.handleMouseUpResize);
 
-    document.documentElement.style.cursor = "";
+    document.body.style.cursor = "";
+    document.body.classList.remove("force-cursor");
   }
 
-  getDirCursor(dir: ResizeDirection) {
-    switch (dir) {
-      case ResizeDirection.Top:
-      case ResizeDirection.Bottom:
-        return "ns-resize";
-      case ResizeDirection.Left:
-      case ResizeDirection.Right:
-        return "ew-resize";
-      case ResizeDirection.TopRight:
-      case ResizeDirection.BottomLeft:
-        return "nesw-resize";
-      case ResizeDirection.TopLeft:
-      case ResizeDirection.BottomRight:
-        return "nwse-resize";
-      default:
-        return "";
-    }
-  }
-
-  getDNRData(coords: Coords, oldCoords: Coords): DNRData {
-    const width = coords.endX - coords.startX;
-    const height = coords.endY - coords.startY;
-    const delta = {
-      x: coords.startX - oldCoords.startX,
-      y: coords.startY - oldCoords.startY,
-      width: width - (oldCoords.endX - oldCoords.startX),
-      height: height - (oldCoords.endY - oldCoords.startY)
-    };
-
-    return { coords, width, height, delta };
-  }
-
-  handleMouseDown(e: MouseEvent) {
-    if (this.ref.current && !this.ref.current.contains(e.target as Node))
-      this.onClickAway(e);
-  }
-
-  move(x: number, y: number, e?: MouseEvent) {
+  drag(x: number, y: number, e?: MouseEvent) {
     const coords = { ...this.props.coords };
     const temp = { ...this.state.temp };
-    const el = this.ref.current;
+
+    x = this.props.dragAxis !== "y" ? x : 0;
+    y = this.props.dragAxis !== "x" ? y : 0;
+
+    temp.startX += x;
+    temp.endX += x;
+    temp.startY += y;
+    temp.endY += y;
     
-    if (el) {
-      const movementX = this.props.dragAxis !== "y" ? x : 0;
-      const movementY = this.props.dragAxis !== "x" ? y : 0;
-      const rect = el.getBoundingClientRect();
-     
-      temp.startX += movementX;
-      temp.endX += movementX;
-      temp.startY += movementY;
-      temp.endY += movementY;
-     
-      const hSnapGridSize = this.props.snapGridSize?.horizontal;
-      const snapX = this.snap(temp.startX, hSnapGridSize);
-      const vSnapGridSize = this.props.snapGridSize?.vertical;
-      const snapY = this.snap(temp.startY, vSnapGridSize);
-     
-      if (snapX !== null) {
-        coords.startX = snapX;
-        coords.endX = coords.startX + rect.width;
-      }
+    const snapGridSizeX = this.props.snapGridSize?.x;
+    const snapGridSizeY = this.props.snapGridSize?.y;
+    const width = coords.endX - coords.startX;
+    const height = coords.endY - coords.startY;
 
-      if (snapY !== null) {
-        coords.startY = snapY;
-        coords.endY = coords.startY + rect.height;
-      }
+    coords.startX = snapGridSizeX ? snapGridSizeX * Math.round(temp.startX / snapGridSizeX) : temp.startX;
+    coords.startY = snapGridSizeY ? snapGridSizeY * Math.round(temp.startY / snapGridSizeY) : temp.startY;
+    coords.endX = coords.startX + width;
+    coords.endY = coords.startY + height;
 
-      const parentEl = el.offsetParent;
-     
-      if (parentEl) {
-        if (!this.props.restrict || this.props.restrict.horizontal) {
-          if (coords.startX < 0) {
-            coords.startX = 0;
-            coords.endX = coords.startX + rect.width;
-          } else if (coords.startX + rect.width > parentEl.clientWidth) {
-            coords.startX = parentEl.clientWidth - rect.width;
-            coords.endX = coords.startX + rect.width;
-          }
+    const container = this.ref.current?.offsetParent;
+
+    if (container) {
+      if (this.props.restrictToContainerBounds?.x !== false) {
+        if (coords.startX < (this.props.bounds?.left ?? 0)) {
+          coords.startX = (this.props.bounds?.left ?? 0);
+          coords.endX = coords.startX + width;
         }
-
-        if (!this.props.restrict || this.props.restrict.vertical) {
-          if (coords.startY < 0) {
-            coords.startY = 0;
-            coords.endY = coords.startY + rect.height;
-          } else if (coords.startY + rect.height > parentEl.clientHeight) {
-            coords.startY = parentEl.clientHeight - rect.height;
-            coords.endY = coords.startY + rect.height;
-          }
+        if (coords.endX > container.clientWidth - (this.props.bounds?.right ?? 0)) {
+          coords.endX = container.clientWidth - (this.props.bounds?.right ?? 0);
+          coords.startX = coords.endX - width;
         }
       }
 
-      if (this.props.bounds) {
-        if (this.props.bounds.left && coords.startX < this.props.bounds.left) {
-          coords.startX = this.props.bounds.left;
-          coords.endX = coords.startX + rect.width;
+      if (this.props.restrictToContainerBounds?.y !== false) {
+        if (coords.startY < (this.props.bounds?.top ?? 0)) {
+          coords.startY = (this.props.bounds?.top ?? 0);
+          coords.endY = coords.startY + height;
         }
-        if (this.props.bounds.right && coords.startX + rect.width > this.props.bounds.right) {
-          coords.startX = this.props.bounds.right - rect.width;
-          coords.endX = coords.startX + rect.width;
-        }
-        if (this.props.bounds.top && coords.startY < this.props.bounds.top) {
-          coords.startY = this.props.bounds.top;
-          coords.endY = coords.startY + rect.height;
-        }
-        if (this.props.bounds.bottom && coords.startY + rect.height > this.props.bounds.bottom) {
-          coords.startY = this.props.bounds.bottom - rect.height;
-          coords.endY = coords.startY + rect.height;
+        if (coords.endY > container.clientHeight - (this.props.bounds?.bottom ?? 0)) {
+          coords.endY = container.clientHeight - (this.props.bounds?.bottom ?? 0);
+          coords.startY = coords.endY - height;
         }
       }
     }
    
-    this.props.onDrag?.(this.getDNRData(coords, this.state.startCoords));
-    if (e) 
-      this.props.onDragMouseMove?.(e, this.getDNRData(coords, this.state.startCoords));
+    flushSync(() => {
+      const data = this.getDNRData(coords);
 
-    this.setState({ temp });
+      this.props.onDrag?.(data);
+      if (e) 
+        this.props.onDragMouseMove?.(e, data);
+  
+      this.setState({ temp });
+    });
   }
 
-  onClickAway(e: MouseEvent | TouchEvent) {
-    if (!this.state.dragging && !this.state.resizing) 
-      this.props.onClickAway?.(e);
+  getDNRData(coords: Coords): DNRData {
+    const delta = { x: 0, y: 0 };
+
+    if (this.state.startCoords) {
+      if (this.state.resizeEdge && this.state.resizeEdge.x === "right")
+        delta.x = coords.endX - this.state.startCoords.endX;
+      else
+        delta.x = coords.startX - this.state.startCoords.startX;
+
+      if (this.state.resizeEdge && this.state.resizeEdge.y === "bottom")
+        delta.y = coords.endY - this.state.startCoords.endY;
+      else
+        delta.y = coords.startY - this.state.startCoords.startY;
+    }
+
+    return { coords, width: coords.endX - coords.startX, height: coords.endY - coords.startY, delta };
   }
 
-  onMouseDownDrag(e: React.MouseEvent) {
+  handleMouseDownDrag(e: React.MouseEvent) {
     this.props.onMouseDown?.(e);
    
-    if ((e.target as HTMLElement).classList.contains("dnr-resize-handle")) return;
-    if (this.props.disableDragging || (!this.props.allowAnyClick && e.button !== 0)) return;
-
-    document.addEventListener("mousemove", this.onMouseMoveDrag);
-    document.addEventListener("mouseup", this.onMouseUpDrag);
-    document.documentElement.style.cursor = "move";
-
-    this.setState({ dragging: true, startCoords: this.props.coords, temp: this.props.coords });
-    this.props.onDragStart?.(e, this.getDNRData(this.props.coords, this.props.coords));
+    if (!(e.target as HTMLElement).classList.contains("dnr-resize-handle")) {
+      if (this.props.drag !== false && (this.props.allowAnyClick || e.button === 0)) {
+        document.addEventListener("mousemove", this.handleMouseMoveDrag);
+        document.addEventListener("mouseup", this.handleMouseUpDrag);
+        document.body.style.cursor = "move";
+        document.body.classList.add("force-cursor");
+    
+        this.setState({ dragging: true, startCoords: this.props.coords, temp: this.props.coords });
+        this.props.onDragStart?.(e, this.getDNRData(this.props.coords));
+      }
+    }
   }
 
-  onMouseDownResize(e: React.MouseEvent, dir: ResizeDirection) {
+  handleMouseDownResize(e: React.MouseEvent<HTMLDivElement>, edge: ResizeEdge) {
     this.props.onMouseDown?.(e);
 
-    if (!this.props.allowAnyClick && e.button !== 0) return;
-
-    document.addEventListener("mousemove", this.onMouseMoveResize);
-    document.addEventListener("mouseup", this.onMouseUpResize);
-    document.documentElement.style.cursor = this.getDirCursor(dir);
-   
-    this.setState({ resizing: true, dir, startCoords: this.props.coords, temp: this.props.coords });
-    this.props.onResizeStart?.(e, dir, this.getDNRData(this.props.coords, this.props.coords));
+    if (this.props.allowAnyClick || e.button === 0) {
+      document.addEventListener("mousemove", this.handleMouseMoveResize);
+      document.addEventListener("mouseup", this.handleMouseUpResize);
+      document.body.style.cursor = e.currentTarget.style.cursor;
+      document.body.classList.add("force-cursor");
+  
+      this.setState({ resizeEdge: edge, startCoords: this.props.coords, temp: this.props.coords });
+      this.props.onResizeStart?.(e, { ...this.getDNRData(this.props.coords), edge });
+    }
   }
 
-  onMouseMoveDrag(e: MouseEvent) {
+  handleMouseMoveDrag(e: MouseEvent) {
     e.preventDefault();
-    this.move(e.movementX, e.movementY, e);
+    this.drag(e.movementX, e.movementY, e);
   }
 
-  onMouseMoveResize(e: MouseEvent) {
+  handleMouseMoveResize(e: MouseEvent) {
     e.preventDefault();
     this.resize(e.movementX, e.movementY, e);
   }
 
-  onMouseUpDrag(e: MouseEvent) {
+  handleMouseUpDrag(e: MouseEvent) {
     if (this.props.allowAnyClick || e.button === 0) {
-      document.removeEventListener("mousemove", this.onMouseMoveDrag);
-      document.removeEventListener("mouseup", this.onMouseUpDrag);
-      document.documentElement.style.cursor = "";
+      document.removeEventListener("mousemove", this.handleMouseMoveDrag);
+      document.removeEventListener("mouseup", this.handleMouseUpDrag);
+      document.body.style.cursor = "";
+      document.body.classList.remove("force-cursor");
   
-      this.setState({ dragging: false });
-      this.props.onDragStop?.(e, this.getDNRData(this.props.coords, this.state.startCoords));
+      this.setState({ dragging: false, startCoords: null });
+      this.props.onDragStop?.(e, this.getDNRData(this.props.coords));
     }
   }
 
-  onMouseUpResize(e : MouseEvent) {
+  handleMouseUpResize(e: MouseEvent) {
     if (this.props.allowAnyClick || e.button === 0) {
-      document.removeEventListener("mousemove", this.onMouseMoveResize);
-      document.removeEventListener("mouseup", this.onMouseUpResize);
-      document.documentElement.style.cursor = "";
+      document.removeEventListener("mousemove", this.handleMouseMoveResize);
+      document.removeEventListener("mouseup", this.handleMouseUpResize);
+      document.body.style.cursor = "";
+      document.body.classList.remove("force-cursor");
   
-      const dir = this.state.dir;
-  
-      this.setState({ resizing: false, dir: ResizeDirection.None });
-      this.props.onResizeStop?.(e, dir, this.getDNRData(this.props.coords, this.state.startCoords));
+      this.setState({ resizeEdge: null, startCoords: null });
+      this.props.onResizeStop?.(e, { ...this.getDNRData(this.props.coords), edge: this.state.resizeEdge! });
     }
   }
 
-  onWindowScroll(by: number, vertical: boolean) {
+  handleAutoScroll(by: number, vertical: boolean) {
     if (this.state.dragging)
-      this.move(vertical ? 0 : by, vertical ? by : 0);
-    else if (this.state.resizing)
+      this.drag(vertical ? 0 : by, vertical ? by : 0);
+    else if (this.state.resizeEdge)
       this.resize(vertical ? 0 : by, vertical ? by : 0);
   }
 
   resize(x: number, y: number, e?: MouseEvent) {
     const coords = { ...this.props.coords };
     const temp = { ...this.state.temp };
-    const el = this.ref.current;
 
-    if (el) {
-      const resizedFrom = { left: false, right: false, top: false, bottom: false };
-     
-      switch (this.state.dir) {
-        case ResizeDirection.Left:
-          resizedFrom.left = true;
-          break;
-        case ResizeDirection.Right:
-          resizedFrom.right = true;
-          break;
-        case ResizeDirection.Top:
-          resizedFrom.top = true;
-          break;
-        case ResizeDirection.Bottom:
-          resizedFrom.bottom = true;
-          break;
-        case ResizeDirection.TopLeft:
-          resizedFrom.left = true;
-          resizedFrom.top = true;
-          break;
-        case ResizeDirection.TopRight:
-          resizedFrom.right = true;
-          resizedFrom.top = true;
-          break;
-        case ResizeDirection.BottomLeft:
-          resizedFrom.left = true;
-          resizedFrom.bottom = true;
-          break;
-        case ResizeDirection.BottomRight:
-          resizedFrom.right = true;
-          resizedFrom.bottom = true;
-          break;
-      }
-  
-      const hSnapGridSize = this.props.snapGridSize?.horizontal;
-      const vSnapGridSize = this.props.snapGridSize?.vertical;
-  
-      if (resizedFrom.left) {
+    const container = this.ref.current?.offsetParent;
+    const snapGridSizeX = this.props.snapGridSize?.x;
+    const snapGridSizeY = this.props.snapGridSize?.y;
+
+    switch (this.state.resizeEdge?.x) {
+      case "left":
         temp.startX += x;
-        const snapX = this.snap(temp.startX, hSnapGridSize);
-        if (snapX !== null)
-          coords.startX = snapX;
-      } else if (resizedFrom.right) {
+        coords.startX = snapGridSizeX ? snapGridSizeX * Math.round(temp.startX / snapGridSizeX) : temp.startX;
+
+        if (coords.endX - coords.startX < (this.props.minWidth ?? 0))
+          coords.startX = coords.endX - (this.props.minWidth ?? 0);
+        if (coords.endX - coords.startX > (this.props.maxWidth ?? Infinity))
+          coords.startX = coords.endX - (this.props.maxWidth ?? Infinity);
+        if (container && this.props.restrictToContainerBounds?.x !== false) {
+          if (coords.startX < (this.props.bounds?.left ?? 0))
+            coords.startX = (this.props.bounds?.left ?? 0);
+        }
+        break;
+      case "right":
         temp.endX += x;
-        const snapX = this.snap(temp.endX, hSnapGridSize);
-        if (snapX !== null)
-          coords.endX = snapX;
-      }
-  
-      if (resizedFrom.top) {
+        coords.endX = snapGridSizeX ? snapGridSizeX * Math.round(temp.endX / snapGridSizeX) : temp.endX;
+
+        if (coords.endX - coords.startX < (this.props.minWidth ?? 0))
+          coords.endX = coords.startX + (this.props.minWidth ?? 0);
+        if (coords.endX - coords.startX > (this.props.maxWidth ?? Infinity))
+          coords.endX = coords.startX + (this.props.maxWidth ?? Infinity);
+        if (container && this.props.restrictToContainerBounds?.x !== false) {
+          if (coords.endX > container.clientWidth - (this.props.bounds?.right ?? 0))
+            coords.endX = container.clientWidth - (this.props.bounds?.right ?? 0);
+        }
+        break;
+    }
+    
+    switch (this.state.resizeEdge?.y) {
+      case "top":
         temp.startY += y;
-        const snapY = this.snap(temp.startY, vSnapGridSize);
-        if (snapY !== null)
-          coords.startY = snapY;
-      } else if (resizedFrom.bottom) {
+        coords.startY = snapGridSizeY ? snapGridSizeY * Math.round(temp.startY / snapGridSizeY) : temp.startY;
+
+        if (coords.endY - coords.startY < (this.props.minHeight ?? 0))
+          coords.startY = coords.endY - (this.props.minHeight ?? 0);
+        if (coords.endY - coords.startY > (this.props.maxHeight ?? Infinity))
+          coords.startY = coords.endY - (this.props.maxHeight ?? Infinity);
+        if (container && this.props.restrictToContainerBounds?.y !== false) {
+          if (coords.startY < (this.props.bounds?.top ?? 0))
+            coords.startY = (this.props.bounds?.top ?? 0);
+        }
+        break;
+      case "bottom":
         temp.endY += y;
-        const snapY = this.snap(temp.endY, vSnapGridSize);
-        if (snapY !== null)
-          coords.endY = snapY;
-      }
-  
-      const minWidth = this.props.minWidth === undefined ? 10 : this.props.minWidth;
-      const minHeight = this.props.minHeight === undefined ? 10 : this.props.minHeight;
-      const maxWidth = this.props.maxWidth === undefined ? Infinity : this.props.maxWidth;
-      const maxHeight = this.props.maxHeight === undefined ? Infinity : this.props.maxHeight;
-  
-      if (coords.endX - coords.startX < minWidth) {
-        if (resizedFrom.left)
-          coords.startX = coords.endX - minWidth
-        else
-          coords.endX = coords.startX + minWidth
-      } else if (maxWidth && coords.endX - coords.startX > maxWidth) {
-        if (resizedFrom.left)
-          coords.startX = coords.endX - maxWidth
-        else
-          coords.endX = coords.startX + maxWidth
-      }
-  
-      if (coords.endY - coords.startY < minHeight) {
-        if (resizedFrom.top)
-          coords.startY = coords.endY - minHeight
-        else
-          coords.endY = coords.startY + minHeight
-      } else if (coords.endY - coords.startY > maxHeight) {
-        if (resizedFrom.top)
-          coords.startY = coords.endY - maxHeight
-        else
-          coords.endY = coords.startY + maxHeight
-      }
-     
-      const parentEl = el.offsetParent;
-     
-      if (parentEl) {
-        if (!this.props.restrict || this.props.restrict.horizontal) {
-          if (coords.startX < 0)
-            coords.startX = 0;
-          else if (coords.endX > parentEl.clientWidth)
-            coords.endX = parentEl.clientWidth;
+        coords.endY = snapGridSizeY ? snapGridSizeY * Math.round(temp.endY / snapGridSizeY) : temp.endY;
+
+        if (coords.endY - coords.startY < (this.props.minHeight ?? 0))
+          coords.endY = coords.startY + (this.props.minHeight ?? 0);
+        if (coords.endY - coords.startY > (this.props.maxHeight ?? Infinity))
+          coords.endY = coords.startY + (this.props.maxHeight ?? Infinity);
+        if (container && this.props.restrictToContainerBounds?.y !== false) {
+          if (coords.endY > container.clientHeight - (this.props.bounds?.bottom ?? 0))
+            coords.endY = container.clientHeight - (this.props.bounds?.bottom ?? 0);
         }
-  
-        if (!this.props.restrict || this.props.restrict.vertical) {
-          if (coords.startY < 0)
-            coords.startY = 0;
-          else if (coords.endY > parentEl.clientHeight)
-            coords.endY = parentEl.clientHeight;
-        }
-      }
-  
-      if (this.props.bounds) {
-        if (this.props.bounds.left && coords.startX < this.props.bounds.left)
-          coords.startX = this.props.bounds.left
-        if (this.props.bounds.right && coords.endX > this.props.bounds.right)
-          coords.endX = this.props.bounds.right
-        if (this.props.bounds.top && coords.startY < this.props.bounds.top)
-          coords.startY = this.props.bounds.top
-        if (this.props.bounds.bottom && coords.endY > this.props.bounds.bottom)
-          coords.endY = this.props.bounds.bottom
-      }
+        break;
     }
+    
+    flushSync(() => {
+      const data = { ...this.getDNRData(coords), edge: this.state.resizeEdge! }; 
 
-    this.props.onResize?.(this.state.dir, this.getDNRData(coords, this.state.startCoords));
-    if (e) 
-      this.props.onResizeMouseMove?.(e, this.state.dir, this.getDNRData(coords, this.state.startCoords));
-
-    this.setState({ temp });
+      this.props.onResize?.(data);
+      if (e) 
+        this.props.onResizeMouseMove?.(e, data);
+  
+      this.setState({ temp });
+    });
   }
 
-  setInnerRef() {
-    if (this.props.innerRef) {
-      if (typeof this.props.innerRef === "function")
-        this.props.innerRef(this.ref.current);
-      else if (this.props.innerRef.current !== this.ref.current)
-        this.props.innerRef.current = this.ref.current;
-    }
-  }
-
-  snap(val: number, size?: number) {
-    if (size !== undefined && size > 0) {
-      const snapCandidate = size * Math.round(val / size)
- 
-      if (Math.abs(val - snapCandidate) <= size / 2)
-        return snapCandidate;
-      else return null;
-    } else {
-      return val;
+  setOuterRef() {
+    if (this.props.outerRef) {
+      if (typeof this.props.outerRef === "function")
+        this.props.outerRef(this.ref.current);
+      else if (this.props.outerRef.current !== this.ref.current)
+        this.props.outerRef.current = this.ref.current;
     }
   }
 
   render() {
-    const enableAll = !this.props.enableResizing;
-    const dirCursor = this.getDirCursor(this.state.dir);
-    const cursorStyle = this.state.resizing ? {cursor: dirCursor} :
-      this.state.dragging ? {cursor: undefined} : {};
+    const enableAll = this.props.resize === true || this.props.resize === undefined;
+    const cursorStyle = this.state.resizeEdge || this.state.dragging ? { cursor: undefined } : {};
 
     return (
       <div
@@ -583,17 +437,18 @@ class DNR extends Component<DNRPropsWithForwardedRef, IState> { //react-rnd but 
         onContextMenu={this.props.onContextMenu}
         onDoubleClick={this.props.onDoubleClick}
         onDragStart={e => e.preventDefault()}
-        onMouseDown={this.onMouseDownDrag}
+        onMouseDown={this.handleMouseDownDrag}
         onMouseEnter={this.props.onMouseEnter}
         onMouseLeave={this.props.onMouseLeave}
         onMouseOver={this.props.onMouseOver}
         onMouseOut={this.props.onMouseOut}
         ref={this.ref}
         style={{
-          cursor: this.state.resizing ? dirCursor : this.props.disableDragging ? "default" : "move",
+          cursor: this.props.drag === false ? undefined : "move",
+          ...this.props.style,
+          ...cursorStyle,
           width: this.props.coords.endX - this.props.coords.startX,
           height: this.props.coords.endY - this.props.coords.startY,
-          ...this.props.style,
           position: "absolute",
           left: this.props.coords.startX,
           top: this.props.coords.startY,
@@ -604,68 +459,68 @@ class DNR extends Component<DNRPropsWithForwardedRef, IState> { //react-rnd but 
         {this.props.children}
         <ResizeHandle
           {...this.props.resizeHandles?.left}
-          dir={ResizeDirection.Left}
-          onMouseDown={this.onMouseDownResize}
-          show={(enableAll || !!this.props.enableResizing!.left) && !this.props.disableResizing}
+          edge={{ x: "left", y: "none" }}
+          onMouseDown={this.handleMouseDownResize}
+          show={enableAll || (typeof this.props.resize !== "boolean" && !!this.props.resize!.left)}
           style={{ ...this.props.resizeHandles?.left?.style, ...cursorStyle }}
         />
         <ResizeHandle
           {...this.props.resizeHandles?.right}
-          dir={ResizeDirection.Right}
-          onMouseDown={this.onMouseDownResize}
-          show={(enableAll || !!this.props.enableResizing!.right) && !this.props.disableResizing}
+          edge={{ x: "right", y: "none" }}
+          onMouseDown={this.handleMouseDownResize}
+          show={enableAll || (typeof this.props.resize !== "boolean" && !!this.props.resize!.right)}
           style={{ ...this.props.resizeHandles?.right?.style, ...cursorStyle }}
         />
         <ResizeHandle
           {...this.props.resizeHandles?.top}
-          dir={ResizeDirection.Top}
-          onMouseDown={this.onMouseDownResize}
-          show={(enableAll || !!this.props.enableResizing!.top) && !this.props.disableResizing}
+          edge={{ x: "none", y: "top" }}
+          onMouseDown={this.handleMouseDownResize}
+          show={enableAll || (typeof this.props.resize !== "boolean" && !!this.props.resize!.top)}
           style={{ ...this.props.resizeHandles?.top?.style, ...cursorStyle }}
         />
         <ResizeHandle
           {...this.props.resizeHandles?.bottom}
-          dir={ResizeDirection.Bottom}
-          onMouseDown={this.onMouseDownResize}
-          show={(enableAll || !!this.props.enableResizing!.bottom) && !this.props.disableResizing}
+          edge={{ x: "none", y: "bottom" }}
+          onMouseDown={this.handleMouseDownResize}
+          show={enableAll || (typeof this.props.resize !== "boolean" && !!this.props.resize!.bottom)}
           style={{ ...this.props.resizeHandles?.bottom?.style, ...cursorStyle }}
         />
         <ResizeHandle
           {...this.props.resizeHandles?.topLeft}
-          dir={ResizeDirection.TopLeft}
-          onMouseDown={this.onMouseDownResize}
-          show={(enableAll || !!this.props.enableResizing!.topLeft) && !this.props.disableResizing}
+          edge={{ x: "left", y: "top" }}
+          onMouseDown={this.handleMouseDownResize}
+          show={enableAll || (typeof this.props.resize !== "boolean" && !!this.props.resize!.topLeft)}
           style={{ ...this.props.resizeHandles?.topLeft?.style, ...cursorStyle }}
         />
         <ResizeHandle
           {...this.props.resizeHandles?.topRight}
-          dir={ResizeDirection.TopRight}
-          onMouseDown={this.onMouseDownResize}
-          show={(enableAll || !!this.props.enableResizing!.topRight) && !this.props.disableResizing}
+          edge={{ x: "right", y: "top" }}
+          onMouseDown={this.handleMouseDownResize}
+          show={enableAll || (typeof this.props.resize !== "boolean" && !!this.props.resize!.topRight)}
           style={{ ...this.props.resizeHandles?.topRight?.style, ...cursorStyle }}
         />
         <ResizeHandle
           {...this.props.resizeHandles?.bottomLeft}
-          dir={ResizeDirection.BottomLeft}
-          onMouseDown={this.onMouseDownResize}
-          show={(enableAll || !!this.props.enableResizing!.bottomLeft) && !this.props.disableResizing}
+          edge={{ x: "left", y: "bottom" }}
+          onMouseDown={this.handleMouseDownResize}
+          show={enableAll || (typeof this.props.resize !== "boolean" && !!this.props.resize!.bottomLeft)}
           style={{ ...this.props.resizeHandles?.bottomLeft?.style, ...cursorStyle }}
         />
         <ResizeHandle
           {...this.props.resizeHandles?.bottomRight}
-          dir={ResizeDirection.BottomRight}
-          onMouseDown={this.onMouseDownResize}
-          show={(enableAll || !!this.props.enableResizing!.bottomRight) && !this.props.disableResizing}
+          edge={{ x: "right", y: "bottom" }}
+          onMouseDown={this.handleMouseDownResize}
+          show={enableAll || (typeof this.props.resize !== "boolean" && !!this.props.resize!.bottomRight)}
           style={{ ...this.props.resizeHandles?.bottomRight?.style, ...cursorStyle }}
         />
         <WindowAutoScroll
           {...this.props.autoScroll}
-          active={this.state.dragging || this.state.resizing}
-          onScroll={this.onWindowScroll}
+          active={this.state.dragging || !!this.state.resizeEdge}
+          onScroll={this.handleAutoScroll}
         />
       </div>
     )
   }
 }
 
-export default forwardRef<HTMLDivElement, DNRProps>((props, ref) => <DNR {...props} innerRef={ref} />);
+export default forwardRef<HTMLDivElement, DNRProps>((props, ref) => <DNR {...props} outerRef={ref} />);

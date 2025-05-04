@@ -1,13 +1,14 @@
-import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal, flushSync } from "react-dom";
 import { Popover } from "@mui/material";
-import { WorkstationContext } from "src/contexts";
-import { AutomationLane, AutomationLaneEnvelope, AutomationNode, ContextMenuType, TimelinePosition } from "src/services/types/types";
-import { clamp } from "src/services/utils/general";
-import { formatPanning, formatVolume, scrollToAndAlign, timelineEditorWindowScrollThresholds, waitForScrollWheelStop } from "src/services/utils/utils";
-import { Tooltip } from "src/components/widgets";
-import DNR, { DNRData } from "src/components/DNR";
-import { openContextMenu } from "src/services/electron/utils";
+import { WorkstationContext } from "@/contexts";
+import { AutomationLane, AutomationLaneEnvelope, AutomationNode, ContextMenuType, TimelinePosition } from "@/services/types/types";
+import { clamp } from "@/services/utils/general";
+import { formatPanning, formatVolume, scrollToAndAlign, timelineEditorWindowScrollThresholds, waitForScrollWheelStop } from "@/services/utils/utils";
+import { Tooltip } from "@/components/widgets";
+import DNR, { DNRData } from "@/components/DNR";
+import { openContextMenu } from "@/services/electron/utils";
+import useClickAway from "@/services/hooks/useClickAway";
 
 interface IProps {
   color: string;
@@ -24,7 +25,6 @@ export default function AutomationNodeComponent(props: IProps) {
   const { 
     adjustNumMeasures, 
     deleteNode, 
-    maxPos, 
     scrollToItem,
     selectedNodeId, 
     setAllowMenuAndShortcuts,
@@ -41,15 +41,18 @@ export default function AutomationNodeComponent(props: IProps) {
   const [valueText, setValueText] = useState(node.value.toString());
 
   const coordsUnset = useRef(true);
-  const prevHorizontalScale = useRef<number>();
-  const prevLaneHeight = useRef<number>();
-  const ref = useRef<HTMLDivElement>(null);
+  const prevHorizontalScale = useRef<number>(undefined);
+  const prevLaneHeight = useRef<number>(undefined);
+
+  const handleClickAway = useCallback(() => {
+    if (selectedNodeId === node.id)
+      setSelectedNodeId(null);
+  }, [selectedNodeId, node])
+
+  const ref = useClickAway<HTMLDivElement>(handleClickAway);
 
   useEffect(() => {
-    return () => {
-      document.body.classList.remove("cursor-move");
-      setAllowMenuAndShortcuts(true);
-    }
+    return () => setAllowMenuAndShortcuts(true);
   }, [])
 
   useEffect(() => {
@@ -125,11 +128,6 @@ export default function AutomationNodeComponent(props: IProps) {
     }
   }
 
-  function onClickAway() {
-    if (selectedNodeId === node.id)
-      setSelectedNodeId(null);
-  }
-
   function onContextMenu(e: React.MouseEvent) {
     e.stopPropagation();
     const target = e.currentTarget as HTMLElement;
@@ -151,26 +149,21 @@ export default function AutomationNodeComponent(props: IProps) {
     const pos = TimelinePosition.fromMargin(data.coords.startX);
     const value = yToValue(data.coords.startY);
 
-    setCoords(data.coords);
+    flushSync(() => setCoords(data.coords));
     onNodeMove?.({ id: node.id, pos, value });
     adjustNumMeasures(pos);
   }
 
   function onDragStart() {
-    document.body.classList.add("cursor-move");
     setIsDragging(true);
     setAllowMenuAndShortcuts(false);
   }
 
   function onDragStop(_: MouseEvent, data: DNRData) {
-    document.body.classList.remove("cursor-move");
-    
     setIsDragging(false);
     
-    if (data.delta.x !== 0 || data.delta.y !== 0) {
-      let pos = TimelinePosition.fromMargin(coords.startX).snap(snapGridSize);
-      onSetNode({ ...node, pos: TimelinePosition.min(pos, maxPos.copy()), value: yToValue(coords.startY) });
-    }
+    if (data.delta.x !== 0 || data.delta.y !== 0)
+      onSetNode({ ...node, pos: TimelinePosition.fromMargin(coords.startX), value: yToValue(coords.startY) });
 
     setAllowMenuAndShortcuts(true);
   }
@@ -197,17 +190,16 @@ export default function AutomationNodeComponent(props: IProps) {
     <>
       <DNR
         autoScroll={{ thresholds: timelineEditorWindowScrollThresholds }}
-        bounds={{ right: maxPos.toMargin() + 8 }}
+        bounds={{ right: -8 }}
         coords={coords}
-        disableResizing
-        onClickAway={onClickAway}
         onContextMenu={onContextMenu}
         onDrag={onDrag}
         onDragStart={onDragStart}
         onDragStop={onDragStop}
         onMouseDown={() => setSelectedNodeId(node.id)}
         ref={ref}
-        snapGridSize={{ horizontal: snapWidth }}
+        resize={false}
+        snapGridSize={{ x: snapWidth }}
         style={{
           backgroundColor: selected ? "#fff" : color, 
           border: "1px solid var(--border8)", 

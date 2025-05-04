@@ -1,13 +1,13 @@
 import React, { useContext, useMemo, useState } from "react"
 import { IconButton, Popover } from "@mui/material"
-import { WorkstationContext } from "src/contexts"
-import { AutomationLane, Track, AutomationLaneEnvelope, TimelinePosition, ContextMenuType } from "src/services/types/types"
+import { WorkstationContext } from "@/contexts"
+import { AutomationLane, Track, AutomationLaneEnvelope, TimelinePosition, ContextMenuType } from "@/services/types/types"
 import { Add, ExpandLess, ExpandMore, Remove } from "@mui/icons-material"
-import { clamp, inverseLerp, lerp } from "src/services/utils/general"
+import { clamp, inverseLerp, lerp } from "@/services/utils/general"
 import { v4 } from "uuid"
-import { BASE_HEIGHT, automatedValueAtPos, volumeToNormalized } from "src/services/utils/utils"
-import { Meter } from "src/components/widgets"
-import { openContextMenu } from "src/services/electron/utils"
+import { BASE_HEIGHT, automatedValueAtPos, volumeToNormalized } from "@/services/utils/utils"
+import { Meter } from "@/components/widgets"
+import { openContextMenu } from "@/services/electron/utils"
 
 interface Props {
   color: string;
@@ -224,7 +224,7 @@ export default function AutomationLaneTrack({ color, lane, track }: Props) {
               onContextMenu={e => e.stopPropagation()}
               onMouseDown={e => e.stopPropagation()}
               open={!!anchorEl}
-              PaperProps={{style: {borderRadius: 0}}}
+              slotProps={{ paper: { style: { borderRadius: 0 } } }}
               transformOrigin={{horizontal: "left", vertical: "center"}}
               transitionDuration={0}
             >

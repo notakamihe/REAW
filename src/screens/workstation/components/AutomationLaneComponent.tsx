@@ -1,11 +1,11 @@
 import React, { useContext, useEffect, useRef } from "react";
-import { ClipboardContext, ClipboardItemType, WorkstationContext } from "src/contexts";
-import { clamp, inverseLerp, lerp } from "src/services/utils/general";
-import { AutomationNodeComponent } from "src/screens/workstation/components";
+import { ClipboardContext, ClipboardItemType, WorkstationContext } from "@/contexts";
+import { clamp, inverseLerp, lerp } from "@/services/utils/general";
+import { AutomationNodeComponent } from "@/screens/workstation/components";
 import { v4 } from "uuid";
-import { BASE_HEIGHT, normalizedToVolume, volumeToNormalized } from "src/services/utils/utils";
-import { AutomationLane, AutomationLaneEnvelope, AutomationNode, Track, ContextMenuType, TimelinePosition } from "src/services/types/types";
-import { openContextMenu } from "src/services/electron/utils";
+import { BASE_HEIGHT, normalizedToVolume, volumeToNormalized } from "@/services/utils/utils";
+import { AutomationLane, AutomationLaneEnvelope, AutomationNode, Track, ContextMenuType, TimelinePosition } from "@/services/types/types";
+import { openContextMenu } from "@/services/electron/utils";
 
 interface IProps {
   color: string;
@@ -94,7 +94,7 @@ export default function AutomationLaneComponent({ color, lane, style, track }: I
   
           while (
             movingNodeIndex.current < nodes.length - 1 && 
-            movingNode.current.pos > nodes[movingNodeIndex.current + 1].pos
+            movingNode.current.pos.compareTo(nodes[movingNodeIndex.current + 1].pos) > 0
           ) {
             const temp = nodes[movingNodeIndex.current + 1];
             nodes[movingNodeIndex.current + 1] = movingNode.current;
@@ -102,7 +102,10 @@ export default function AutomationLaneComponent({ color, lane, style, track }: I
             movingNodeIndex.current++;
           }
       
-          while (movingNodeIndex.current > 0 && movingNode.current.pos < nodes[movingNodeIndex.current - 1].pos) {
+          while (
+            movingNodeIndex.current > 0 && 
+            movingNode.current.pos.compareTo(nodes[movingNodeIndex.current - 1].pos) < 0
+          ) {
             const temp = nodes[movingNodeIndex.current - 1];
             nodes[movingNodeIndex.current - 1] = movingNode.current;
             nodes[movingNodeIndex.current] = temp;

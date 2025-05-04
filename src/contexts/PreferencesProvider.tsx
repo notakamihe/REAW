@@ -1,11 +1,11 @@
-import { PreferencesContext } from "src/contexts";
-import { PropsWithChildren, ReactNode, useEffect, useState } from "react";
-import { Preferences } from "src/services/types/types";
+import { PreferencesContext } from "@/contexts";
+import { PropsWithChildren, useEffect, useState } from "react";
+import { Preferences } from "@/services/types/types";
 
 const defaultPreferences = { color: "rose", theme: "system" };
 const matchMedia = window.matchMedia('(prefers-color-scheme: dark)');
 
-export function PreferencesProvider({ children }: PropsWithChildren<ReactNode>) {
+export function PreferencesProvider({ children }: PropsWithChildren) {
   const [darkMode, setDarkMode] = useState(false);
   const [preferences, setPreferences] = useState<Preferences>(defaultPreferences);
   const [savedPreferences, setSavedPreferences] = useState<Preferences>(defaultPreferences); 

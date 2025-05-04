@@ -1,9 +1,9 @@
 import { CSSProperties, useContext, useEffect, useMemo, useState } from "react";
-import { AutomationLaneEnvelope, Track } from "src/services/types/types";
-import { formatVolume, normalizedToVolume, volumeToNormalized } from "src/services/utils/utils";
-import Slider from "src/components/widgets/Slider";
-import { WorkstationContext } from "src/contexts";
-import { TooltipProps } from "src/components/widgets/Tooltip";
+import { AutomationLaneEnvelope, Track } from "@/services/types/types";
+import { formatVolume, normalizedToVolume, volumeToNormalized } from "@/services/utils/utils";
+import Slider from "@/components/widgets/Slider";
+import { WorkstationContext } from "@/contexts";
+import { TooltipProps } from "@/components/widgets/Tooltip";
 
 interface TrackVolumeSliderProps {
   className?: string;
@@ -53,7 +53,8 @@ export default function TrackVolumeSlider({ style, track, ...rest }: TrackVolume
               border: "1px solid var(--border6)",
               backgroundColor: "var(--bg2)",
               width: vertical ? 12 : 14,
-              height: vertical ? 14 : 12
+              height: vertical ? 14 : 12,
+              transitionDuration: "0ms"
             }
           },
           rail: {

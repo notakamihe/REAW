@@ -1,9 +1,9 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Add, Remove } from "@mui/icons-material";
-import { WorkstationContext } from "src/contexts";
-import { clamp, inverseLerp, lerp } from "src/services/utils/general";
-import { HoldActionButton } from "src/components";
-import { Slider } from "src/components/widgets";
+import { WorkstationContext } from "@/contexts";
+import { clamp, inverseLerp, lerp } from "@/services/utils/general";
+import { HoldActionButton } from "@/components";
+import { Slider } from "@/components/widgets";
 
 interface IProps {
   onZoom?: (vertical: boolean) => void;
@@ -16,7 +16,7 @@ export default function ZoomControls({ onZoom, vertical }: IProps) {
   const [value, setValue] = useState(vertical ? verticalScale : timelineSettings.horizontalScale);
   const [zoomValueChanged, setZoomValueChanged] = useState(false);
 
-  const timeout = useRef<ReturnType<typeof setTimeout>>();
+  const timeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     const newValue = vertical ? verticalScale : timelineSettings.horizontalScale;

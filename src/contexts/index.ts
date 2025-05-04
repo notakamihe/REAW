@@ -14,7 +14,7 @@ import {
   Track, 
   TrackType, 
   WorkstationAudioInputFile 
-} from "src/services/types/types";
+} from "@/services/types/types";
 
 export enum ClipboardItemType {
   Clip, 
@@ -96,7 +96,7 @@ export interface WorkstationContextType extends WorkstationFile {
   setSnapGridSizeOption: Dispatch<SetStateAction<SnapGridSizeOption>>;
   setSongRegion: Dispatch<SetStateAction<Region | null>>;
   setStretchAudio: Dispatch<SetStateAction<boolean>>;
-  setTimeSignature: Dispatch<React.SetStateAction<TimeSignature>>;
+  setTimeSignature: (timeSignature: TimeSignature) => void;
   setTrack: (track: Track) => void;
   setTrackRegion: Dispatch<SetStateAction<{ region: Region, trackId: string } | null>>;
   setTracks: Dispatch<SetStateAction<Track[]>>;
@@ -128,7 +128,6 @@ interface WorkstationFile {
   stretchAudio: boolean;
   trackRegion: { region: Region, trackId: string } | null;
   timelineSettings: TimelineSettings;
-  timeSignature: TimeSignature;
   tracks: Track[];
   verticalScale: number;
 }

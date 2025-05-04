@@ -7,14 +7,14 @@ React Audio Workstation (REAW) is Digital Audio Workstation coded in React and T
 2. Run ```npm install```
 
 ## To Run
-1. Run ```npm run start:electron```
+1. Run ```npm run dev```
 
 ## To Build and Package
-1. Run ```npm run build:electron```
+1. Run ```npm run build```
 2. The packaged application will we located in the ```dist``` folder.
 
 <hr>
 
 ## Notes
-- User interface is the only functional aspect of this project as of April 26, 2025. Audio, however will be implemented in the near future.
-- Main functionality is prioritized over performance as of April 26, 2025. The project may feel slow when a large number of tracks are present.
+- User interface is the only functional aspect of this project as of May 4, 2025. Audio, however will be implemented in the near future.
+- Main functionality is prioritized over performance as of May 4, 2025. The project may feel slow when a large number of tracks are present.

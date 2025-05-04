@@ -1,7 +1,7 @@
 import { CSSProperties, useContext, useEffect, useState } from "react";
 import { Settings } from "@mui/icons-material";
 import { DialogActions, DialogContent, FormControlLabel, Radio as MuiRadio, RadioGroup, RadioProps as MuiRadioProps, Snackbar } from "@mui/material";
-import { PreferencesContext } from "src/contexts";
+import { PreferencesContext } from "@/contexts";
 import { Dialog } from "./widgets";
 import styled from "styled-components";
 

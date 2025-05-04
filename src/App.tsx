@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { MemoryRouter as Router, Routes, Route } from "react-router-dom";
-import { ClipboardProvider } from "src/contexts/ClipboardProvider";
-import { PreferencesProvider } from "src/contexts/PreferencesProvider";
-import { WorkstationProvider } from "src/contexts/WorkstationProvider";
+import { ClipboardProvider } from "@/contexts/ClipboardProvider";
+import { PreferencesProvider } from "@/contexts/PreferencesProvider";
+import { WorkstationProvider } from "@/contexts/WorkstationProvider";
 import Preferences from "./components/Preferences";
 import Workstation from "./screens/workstation/Workstation";
 import "./styles/App.css";

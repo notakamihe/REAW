@@ -2,7 +2,7 @@ import { CSSProperties, JSX, useCallback, useEffect, useLayoutEffect, useRef, us
 import { MdKeyboardArrowDown } from "react-icons/md";
 import { Popover, PopoverProps } from "@mui/material";
 import { ArrowDropDown, ArrowDropUp, ArrowLeft, ArrowRight } from "@mui/icons-material";
-import useClickAway from "src/services/hooks/useClickAway";
+import useClickAway from "@/services/hooks/useClickAway";
 
 interface SelectSpinBoxElements<T extends string | CSSProperties> {
   buttonsContainer?: T;

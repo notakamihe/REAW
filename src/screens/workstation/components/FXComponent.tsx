@@ -1,11 +1,11 @@
 import React, { CSSProperties, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Tune, Add, PowerSettingsNew, Delete, ArrowDropUp, ArrowDropDown, Check, Close, MoreHoriz, Save } from "@mui/icons-material";
 import { IconButton } from "@mui/material";
-import { ContextMenuType, Effect, FXChainPreset, Track } from "src/services/types/types";
+import { ContextMenuType, Effect, FXChainPreset, Track } from "@/services/types/types";
 import { v4 } from "uuid";
-import { WorkstationContext } from "src/contexts";
-import { SelectSpinBox } from "src/components/widgets";
-import { openContextMenu } from "src/services/electron/utils";
+import { WorkstationContext } from "@/contexts";
+import { SelectSpinBox } from "@/components/widgets";
+import { openContextMenu } from "@/services/electron/utils";
 
 interface FXElements<T> {
   add?: { button?: T, icon?: T };

@@ -1,21 +1,20 @@
 import React, { Component, ContextType, RefObject, createRef } from "react";
-import { WorkstationContext } from "src/contexts";
-import { Region, TimelinePosition, TimelineSettings } from "src/services/types/types";
-import WindowAutoScroll, { WindowAutoScrollProps } from "src/components/WindowAutoScroll";
-import { clamp } from "src/services/utils/general";
+import { WorkstationContext } from "@/contexts";
+import { Region, TimelinePosition, TimelineSettings } from "@/services/types/types";
+import WindowAutoScroll, { WindowAutoScrollProps } from "@/components/WindowAutoScroll";
+import { flushSync } from "react-dom";
 
 interface IProps {
   autoScroll?: Partial<WindowAutoScrollProps>;
   children?: React.ReactNode;
   onContextMenu?: (e: MouseEvent) => void;
-  onSetRegion: (region : Region | null) => void;
+  onSetRegion: (region: Region | null) => void;
   region: Region | null;
   style?: React.CSSProperties;
 }
 
 interface IState {
   isCreatingNewRegion: boolean;
-  marginOnStart: number | null;
   region: { start: number, end: number };
   resizeEdge: "start" | "end";
   resizing: boolean;
@@ -24,10 +23,10 @@ interface IState {
 
 export default class RegionComponent extends Component<IProps, IState> {
   static contextType = WorkstationContext;
-  context: ContextType<typeof WorkstationContext>;
+  declare context: ContextType<typeof WorkstationContext>;
 
   prevTimelineSettings?: TimelineSettings;
-  ref: RefObject<HTMLDivElement>;
+  ref: RefObject<HTMLDivElement | null>;
 
   constructor(props : any) {
     super(props);
@@ -36,7 +35,6 @@ export default class RegionComponent extends Component<IProps, IState> {
 
     this.state = {
       isCreatingNewRegion: false,
-      marginOnStart: null,
       region: { start: 0, end: 0 },
       resizeEdge: "end",
       resizing: false,
@@ -52,39 +50,62 @@ export default class RegionComponent extends Component<IProps, IState> {
   }
 
   componentDidMount() {
-    document.addEventListener("contextmenu", this.handleContextMenu, { capture: true });
-    document.addEventListener("dblclick", this.handleDoubleClick, { capture: true });
-    document.addEventListener("mousedown", this.handleMouseDown, { capture: true });
+    if (this.ref.current?.parentElement) {
+      this.ref.current.parentElement.addEventListener("contextmenu", this.handleContextMenu, { capture: true });
+      this.ref.current.parentElement.addEventListener("dblclick", this.handleDoubleClick, { capture: true });
+      this.ref.current.parentElement.addEventListener("mousedown", this.handleMouseDown, { capture: true });
+    }
+
+    if (this.props.region) {
+      const region = { start: this.props.region.start.toMargin(), end: this.props.region.end.toMargin() };
+      this.setState({ temp: region, region });
+    }
   }
 
   componentDidUpdate(prevProps: Readonly<IProps>) {
-    if (this.prevTimelineSettings !== this.context!.timelineSettings || (
+    const timelineSettings = this.context!.timelineSettings;
+
+    if (this.prevTimelineSettings?.timeSignature !== timelineSettings.timeSignature || (
       prevProps.region?.start !== this.props.region?.start ||
       prevProps.region?.end !== this.props.region?.end
     )) {
       if (this.props.region) {
-        const startMargin = this.props.region.start.toMargin();
-        const endMargin = this.props.region.end.toMargin();
-        this.setState({ region: { start: startMargin, end: endMargin } });
+        const region = { start: this.props.region.start.toMargin(), end: this.props.region.end.toMargin() };
+        this.setState({ temp: region, region });
       } else {
         this.setState({ region: { start: 0, end: 0 } });
       }
-      
-      this.prevTimelineSettings = this.context!.timelineSettings;
     }
+
+    if (this.prevTimelineSettings) {
+      if (this.prevTimelineSettings.horizontalScale !== timelineSettings.horizontalScale) {
+        const percentChange = timelineSettings.horizontalScale / this.prevTimelineSettings.horizontalScale;
+        const region = { 
+          start: this.state.region.start * percentChange,
+          end: this.state.region.end * percentChange
+        }
+        
+        this.setState({ temp: region, region });
+      }
+    }
+
+    this.prevTimelineSettings = timelineSettings;
   }
 
   componentWillUnmount() {
-    document.body.classList.remove("cursor-resize-h");
+    if (this.ref.current?.parentElement) {
+      this.ref.current.parentElement.removeEventListener("contextmenu", this.handleContextMenu, { capture: true });
+      this.ref.current.parentElement.removeEventListener("dblclick", this.handleDoubleClick, { capture: true });
+      this.ref.current.parentElement.removeEventListener("mousedown", this.handleMouseDown, { capture: true });
+    }
 
-    document.removeEventListener("contextmenu", this.handleContextMenu, { capture: true });
-    document.removeEventListener("dblclick", this.handleDoubleClick, { capture: true });
-    document.removeEventListener("mousedown", this.handleMouseDown, { capture: true });
+    document.body.style.cursor = "";
+    document.body.classList.remove("force-cursor");
   }
 
   handleContextMenu(e: MouseEvent) {
-    if (this.ref.current && this.isMousePosInBounds(this.ref.current, e.clientX, e.clientY)) {
-      if (this.context!.allowMenuAndShortcuts) {
+    if (e.target === this.ref.current?.parentElement && this.context!.allowMenuAndShortcuts) {
+      if (this.ref.current && this.isMousePosInBounds(this.ref.current, e.clientX, e.clientY)) {
         e.stopPropagation();
         this.props.onContextMenu?.(e);
       }
@@ -99,18 +120,16 @@ export default class RegionComponent extends Component<IProps, IState> {
   handleMouseDown(e: MouseEvent) {
     const element = this.ref.current;
 
-    if (element && this.isMousePosInBounds(element, e.clientX, e.clientY) && e.button === 2) {
-      e.stopPropagation();
-    } else if (element?.parentElement && this.isMousePosInBounds(element.parentElement, e.clientX, e.clientY)) {
-      if (e.target === this.ref.current?.parentElement && e.button === 0) {
-        const x = e.clientX - this.ref.current!.parentElement!.getBoundingClientRect().left;
+    if (e.button === 0 && e.target === this.ref.current?.parentElement) {
+      if (element?.parentElement && this.isMousePosInBounds(element.parentElement, e.clientX, e.clientY)) {
+        let x = e.clientX - this.ref.current!.parentElement!.getBoundingClientRect().left;
         const snapWidth = TimelinePosition.fromSpan(this.context!.snapGridSize).toMargin();
-        const marginOnStart = snapWidth ? snapWidth * Math.round(x / snapWidth) : x;
+        x = snapWidth ? snapWidth * Math.round(x / snapWidth) : x;
         
         document.addEventListener("mousemove", this.handleResize);
         document.addEventListener("mouseup", this.handleResizeStop);
   
-        this.setState({ isCreatingNewRegion: true, marginOnStart, resizeEdge: "end" });
+        this.setState({ isCreatingNewRegion: true, resizeEdge: "end", temp: { start: x, end: x } });
       }
     }
   }
@@ -122,7 +141,8 @@ export default class RegionComponent extends Component<IProps, IState> {
   handleResizeStart(e: React.MouseEvent, edge: "start" | "end") {
     document.addEventListener("mousemove", this.handleResize);
     document.addEventListener("mouseup", this.handleResizeStop);
-    document.body.classList.add("cursor-resize-h");
+    document.body.style.cursor = "ew-resize";
+    document.body.classList.add("force-cursor");
 
     this.setState({ resizeEdge: edge, resizing: true, temp: this.state.region });
   }
@@ -130,9 +150,10 @@ export default class RegionComponent extends Component<IProps, IState> {
   handleResizeStop(e: MouseEvent) {
     document.removeEventListener("mousemove", this.handleResize);
     document.removeEventListener("mouseup", this.handleResizeStop);
-    document.body.classList.remove("cursor-resize-h");
+    document.body.style.cursor = "";
+    document.body.classList.remove("force-cursor");
     
-    this.setState({ isCreatingNewRegion: false, marginOnStart: null, resizing: false });
+    this.setState({ isCreatingNewRegion: false, resizing: false });
 
     if (this.state.region.start !== this.state.region.end) {
       const region = {
@@ -152,27 +173,28 @@ export default class RegionComponent extends Component<IProps, IState> {
 
   resize(x: number, edge: "start" | "end") {
     let temp = { ...this.state.temp };
-    let region = { ...this.state.region };
+    let region: { start: number; end: number };
     let resizeEdge = edge;
 
-    if (this.state.marginOnStart !== null) {
-      temp = { start: this.state.marginOnStart, end: this.state.marginOnStart };
-      region = { start: this.state.marginOnStart, end: this.state.marginOnStart };
-    }
-
     if (this.ref.current && this.ref.current.parentElement) {
-      const containerRect = this.ref.current.parentElement.getBoundingClientRect();
       const snapWidth = TimelinePosition.fromSpan(this.context!.snapGridSize).toMargin();
-      const maxPosMargin = this.context!.maxPos.toMargin();
   
       if (edge === "start") {
         temp.start += x;
-        const start = snapWidth ? snapWidth * Math.round(temp.start / snapWidth) : temp.start;
-        region.start = clamp(start, 0, Math.min(maxPosMargin, containerRect.width));
+        region = { ...temp, start: snapWidth ? snapWidth * Math.round(temp.start / snapWidth) : temp.start };
+
+        if (region.start < 0)
+          region.start = 0;
+        if (region.start > this.ref.current.parentElement.clientWidth)
+          region.start = this.ref.current.parentElement.clientWidth;
       } else {
         temp.end += x;
-        const end = snapWidth ? snapWidth * Math.round(temp.end / snapWidth) : temp.end;
-        region.end = clamp(end, 0, Math.min(maxPosMargin, containerRect.width));
+        region = { ...temp, end: snapWidth ? snapWidth * Math.round(temp.end / snapWidth) : temp.end };
+        
+        if (region.end < 0)
+          region.end = 0;
+        if (region.end > this.ref.current.parentElement.clientWidth)
+          region.end = this.ref.current.parentElement.clientWidth;
       }
       
       if (temp.start > temp.end) {
@@ -180,14 +202,14 @@ export default class RegionComponent extends Component<IProps, IState> {
         region = { start: region.end, end: region.start };
         resizeEdge = edge === "start" ? "end" : "start";
       }
-    }
 
-    this.setState({ marginOnStart: null, region, temp, resizeEdge });
-    this.context!.adjustNumMeasures(TimelinePosition.fromMargin(region.end));
+      flushSync(() => this.setState({ region, temp, resizeEdge }));
+      this.context!.adjustNumMeasures(TimelinePosition.fromMargin(region.end));
+    }
   }
 
   render() {
-    const show = this.state.isCreatingNewRegion && this.state.marginOnStart === null || this.props.region;
+    const show = this.state.isCreatingNewRegion || this.props.region;
 
     return (
       <>

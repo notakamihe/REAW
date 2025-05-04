@@ -1,15 +1,15 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FastForward, FastRewind, FiberManualRecord, Loop, PlayArrow, Redo, SkipNext, SkipPrevious, Stop, Undo } from "@mui/icons-material";
 import { IconButton } from "@mui/material";
-import { WorkstationContext } from "src/contexts";
-import { Meter, NumberInput, SelectSpinBox } from "src/components/widgets";
-import { AutomationLaneEnvelope, TimelinePosition, SnapGridSizeOption, TrackType } from "src/services/types/types";
+import { WorkstationContext } from "@/contexts";
+import { Meter, NumberInput, SelectSpinBox } from "@/components/widgets";
+import { AutomationLaneEnvelope, TimelinePosition, SnapGridSizeOption, TrackType } from "@/services/types/types";
 import { FaMagnet } from "react-icons/fa"
-import { getVolumeGradient, sliceClip, volumeToNormalized } from "src/services/utils/utils";
-import { HoldActionButton } from "src/components";
-import { Metronome, TrackVolumeSlider } from "src/screens/workstation/components";
-import { StretchAudio } from "src/components/icons";
-import { parseDuration } from "src/services/utils/general";
+import { getVolumeGradient, sliceClip, volumeToNormalized } from "@/services/utils/utils";
+import { HoldActionButton } from "@/components";
+import { Metronome, TrackVolumeSlider } from "@/screens/workstation/components";
+import { StretchAudio } from "@/components/icons";
+import { parseDuration } from "@/services/utils/general";
 
 const noteValues: { label: string; value: number; }[] = [];
 
@@ -41,7 +41,6 @@ export default function Header() {
     snapGridSizeOption,
     stretchAudio,
     timelineSettings, 
-    timeSignature,
     tracks,
     updateTimelineSettings
   } = useContext(WorkstationContext)!;
@@ -335,19 +334,21 @@ export default function Header() {
             layout="alt"
             min={1}
             max={24}
-            onChange={value => setTimeSignature({ ...timeSignature, beats: value })}
+            onChange={value => setTimeSignature({ ...timelineSettings.timeSignature, beats: value })}
             style={style.timeSignatureBeats}
-            value={timeSignature.beats}
+            value={timelineSettings.timeSignature.beats}
           />
           <div style={{ width: 20, borderBottom: "1px solid var(--fg1)" }}></div>
           <SelectSpinBox
             classes={{ container: "show-on-hover hover-2", next: "hidden hover-2", prev: "hidden hover-2" }}
             disableSelect
             layout="alt"
-            onChange={value => setTimeSignature({ ...timeSignature, noteValue: Number(value) })}
+            onChange={value => {
+              setTimeSignature({ ...timelineSettings.timeSignature, noteValue: Number(value) });
+            }}
             options={noteValues}
             style={style.timeSignatureNoteValue}
-            value={timeSignature.noteValue}
+            value={timelineSettings.timeSignature.noteValue}
           />
         </div>
         <div className="d-flex justify-content-center align-items-center" style={style.tempoControlContainer}>

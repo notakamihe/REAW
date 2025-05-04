@@ -1,15 +1,15 @@
 import React, { memo, useContext, useEffect, useMemo, useState } from "react";
 import { Check, FiberManualRecord } from "@mui/icons-material";
 import { DialogContent, IconButton } from "@mui/material";
-import { WorkstationContext } from "src/contexts";
-import { AutomationLaneEnvelope, AutomationMode, ContextMenuType, Track } from "src/services/types/types";
-import { hslToHex, hueFromHex } from "src/services/utils/general";
-import { formatPanning, getVolumeGradient, volumeToNormalized } from "src/services/utils/utils";
-import { FXComponent, TrackVolumeSlider } from "src/screens/workstation/components";
-import { TrackIcon } from "src/components/icons";
-import { SortData } from "src/components/widgets/SortableList";
-import { Dialog, HueInput, Knob, Meter, SelectSpinBox, SortableList, SortableListItem } from "src/components/widgets";
-import { openContextMenu } from "src/services/electron/utils";
+import { WorkstationContext } from "@/contexts";
+import { AutomationLaneEnvelope, AutomationMode, ContextMenuType, Track } from "@/services/types/types";
+import { hslToHex, hueFromHex } from "@/services/utils/general";
+import { formatPanning, getVolumeGradient, volumeToNormalized } from "@/services/utils/utils";
+import { FXComponent, TrackVolumeSlider } from "@/screens/workstation/components";
+import { TrackIcon } from "@/components/icons";
+import { SortData } from "@/components/widgets/SortableList";
+import { Dialog, HueInput, Knob, Meter, SelectSpinBox, SortableList, SortableListItem } from "@/components/widgets";
+import { openContextMenu } from "@/services/electron/utils";
 
 const MixerTrack = memo(({ order, track }: { order?: number, track: Track }) => {
   const {
