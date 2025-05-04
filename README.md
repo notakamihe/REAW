@@ -11,7 +11,7 @@ React Audio Workstation (REAW) is Digital Audio Workstation coded in React and T
 
 ## To Build and Package
 1. Run ```npm run build```
-2. The packaged application will we located in the ```dist``` folder.
+2. The packaged application will be located in the ```dist``` folder.
 
 <hr>
 
